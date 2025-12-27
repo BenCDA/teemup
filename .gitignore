@@ -1,0 +1,31 @@
+# ===========================================
+# TeemUp Root .gitignore
+# ===========================================
+
+# Environment files (contain secrets)
+.env
+.env.local
+.env.*.local
+
+# IDE
+.idea/
+.vscode/
+*.iml
+*.swp
+*.swo
+*~
+
+# OS
+.DS_Store
+.DS_Store?
+._*
+Thumbs.db
+ehthumbs.db
+
+# Logs
+*.log
+logs/
+
+# Docker volumes (local development)
+postgres_data/
+redis_data/

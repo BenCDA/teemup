@@ -1,0 +1,86 @@
+services:
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: teemup-backend
+    ports:
+      - "8000:8000"
+      - "9092:9092"
+    environment:
+      - SPRING_PROFILES_ACTIVE=${SPRING_PROFILES_ACTIVE}
+      - DB_HOST=${DB_HOST}
+      - DB_PORT=${DB_PORT}
+      - DB_NAME=${DB_NAME}
+      - DB_USERNAME=${DB_USERNAME}
+      - DB_PASSWORD=${DB_PASSWORD}
+      - REDIS_HOST=${REDIS_HOST}
+      - REDIS_PORT=${REDIS_PORT}
+      - JWT_SECRET=${JWT_SECRET}
+      - JWT_REFRESH_SECRET=${JWT_REFRESH_SECRET}
+      - FACE_VERIFICATION_URL=http://face-verification:5000
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_started
+      face-verification:
+        condition: service_healthy
+    networks:
+      - teemup-network
+    restart: unless-stopped
+
+  face-verification:
+    build:
+      context: ./face-verification
+      dockerfile: Dockerfile
+    container_name: teemup-face-verification
+    ports:
+      - "5001:5000"
+    networks:
+      - teemup-network
+    restart: unless-stopped
+    deploy:
+      resources:
+        limits:
+          memory: 2G
+
+  postgres:
+    image: postgres:16-alpine
+    container_name: teemup-postgres
+    ports:
+      - "5432:5432"
+    environment:
+      - POSTGRES_DB=${POSTGRES_DB}
+      - POSTGRES_USER=${POSTGRES_USER}
+      - POSTGRES_PASSWORD=${POSTGRES_PASSWORD}
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U teemup -d teemup"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+    networks:
+      - teemup-network
+    restart: unless-stopped
+
+  redis:
+    image: redis:7-alpine
+    container_name: teemup-redis
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data:/data
+    command: redis-server --appendonly yes
+    networks:
+      - teemup-network
+    restart: unless-stopped
+
+volumes:
+  postgres_data:
+  redis_data:
+
+networks:
+  teemup-network:
+    driver: bridge

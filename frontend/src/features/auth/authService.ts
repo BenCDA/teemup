@@ -1,0 +1,47 @@
+import api from '@/features/shared/api';
+import { AuthResponse, User, FaceVerificationResponse } from '@/types';
+
+export const authService = {
+  login: async (email: string, password: string): Promise<AuthResponse> => {
+    const response = await api.post<AuthResponse>('/auth/login', { email, password });
+    return response.data;
+  },
+
+  register: async (
+    email: string,
+    password: string,
+    firstName: string,
+    lastName: string,
+    verificationImage: string
+  ): Promise<AuthResponse> => {
+    const response = await api.post<AuthResponse>('/auth/register', {
+      email,
+      password,
+      firstName,
+      lastName,
+      verificationImage,
+    });
+    return response.data;
+  },
+
+  verifyFace: async (image: string): Promise<FaceVerificationResponse> => {
+    const response = await api.post<FaceVerificationResponse>('/verification/face', {
+      image,
+    });
+    return response.data;
+  },
+
+  logout: async (): Promise<void> => {
+    await api.post('/auth/logout');
+  },
+
+  getCurrentUser: async (): Promise<User> => {
+    const response = await api.get<User>('/auth/me');
+    return response.data;
+  },
+
+  refreshToken: async (refreshToken: string): Promise<AuthResponse> => {
+    const response = await api.post<AuthResponse>('/auth/refresh', { refreshToken });
+    return response.data;
+  },
+};
