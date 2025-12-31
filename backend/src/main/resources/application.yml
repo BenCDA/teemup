@@ -20,12 +20,6 @@ spring:
         dialect: org.hibernate.dialect.PostgreSQLDialect
         format_sql: true
 
-  data:
-    redis:
-      host: ${REDIS_HOST:localhost}
-      port: ${REDIS_PORT:6379}
-
-
 # JWT Configuration
 jwt:
   secret: ${JWT_SECRET:your-256-bit-secret-key-change-in-production-minimum-32-chars}

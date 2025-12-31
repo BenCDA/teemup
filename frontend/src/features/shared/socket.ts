@@ -3,18 +3,30 @@ import { getAccessToken } from './api';
 
 const SOCKET_URL = process.env.EXPO_PUBLIC_SOCKET_URL || 'http://localhost:9092';
 
+export type ConnectionStatus = 'connected' | 'disconnected' | 'connecting' | 'error';
+
 class SocketService {
   private socket: Socket | null = null;
   private listeners: Map<string, Set<Function>> = new Map();
+  private connectionStatus: ConnectionStatus = 'disconnected';
+  private statusListeners: Set<(status: ConnectionStatus) => void> = new Set();
+
+  private setStatus(status: ConnectionStatus): void {
+    this.connectionStatus = status;
+    this.statusListeners.forEach(listener => listener(status));
+  }
 
   async connect(): Promise<void> {
     if (this.socket?.connected) {
       return;
     }
 
+    this.setStatus('connecting');
+
     const token = await getAccessToken();
     if (!token) {
       console.warn('No token available for socket connection');
+      this.setStatus('disconnected');
       return;
     }
 
@@ -28,14 +40,21 @@ class SocketService {
 
     this.socket.on('connect', () => {
       console.log('Socket connected');
+      this.setStatus('connected');
     });
 
     this.socket.on('disconnect', (reason) => {
       console.log('Socket disconnected:', reason);
+      this.setStatus('disconnected');
+    });
+
+    this.socket.on('reconnecting', () => {
+      this.setStatus('connecting');
     });
 
     this.socket.on('connect_error', (error) => {
       console.error('Socket connection error:', error.message);
+      this.setStatus('error');
     });
 
     // Re-emit events to registered listeners
@@ -105,6 +124,19 @@ class SocketService {
 
   isConnected(): boolean {
     return this.socket?.connected ?? false;
+  }
+
+  getConnectionStatus(): ConnectionStatus {
+    return this.connectionStatus;
+  }
+
+  onStatusChange(callback: (status: ConnectionStatus) => void): () => void {
+    this.statusListeners.add(callback);
+    // Immediately call with current status
+    callback(this.connectionStatus);
+    return () => {
+      this.statusListeners.delete(callback);
+    };
   }
 }
 

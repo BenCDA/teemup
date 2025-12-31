@@ -15,7 +15,12 @@
       "Bash(./node_modules/.bin/tsc:*)",
       "Bash(SHELL=/bin/bash /bin/bash:*)",
       "Bash(docker exec:*)",
-      "Bash(nc:*)"
+      "Bash(nc:*)",
+      "Bash(find:*)",
+      "Bash(docker-compose down:*)",
+      "Bash(docker-compose up:*)",
+      "Bash(docker stop:*)",
+      "Bash(docker rm:*)"
     ]
   }
 }

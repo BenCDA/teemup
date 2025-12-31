@@ -14,16 +14,12 @@ services:
       - DB_NAME=${DB_NAME}
       - DB_USERNAME=${DB_USERNAME}
       - DB_PASSWORD=${DB_PASSWORD}
-      - REDIS_HOST=${REDIS_HOST}
-      - REDIS_PORT=${REDIS_PORT}
       - JWT_SECRET=${JWT_SECRET}
       - JWT_REFRESH_SECRET=${JWT_REFRESH_SECRET}
       - FACE_VERIFICATION_URL=http://face-verification:5000
     depends_on:
       postgres:
         condition: service_healthy
-      redis:
-        condition: service_started
       face-verification:
         condition: service_healthy
     networks:
@@ -65,21 +61,8 @@ services:
       - teemup-network
     restart: unless-stopped
 
-  redis:
-    image: redis:7-alpine
-    container_name: teemup-redis
-    ports:
-      - "6379:6379"
-    volumes:
-      - redis_data:/data
-    command: redis-server --appendonly yes
-    networks:
-      - teemup-network
-    restart: unless-stopped
-
 volumes:
   postgres_data:
-  redis_data:
 
 networks:
   teemup-network:

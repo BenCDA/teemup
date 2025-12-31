@@ -117,8 +117,15 @@ public class MessagingService {
         User sender = userRepository.findById(senderId)
                 .orElseThrow(() -> new RuntimeException("Sender not found"));
 
-        Conversation conversation = conversationRepository.findById(request.getConversationId())
+        Conversation conversation = conversationRepository.findByIdWithParticipants(request.getConversationId())
                 .orElseThrow(() -> new RuntimeException("Conversation not found"));
+
+        // Verify user is a participant of the conversation
+        boolean isParticipant = conversation.getParticipants().stream()
+                .anyMatch(p -> p.getId().equals(senderId));
+        if (!isParticipant) {
+            throw new RuntimeException("User is not a participant of this conversation");
+        }
 
         Message.MessageType type = Message.MessageType.TEXT;
         if (request.getType() != null) {
@@ -189,6 +196,16 @@ public class MessagingService {
 
     @Transactional
     public void markMessagesAsRead(UUID conversationId, UUID userId) {
+        Conversation conversation = conversationRepository.findByIdWithParticipants(conversationId)
+                .orElseThrow(() -> new RuntimeException("Conversation not found"));
+
+        // Verify user is a participant of the conversation
+        boolean isParticipant = conversation.getParticipants().stream()
+                .anyMatch(p -> p.getId().equals(userId));
+        if (!isParticipant) {
+            throw new RuntimeException("User is not a participant of this conversation");
+        }
+
         List<Message> unreadMessages = messageRepository.findUnreadMessages(conversationId, userId);
         for (Message message : unreadMessages) {
             message.markAsRead(userId);

@@ -9,6 +9,7 @@ import {
   KeyboardAvoidingView,
   Platform,
   ActivityIndicator,
+  Alert,
 } from 'react-native';
 import { useLocalSearchParams, Stack } from 'expo-router';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
@@ -16,12 +17,14 @@ import { Ionicons } from '@expo/vector-icons';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { messagingService } from '@/features/messaging/messagingService';
 import socketService from '@/features/shared/socket';
+import { useSocketStatus } from '@/features/shared/useSocketStatus';
 import { Message, User } from '@/types';
 import { useAuth } from '@/features/auth/AuthContext';
 
 export default function ConversationScreen() {
   const { id: conversationId } = useLocalSearchParams<{ id: string }>();
   const { user } = useAuth();
+  const socketStatus = useSocketStatus();
   const [message, setMessage] = useState('');
   const [messages, setMessages] = useState<Message[]>([]);
   const [typingUsers, setTypingUsers] = useState<string[]>([]);
@@ -43,8 +46,22 @@ export default function ConversationScreen() {
 
   const sendMessageMutation = useMutation({
     mutationFn: (content: string) => messagingService.sendMessage(conversationId!, content),
-    onSuccess: () => {
+    onSuccess: (savedMessage) => {
+      // Replace optimistic message with real one from server
+      setMessages(prev =>
+        prev.map(m =>
+          m.id.startsWith('temp-') && m.content === savedMessage.content
+            ? savedMessage
+            : m
+        )
+      );
       queryClient.invalidateQueries({ queryKey: ['conversations'] });
+    },
+    onError: (error, content) => {
+      // Remove failed optimistic message
+      setMessages(prev => prev.filter(m => !(m.id.startsWith('temp-') && m.content === content)));
+      Alert.alert('Erreur', 'Impossible d\'envoyer le message. Veuillez réessayer.');
+      console.error('Failed to send message:', error);
     },
   });
 
@@ -62,7 +79,22 @@ export default function ConversationScreen() {
 
     const unsubNewMessage = socketService.on('newMessage', (newMessage: Message) => {
       if (newMessage.conversationId === conversationId) {
-        setMessages(prev => [...prev, newMessage]);
+        setMessages(prev => {
+          // Avoid duplicates: check if message already exists (by ID or as optimistic message)
+          const exists = prev.some(m =>
+            m.id === newMessage.id ||
+            (m.id.startsWith('temp-') && m.content === newMessage.content && m.sender.id === newMessage.sender.id)
+          );
+          if (exists) {
+            // Replace optimistic message with real one
+            return prev.map(m =>
+              m.id.startsWith('temp-') && m.content === newMessage.content && m.sender.id === newMessage.sender.id
+                ? newMessage
+                : m
+            );
+          }
+          return [...prev, newMessage];
+        });
         socketService.markAsRead(conversationId);
       }
     });
@@ -109,11 +141,8 @@ export default function ConversationScreen() {
 
     setMessages(prev => [...prev, optimisticMessage]);
 
-    // Send via REST (reliable)
+    // Send via REST only - backend will broadcast via Socket.IO after saving
     sendMessageMutation.mutate(content);
-
-    // Also send via WebSocket for real-time
-    socketService.sendMessage(conversationId!, content);
     socketService.stopTyping(conversationId!);
   }, [message, conversationId, user, sendMessageMutation]);
 
@@ -190,6 +219,24 @@ export default function ConversationScreen() {
       />
 
       <SafeAreaView style={styles.container} edges={['bottom']}>
+        {/* Connection status banner */}
+        {socketStatus !== 'connected' && (
+          <View style={[
+            styles.connectionBanner,
+            socketStatus === 'connecting' && styles.connectionBannerConnecting,
+            socketStatus === 'error' && styles.connectionBannerError,
+          ]}>
+            <Ionicons
+              name={socketStatus === 'connecting' ? 'sync' : 'cloud-offline'}
+              size={16}
+              color="#fff"
+            />
+            <Text style={styles.connectionBannerText}>
+              {socketStatus === 'connecting' ? 'Connexion en cours...' : 'Hors ligne'}
+            </Text>
+          </View>
+        )}
+
         <KeyboardAvoidingView
           style={styles.keyboardView}
           behavior={Platform.OS === 'ios' ? 'padding' : undefined}
@@ -255,6 +302,25 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: '#F9FAFB',
+  },
+  connectionBanner: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: '#6B7280',
+    paddingVertical: 6,
+    gap: 6,
+  },
+  connectionBannerConnecting: {
+    backgroundColor: '#F59E0B',
+  },
+  connectionBannerError: {
+    backgroundColor: '#EF4444',
+  },
+  connectionBannerText: {
+    color: '#fff',
+    fontSize: 12,
+    fontWeight: '500',
   },
   keyboardView: {
     flex: 1,

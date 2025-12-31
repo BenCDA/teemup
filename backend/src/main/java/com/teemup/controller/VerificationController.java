@@ -30,12 +30,4 @@ public class VerificationController {
 
         return ResponseEntity.ok(response);
     }
-
-    /**
-     * Check if the face verification service is available.
-     */
-    @GetMapping("/health")
-    public ResponseEntity<String> healthCheck() {
-        return ResponseEntity.ok("Verification service is available");
-    }
 }
