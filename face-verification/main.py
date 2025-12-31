@@ -62,13 +62,13 @@ class Base64ImageRequest(BaseModel):
 
 class VerificationResponse(BaseModel):
     success: bool
-    face_detected: bool
+    faceDetected: bool
     age: int | None = None
-    age_range: str | None = None
+    ageRange: str | None = None
     gender: str | None = None
-    gender_confidence: float | None = None
-    is_adult: bool = False
-    is_real_face: bool = False
+    genderConfidence: float | None = None
+    isAdult: bool = False
+    isRealFace: bool = False
     message: str
 
 class HealthResponse(BaseModel):
@@ -158,13 +158,13 @@ async def verify_face(request: Base64ImageRequest):
 
             return VerificationResponse(
                 success=True,
-                face_detected=True,
+                faceDetected=True,
                 age=int(age),
-                age_range=age_range,
+                ageRange=age_range,
                 gender=gender_fr,
-                gender_confidence=round(gender_confidence, 2),
-                is_adult=is_adult,
-                is_real_face=True,  # Basic check passed
+                genderConfidence=round(gender_confidence, 2),
+                isAdult=is_adult,
+                isRealFace=True,  # Basic check passed
                 message="Vérification réussie" if is_adult else "Vous devez avoir 18 ans ou plus pour vous inscrire"
             )
 
@@ -173,7 +173,7 @@ async def verify_face(request: Base64ImageRequest):
             logger.warning(f"No face detected: {str(e)}")
             return VerificationResponse(
                 success=False,
-                face_detected=False,
+                faceDetected=False,
                 message="Aucun visage détecté. Veuillez prendre une photo claire de votre visage."
             )
         finally:

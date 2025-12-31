@@ -20,7 +20,9 @@
       "Bash(docker-compose down:*)",
       "Bash(docker-compose up:*)",
       "Bash(docker stop:*)",
-      "Bash(docker rm:*)"
+      "Bash(docker rm:*)",
+      "Bash(docker ps:*)",
+      "Bash(echo:*)"
     ]
   }
 }

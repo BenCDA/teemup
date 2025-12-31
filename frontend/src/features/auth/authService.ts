@@ -14,20 +14,22 @@ export const authService = {
     lastName: string,
     verificationImage: string
   ): Promise<AuthResponse> => {
+    // Registration includes face verification which can take up to 2 minutes on first load
     const response = await api.post<AuthResponse>('/auth/register', {
       email,
       password,
       firstName,
       lastName,
       verificationImage,
-    });
+    }, { timeout: 120000 });
     return response.data;
   },
 
   verifyFace: async (image: string): Promise<FaceVerificationResponse> => {
+    // Face verification can take up to 2 minutes on first load (model loading)
     const response = await api.post<FaceVerificationResponse>('/verification/face', {
       image,
-    });
+    }, { timeout: 120000 });
     return response.data;
   },
 

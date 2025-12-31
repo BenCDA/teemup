@@ -52,50 +52,54 @@ export default function DiscoverScreen() {
 
   const displayedUsers = searchQuery.length >= 2 ? searchResults : users;
 
-  const renderUser = ({ item }: { item: User }) => (
-    <Card variant="elevated" style={styles.userCard}>
-      <View style={styles.userHeader}>
-        <Avatar
-          uri={item.profilePicture}
-          name={item.fullName}
-          size="lg"
-          showOnline
-          isOnline={item.isOnline}
-        />
-        <View style={styles.userInfo}>
-          <Text style={styles.userName}>{item.fullName}</Text>
-          {item.bio && (
-            <Text style={styles.userBio} numberOfLines={1}>
-              {item.bio}
-            </Text>
-          )}
-        </View>
-      </View>
+  const renderUser = ({ item }: { item: User }) => {
+    const isAddingThisUser = sendRequestMutation.isPending && sendRequestMutation.variables === item.id;
 
-      {item.sports && item.sports.length > 0 && (
-        <View style={styles.sportsRow}>
-          {item.sports.slice(0, 4).map((sport, index) => (
-            <SportBadge key={index} sport={sport} size="sm" />
-          ))}
+    return (
+      <Card variant="elevated" style={styles.userCard}>
+        <View style={styles.userHeader}>
+          <Avatar
+            uri={item.profilePicture}
+            name={item.fullName}
+            size="lg"
+            showOnline
+            isOnline={item.isOnline}
+          />
+          <View style={styles.userInfo}>
+            <Text style={styles.userName}>{item.fullName}</Text>
+            {item.bio && (
+              <Text style={styles.userBio} numberOfLines={1}>
+                {item.bio}
+              </Text>
+            )}
+          </View>
         </View>
-      )}
 
-      <TouchableOpacity
-        style={styles.addButton}
-        onPress={() => sendRequestMutation.mutate(item.id)}
-        disabled={sendRequestMutation.isPending}
-      >
-        {sendRequestMutation.isPending ? (
-          <ActivityIndicator size="small" color={theme.colors.text.inverse} />
-        ) : (
-          <>
-            <Ionicons name="person-add" size={18} color={theme.colors.text.inverse} />
-            <Text style={styles.addButtonText}>Ajouter</Text>
-          </>
+        {item.sports && item.sports.length > 0 && (
+          <View style={styles.sportsRow}>
+            {item.sports.slice(0, 4).map((sport, index) => (
+              <SportBadge key={index} sport={sport} size="sm" />
+            ))}
+          </View>
         )}
-      </TouchableOpacity>
-    </Card>
-  );
+
+        <TouchableOpacity
+          style={[styles.addButton, isAddingThisUser && styles.addButtonLoading]}
+          onPress={() => sendRequestMutation.mutate(item.id)}
+          disabled={sendRequestMutation.isPending}
+        >
+          {isAddingThisUser ? (
+            <ActivityIndicator size="small" color={theme.colors.text.inverse} />
+          ) : (
+            <>
+              <Ionicons name="person-add" size={18} color={theme.colors.text.inverse} />
+              <Text style={styles.addButtonText}>Ajouter</Text>
+            </>
+          )}
+        </TouchableOpacity>
+      </Card>
+    );
+  };
 
   return (
     <View style={styles.container}>
@@ -218,6 +222,9 @@ const styles = StyleSheet.create({
     paddingVertical: theme.spacing.sm,
     borderRadius: theme.borderRadius.md,
     gap: theme.spacing.xs,
+  },
+  addButtonLoading: {
+    opacity: 0.7,
   },
   addButtonText: {
     color: theme.colors.text.inverse,

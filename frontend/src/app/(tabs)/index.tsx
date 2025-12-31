@@ -7,22 +7,31 @@ import {
   StyleSheet,
   RefreshControl,
   ActivityIndicator,
+  TextInput,
 } from 'react-native';
 import { router } from 'expo-router';
 import { useQuery } from '@tanstack/react-query';
 import { Ionicons } from '@expo/vector-icons';
 import { messagingService } from '@/features/messaging/messagingService';
+import { friendService } from '@/features/friends/friendService';
 import { Conversation, User } from '@/types';
 import { useAuth } from '@/features/auth/AuthContext';
+import { Avatar } from '@/components/ui';
 import { theme } from '@/features/shared/styles/theme';
 
 export default function MessagesScreen() {
   const { user } = useAuth();
   const [refreshing, setRefreshing] = useState(false);
+  const [searchQuery, setSearchQuery] = useState('');
 
   const { data: conversations, isLoading, refetch } = useQuery({
     queryKey: ['conversations'],
     queryFn: messagingService.getConversations,
+  });
+
+  const { data: friends } = useQuery({
+    queryKey: ['friends'],
+    queryFn: friendService.getFriends,
   });
 
   const onRefresh = useCallback(async () => {
@@ -60,39 +69,79 @@ export default function MessagesScreen() {
     } else if (diffDays < 7) {
       return date.toLocaleDateString('fr-FR', { weekday: 'short' });
     }
-    return date.toLocaleDateString('fr-FR', { day: '2-digit', month: '2-digit' });
+    return date.toLocaleDateString('fr-FR', { day: '2-digit', month: 'short' });
   };
+
+  const startConversation = async (friendId: string) => {
+    try {
+      const conversation = await messagingService.createConversation([friendId]);
+      router.push(`/conversation/${conversation.id}`);
+    } catch (error) {
+      console.error('Error starting conversation:', error);
+    }
+  };
+
+  const filteredConversations = conversations?.filter(conv => {
+    if (!searchQuery) return true;
+    const name = getConversationName(conv).toLowerCase();
+    return name.includes(searchQuery.toLowerCase());
+  });
+
+  const renderFriendAvatar = ({ item }: { item: User }) => (
+    <TouchableOpacity
+      style={styles.friendAvatarContainer}
+      onPress={() => startConversation(item.id)}
+    >
+      <Avatar
+        uri={item.profilePicture}
+        name={item.fullName}
+        size="lg"
+        showOnline
+        isOnline={item.isOnline}
+      />
+      <Text style={styles.friendName} numberOfLines={1}>
+        {item.firstName}
+      </Text>
+    </TouchableOpacity>
+  );
 
   const renderConversation = ({ item }: { item: Conversation }) => {
     const otherUser = getOtherUser(item);
+    const hasUnread = item.unreadCount > 0;
 
     return (
       <TouchableOpacity
         style={styles.conversationItem}
         onPress={() => router.push(`/conversation/${item.id}`)}
       >
-        <View style={styles.avatar}>
-          <Text style={styles.avatarText}>
-            {getConversationName(item).charAt(0).toUpperCase()}
-          </Text>
-          {otherUser?.isOnline && <View style={styles.onlineIndicator} />}
-        </View>
+        <Avatar
+          uri={otherUser?.profilePicture}
+          name={getConversationName(item)}
+          size="lg"
+          showOnline
+          isOnline={otherUser?.isOnline}
+        />
 
         <View style={styles.conversationContent}>
           <View style={styles.conversationHeader}>
-            <Text style={styles.conversationName} numberOfLines={1}>
+            <Text style={[styles.conversationName, hasUnread && styles.unreadText]} numberOfLines={1}>
               {getConversationName(item)}
             </Text>
-            <Text style={styles.time}>{formatTime(item.lastMessageAt)}</Text>
+            <Text style={[styles.time, hasUnread && styles.unreadTime]}>
+              {formatTime(item.lastMessageAt)}
+            </Text>
           </View>
 
           <View style={styles.conversationFooter}>
-            <Text style={styles.lastMessage} numberOfLines={1}>
+            <Text
+              style={[styles.lastMessage, hasUnread && styles.unreadMessage]}
+              numberOfLines={1}
+            >
               {item.lastMessage?.content || 'Aucun message'}
             </Text>
-            {item.unreadCount > 0 && (
+            {hasUnread && (
               <View style={styles.unreadBadge}>
-                <Text style={styles.unreadText}>{item.unreadCount}</Text>
+                <Text style={styles.unreadBadgeText}>{item.unreadCount}</Text>
               </View>
             )}
           </View>
@@ -111,8 +160,40 @@ export default function MessagesScreen() {
 
   return (
     <View style={styles.container}>
+      {/* Search Bar */}
+      <View style={styles.searchContainer}>
+        <Ionicons name="search" size={20} color={theme.colors.text.tertiary} />
+        <TextInput
+          style={styles.searchInput}
+          placeholder="Rechercher..."
+          placeholderTextColor={theme.colors.text.tertiary}
+          value={searchQuery}
+          onChangeText={setSearchQuery}
+        />
+        {searchQuery.length > 0 && (
+          <TouchableOpacity onPress={() => setSearchQuery('')}>
+            <Ionicons name="close-circle" size={20} color={theme.colors.text.tertiary} />
+          </TouchableOpacity>
+        )}
+      </View>
+
+      {/* Friends Horizontal Scroll */}
+      {friends && friends.length > 0 && (
+        <View style={styles.friendsSection}>
+          <FlatList
+            data={friends}
+            renderItem={renderFriendAvatar}
+            keyExtractor={(item) => item.id}
+            horizontal
+            showsHorizontalScrollIndicator={false}
+            contentContainerStyle={styles.friendsList}
+          />
+        </View>
+      )}
+
+      {/* Conversations List */}
       <FlatList
-        data={conversations}
+        data={filteredConversations}
         renderItem={renderConversation}
         keyExtractor={(item) => item.id}
         refreshControl={
@@ -123,7 +204,7 @@ export default function MessagesScreen() {
             tintColor={theme.colors.primary}
           />
         }
-        contentContainerStyle={conversations?.length === 0 ? styles.emptyContainer : undefined}
+        contentContainerStyle={filteredConversations?.length === 0 ? styles.emptyContainer : undefined}
         ListEmptyComponent={
           <View style={styles.emptyContent}>
             <Ionicons name="chatbubbles-outline" size={64} color={theme.colors.border} />
@@ -133,6 +214,7 @@ export default function MessagesScreen() {
             </Text>
           </View>
         }
+        ItemSeparatorComponent={() => <View style={styles.separator} />}
       />
     </View>
   );
@@ -149,36 +231,46 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     backgroundColor: theme.colors.surface,
   },
+  searchContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: theme.colors.background,
+    margin: theme.spacing.md,
+    marginBottom: theme.spacing.sm,
+    borderRadius: theme.borderRadius.lg,
+    paddingHorizontal: theme.spacing.md,
+    gap: theme.spacing.sm,
+  },
+  searchInput: {
+    flex: 1,
+    paddingVertical: theme.spacing.sm,
+    fontSize: theme.typography.size.md,
+    color: theme.colors.text.primary,
+  },
+  friendsSection: {
+    borderBottomWidth: 1,
+    borderBottomColor: theme.colors.border,
+    paddingBottom: theme.spacing.md,
+  },
+  friendsList: {
+    paddingHorizontal: theme.spacing.md,
+    gap: theme.spacing.md,
+  },
+  friendAvatarContainer: {
+    alignItems: 'center',
+    width: 70,
+  },
+  friendName: {
+    marginTop: theme.spacing.xs,
+    fontSize: theme.typography.size.xs,
+    color: theme.colors.text.secondary,
+    textAlign: 'center',
+  },
   conversationItem: {
     flexDirection: 'row',
     padding: theme.spacing.md,
-    borderBottomWidth: 1,
-    borderBottomColor: theme.colors.border,
-  },
-  avatar: {
-    width: 50,
-    height: 50,
-    borderRadius: 25,
-    backgroundColor: theme.colors.primary,
-    justifyContent: 'center',
     alignItems: 'center',
-    marginRight: theme.spacing.md,
-  },
-  avatarText: {
-    color: theme.colors.text.inverse,
-    fontSize: theme.typography.size.xl,
-    fontWeight: theme.typography.weight.semibold,
-  },
-  onlineIndicator: {
-    position: 'absolute',
-    bottom: 2,
-    right: 2,
-    width: 12,
-    height: 12,
-    borderRadius: 6,
-    backgroundColor: theme.colors.success,
-    borderWidth: 2,
-    borderColor: theme.colors.surface,
+    gap: theme.spacing.md,
   },
   conversationContent: {
     flex: 1,
@@ -188,18 +280,25 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    marginBottom: theme.spacing.xs,
+    marginBottom: 4,
   },
   conversationName: {
     fontSize: theme.typography.size.md,
-    fontWeight: theme.typography.weight.semibold,
+    fontWeight: theme.typography.weight.medium,
     color: theme.colors.text.primary,
     flex: 1,
     marginRight: theme.spacing.sm,
   },
+  unreadText: {
+    fontWeight: theme.typography.weight.bold,
+  },
   time: {
     fontSize: theme.typography.size.xs,
     color: theme.colors.text.tertiary,
+  },
+  unreadTime: {
+    color: theme.colors.primary,
+    fontWeight: theme.typography.weight.semibold,
   },
   conversationFooter: {
     flexDirection: 'row',
@@ -212,6 +311,10 @@ const styles = StyleSheet.create({
     flex: 1,
     marginRight: theme.spacing.sm,
   },
+  unreadMessage: {
+    color: theme.colors.text.primary,
+    fontWeight: theme.typography.weight.medium,
+  },
   unreadBadge: {
     backgroundColor: theme.colors.primary,
     borderRadius: 10,
@@ -221,10 +324,15 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     paddingHorizontal: 6,
   },
-  unreadText: {
+  unreadBadgeText: {
     color: theme.colors.text.inverse,
     fontSize: theme.typography.size.xs,
-    fontWeight: theme.typography.weight.semibold,
+    fontWeight: theme.typography.weight.bold,
+  },
+  separator: {
+    height: 1,
+    backgroundColor: theme.colors.border,
+    marginLeft: theme.spacing.md + 56 + theme.spacing.md,
   },
   emptyContainer: {
     flex: 1,

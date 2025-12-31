@@ -3,8 +3,10 @@ import { View, Text, TouchableOpacity, StyleSheet, Alert, Image, ActivityIndicat
 import { Link, router } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { useAuth } from '@/features/auth/AuthContext';
+import { authService } from '@/features/auth/authService';
 import { Button, Input, AuthLayout, FaceVerificationCamera } from '@/components/ui';
 import { theme } from '@/features/shared/styles/theme';
+import { FaceVerificationResponse } from '@/types';
 
 export default function RegisterScreen() {
   const [firstName, setFirstName] = useState('');
@@ -13,6 +15,7 @@ export default function RegisterScreen() {
   const [password, setPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
   const [verificationImage, setVerificationImage] = useState<string | null>(null);
+  const [verificationResult, setVerificationResult] = useState<FaceVerificationResponse | null>(null);
   const [showCamera, setShowCamera] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [isVerifying, setIsVerifying] = useState(false);
@@ -28,9 +31,39 @@ export default function RegisterScreen() {
     return null;
   };
 
-  const handleCapture = (base64Image: string) => {
-    setVerificationImage(base64Image);
+  const handleCapture = async (base64Image: string) => {
     setShowCamera(false);
+    setVerificationImage(base64Image);
+    setIsVerifying(true);
+
+    try {
+      // Call the verification endpoint to check age
+      const result = await authService.verifyFace(base64Image);
+      setVerificationResult(result);
+
+      if (!result.faceDetected) {
+        Alert.alert(
+          'Visage non détecté',
+          'Aucun visage n\'a été détecté sur la photo. Veuillez reprendre la photo.',
+          [{ text: 'Reprendre', onPress: () => setShowCamera(true) }]
+        );
+        setVerificationImage(null);
+      } else if (!result.isAdult) {
+        Alert.alert(
+          'Inscription refusée',
+          `Âge détecté : ${result.age} ans.\n\nVous devez avoir 18 ans ou plus pour vous inscrire sur TeemUp.`,
+          [{ text: 'Compris' }]
+        );
+        setVerificationImage(null);
+        setVerificationResult(null);
+      }
+    } catch (error) {
+      console.error('Verification error:', error);
+      Alert.alert('Erreur', 'Erreur lors de la vérification. Veuillez réessayer.');
+      setVerificationImage(null);
+    } finally {
+      setIsVerifying(false);
+    }
   };
 
   const handleRegister = async () => {
@@ -50,13 +83,13 @@ export default function RegisterScreen() {
       return;
     }
 
-    if (!verificationImage) {
-      Alert.alert('Vérification requise', 'Veuillez prendre une photo pour vérifier votre identité');
+    if (!verificationImage || !verificationResult?.isAdult) {
+      Alert.alert('Vérification requise', 'Veuillez prendre une photo pour vérifier votre identité (18+ requis)');
       return;
     }
 
     setIsLoading(true);
-    setLoadingMessage('Vérification de votre identité...');
+    setLoadingMessage('Création de votre compte...');
     try {
       await register(email, password, firstName, lastName, verificationImage);
       setLoadingMessage('');
@@ -71,6 +104,8 @@ export default function RegisterScreen() {
       setLoadingMessage('');
     }
   };
+
+  const canRegister = verificationImage && verificationResult?.isAdult;
 
   return (
     <AuthLayout>
@@ -141,13 +176,33 @@ export default function RegisterScreen() {
           Prenez un selfie pour vérifier votre âge (18+ requis)
         </Text>
 
-        {verificationImage ? (
+        {isVerifying ? (
+          <View style={styles.verifyingContainer}>
+            <ActivityIndicator size="large" color={theme.colors.primary} />
+            <Text style={styles.verifyingText}>Analyse en cours...</Text>
+          </View>
+        ) : verificationImage && verificationResult ? (
           <View style={styles.photoPreviewContainer}>
             <Image source={{ uri: verificationImage }} style={styles.photoPreview} />
             <View style={styles.photoActions}>
-              <View style={styles.verifiedBadge}>
-                <Ionicons name="checkmark-circle" size={20} color={theme.colors.success} />
-                <Text style={styles.verifiedText}>Photo prise</Text>
+              {verificationResult.isAdult ? (
+                <View style={styles.verifiedBadge}>
+                  <Ionicons name="checkmark-circle" size={20} color={theme.colors.success} />
+                  <Text style={styles.verifiedText}>Vérifié (18+)</Text>
+                </View>
+              ) : (
+                <View style={styles.rejectedBadge}>
+                  <Ionicons name="close-circle" size={20} color={theme.colors.error} />
+                  <Text style={styles.rejectedText}>Mineur détecté</Text>
+                </View>
+              )}
+              <View style={styles.ageInfo}>
+                <Text style={styles.ageText}>
+                  Âge détecté : {verificationResult.age} ans
+                </Text>
+                <Text style={styles.genderText}>
+                  Genre : {verificationResult.gender}
+                </Text>
               </View>
               <TouchableOpacity
                 style={styles.retakeButton}
@@ -173,9 +228,15 @@ export default function RegisterScreen() {
         title="S'INSCRIRE"
         onPress={handleRegister}
         loading={isLoading}
-        disabled={isLoading || !verificationImage}
+        disabled={isLoading || !canRegister}
         style={styles.registerButton}
       />
+
+      {!canRegister && verificationImage && (
+        <Text style={styles.warningText}>
+          L'inscription n'est pas possible pour les mineurs
+        </Text>
+      )}
 
       <View style={styles.dividerContainer}>
         <View style={styles.dividerLine} />
@@ -207,9 +268,6 @@ export default function RegisterScreen() {
             <ActivityIndicator size="large" color={theme.colors.primary} />
             <Text style={styles.loadingTitle}>Inscription en cours</Text>
             <Text style={styles.loadingMessage}>{loadingMessage}</Text>
-            <Text style={styles.loadingHint}>
-              Cette opération peut prendre jusqu'à 30 secondes lors de la première vérification
-            </Text>
           </View>
         </View>
       </Modal>
@@ -283,6 +341,19 @@ const styles = StyleSheet.create({
     fontWeight: theme.typography.weight.semibold,
     color: theme.colors.primary,
   },
+  verifyingContainer: {
+    alignItems: 'center',
+    padding: theme.spacing.xl,
+    backgroundColor: theme.colors.surface,
+    borderRadius: theme.borderRadius.md,
+    borderWidth: 1,
+    borderColor: theme.colors.border,
+  },
+  verifyingText: {
+    marginTop: theme.spacing.md,
+    fontSize: theme.typography.size.md,
+    color: theme.colors.text.secondary,
+  },
   photoPreviewContainer: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -294,8 +365,8 @@ const styles = StyleSheet.create({
     gap: theme.spacing.md,
   },
   photoPreview: {
-    width: 60,
-    height: 60,
+    width: 80,
+    height: 80,
     borderRadius: theme.borderRadius.sm,
   },
   photoActions: {
@@ -312,16 +383,44 @@ const styles = StyleSheet.create({
     fontWeight: theme.typography.weight.semibold,
     color: theme.colors.success,
   },
+  rejectedBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: theme.spacing.xs,
+  },
+  rejectedText: {
+    fontSize: theme.typography.size.sm,
+    fontWeight: theme.typography.weight.semibold,
+    color: theme.colors.error,
+  },
+  ageInfo: {
+    marginTop: theme.spacing.xs,
+  },
+  ageText: {
+    fontSize: theme.typography.size.xs,
+    color: theme.colors.text.secondary,
+  },
+  genderText: {
+    fontSize: theme.typography.size.xs,
+    color: theme.colors.text.tertiary,
+  },
   retakeButton: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: theme.spacing.xs,
+    marginTop: theme.spacing.xs,
   },
   retakeText: {
     fontSize: theme.typography.size.sm,
     color: theme.colors.primary,
   },
   registerButton: {
+    marginTop: theme.spacing.sm,
+  },
+  warningText: {
+    textAlign: 'center',
+    color: theme.colors.error,
+    fontSize: theme.typography.size.sm,
     marginTop: theme.spacing.sm,
   },
   dividerContainer: {
@@ -379,12 +478,6 @@ const styles = StyleSheet.create({
     fontSize: theme.typography.size.md,
     color: theme.colors.primary,
     marginTop: theme.spacing.sm,
-    textAlign: 'center',
-  },
-  loadingHint: {
-    fontSize: theme.typography.size.xs,
-    color: theme.colors.text.tertiary,
-    marginTop: theme.spacing.md,
     textAlign: 'center',
   },
 });
