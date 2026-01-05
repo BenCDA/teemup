@@ -6,6 +6,10 @@
 .env
 .env.local
 .env.*.local
+!.env.example
+
+# Claude Code
+.claude/
 
 # IDE
 .idea/

@@ -4,6 +4,7 @@ export { Card } from './Card';
 export { Button } from './Button';
 export { Input } from './Input';
 export { SportBadge } from './SportBadge';
+export { UserCard } from './UserCard';
 export { EmptyState } from './EmptyState';
 export { HeaderImg } from './HeaderImg';
 export { AuthHeader } from './AuthHeader';

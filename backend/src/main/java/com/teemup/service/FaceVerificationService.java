@@ -76,15 +76,15 @@ public class FaceVerificationService {
             user.setVerificationConfidence(verification.getGenderConfidence());
             user.setVerifiedAt(LocalDateTime.now());
 
-            // Set gender
+            // Set gender - check for both male and female variations explicitly
             if (verification.getGender() != null) {
-                if (verification.getGender().equalsIgnoreCase("Homme") ||
-                    verification.getGender().equalsIgnoreCase("Man") ||
-                    verification.getGender().equalsIgnoreCase("Male")) {
+                String gender = verification.getGender().toLowerCase().trim();
+                if (gender.equals("homme") || gender.equals("man") || gender.equals("male")) {
                     user.setVerifiedGender(User.VerifiedGender.MALE);
-                } else {
+                } else if (gender.equals("femme") || gender.equals("woman") || gender.equals("female")) {
                     user.setVerifiedGender(User.VerifiedGender.FEMALE);
                 }
+                // If gender is unrecognized, leave it as null (don't assume)
             }
         }
     }

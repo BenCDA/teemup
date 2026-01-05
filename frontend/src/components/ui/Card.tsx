@@ -1,5 +1,5 @@
 import { View, StyleSheet, TouchableOpacity, ViewStyle } from 'react-native';
-import { Colors, Spacing, BorderRadius, Shadows } from '@/constants/theme';
+import { theme } from '@/features/shared/styles/theme';
 
 interface CardProps {
   children: React.ReactNode;
@@ -29,15 +29,15 @@ export function Card({ children, onPress, style, variant = 'default' }: CardProp
 
 const styles = StyleSheet.create({
   card: {
-    backgroundColor: Colors.surface,
-    borderRadius: BorderRadius.lg,
-    padding: Spacing.md,
+    backgroundColor: theme.colors.surface,
+    borderRadius: theme.borderRadius.lg,
+    padding: theme.spacing.md,
   },
   elevated: {
-    ...Shadows.md,
+    ...theme.shadows.md,
   },
   outlined: {
     borderWidth: 1,
-    borderColor: Colors.border,
+    borderColor: theme.colors.border,
   },
 });

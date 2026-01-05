@@ -66,9 +66,9 @@ public class MessagingController {
     public ResponseEntity<MessageResponse> editMessage(
             @AuthenticationPrincipal UserDetailsImpl userDetails,
             @PathVariable UUID messageId,
-            @RequestBody Map<String, String> request
+            @Valid @RequestBody EditMessageRequest request
     ) {
-        return ResponseEntity.ok(messagingService.editMessage(messageId, userDetails.getId(), request.get("content")));
+        return ResponseEntity.ok(messagingService.editMessage(messageId, userDetails.getId(), request.getContent()));
     }
 
     @DeleteMapping("/messages/{messageId}")

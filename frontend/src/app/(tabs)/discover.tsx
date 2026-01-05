@@ -7,19 +7,33 @@ import {
   StyleSheet,
   RefreshControl,
   ActivityIndicator,
-  TextInput,
+  ScrollView,
   Alert,
 } from 'react-native';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { Ionicons } from '@expo/vector-icons';
+import * as Haptics from 'expo-haptics';
 import { friendService } from '@/features/friends/friendService';
 import { User } from '@/types';
-import { Avatar, Card, SportBadge, EmptyState } from '@/components/ui';
+import { UserCard, EmptyState } from '@/components/ui';
 import { theme } from '@/features/shared/styles/theme';
 
+const sportConfig: Record<string, { icon: keyof typeof Ionicons.glyphMap; color: string; label: string }> = {
+  running: { icon: 'walk', color: '#FF6B6B', label: 'Course' },
+  cycling: { icon: 'bicycle', color: '#4ECDC4', label: 'Velo' },
+  swimming: { icon: 'water', color: '#45B7D1', label: 'Natation' },
+  tennis: { icon: 'tennisball', color: '#96CEB4', label: 'Tennis' },
+  football: { icon: 'football', color: '#DDA0DD', label: 'Football' },
+  basketball: { icon: 'basketball', color: '#F7DC6F', label: 'Basketball' },
+  gym: { icon: 'barbell', color: '#BB8FCE', label: 'Musculation' },
+  yoga: { icon: 'body', color: '#85C1E9', label: 'Yoga' },
+};
+
+const sports = Object.keys(sportConfig);
+
 export default function DiscoverScreen() {
-  const [searchQuery, setSearchQuery] = useState('');
   const [refreshing, setRefreshing] = useState(false);
+  const [selectedSports, setSelectedSports] = useState<string[]>([]);
   const queryClient = useQueryClient();
 
   const { data: users, isLoading, refetch } = useQuery({
@@ -27,19 +41,15 @@ export default function DiscoverScreen() {
     queryFn: friendService.getDiscoverUsers,
   });
 
-  const { data: searchResults, isFetching: isSearching } = useQuery({
-    queryKey: ['searchUsers', searchQuery],
-    queryFn: () => friendService.searchUsers(searchQuery),
-    enabled: searchQuery.length >= 2,
-  });
-
   const sendRequestMutation = useMutation({
     mutationFn: friendService.sendFriendRequest,
     onSuccess: () => {
+      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
       queryClient.invalidateQueries({ queryKey: ['discoverUsers'] });
-      Alert.alert('Succès', 'Demande d\'ami envoyée !');
+      Alert.alert('Succes', 'Demande d\'ami envoyee !');
     },
     onError: (error: any) => {
+      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
       Alert.alert('Erreur', error.response?.data?.message || 'Une erreur est survenue');
     },
   });
@@ -50,77 +60,93 @@ export default function DiscoverScreen() {
     setRefreshing(false);
   }, [refetch]);
 
-  const displayedUsers = searchQuery.length >= 2 ? searchResults : users;
+  const toggleSport = (sport: string) => {
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    setSelectedSports(prev =>
+      prev.includes(sport)
+        ? prev.filter(s => s !== sport)
+        : [...prev, sport]
+    );
+  };
+
+  // Filter users by selected sports
+  let displayedUsers = users;
+  if (selectedSports.length > 0 && displayedUsers) {
+    displayedUsers = displayedUsers.filter(user =>
+      user.sports?.some(sport => selectedSports.includes(sport.toLowerCase()))
+    );
+  }
 
   const renderUser = ({ item }: { item: User }) => {
-    const isAddingThisUser = sendRequestMutation.isPending && sendRequestMutation.variables === item.id;
-
     return (
-      <Card variant="elevated" style={styles.userCard}>
-        <View style={styles.userHeader}>
-          <Avatar
-            uri={item.profilePicture}
-            name={item.fullName}
-            size="lg"
-            showOnline
-            isOnline={item.isOnline}
-          />
-          <View style={styles.userInfo}>
-            <Text style={styles.userName}>{item.fullName}</Text>
-            {item.bio && (
-              <Text style={styles.userBio} numberOfLines={1}>
-                {item.bio}
-              </Text>
-            )}
-          </View>
-        </View>
-
-        {item.sports && item.sports.length > 0 && (
-          <View style={styles.sportsRow}>
-            {item.sports.slice(0, 4).map((sport, index) => (
-              <SportBadge key={index} sport={sport} size="sm" />
-            ))}
-          </View>
-        )}
-
-        <TouchableOpacity
-          style={[styles.addButton, isAddingThisUser && styles.addButtonLoading]}
-          onPress={() => sendRequestMutation.mutate(item.id)}
-          disabled={sendRequestMutation.isPending}
-        >
-          {isAddingThisUser ? (
-            <ActivityIndicator size="small" color={theme.colors.text.inverse} />
-          ) : (
-            <>
-              <Ionicons name="person-add" size={18} color={theme.colors.text.inverse} />
-              <Text style={styles.addButtonText}>Ajouter</Text>
-            </>
-          )}
-        </TouchableOpacity>
-      </Card>
+      <UserCard
+        user={item}
+        onAddFriend={() => sendRequestMutation.mutate(item.id)}
+        isAddingFriend={sendRequestMutation.isPending && sendRequestMutation.variables === item.id}
+      />
     );
   };
 
   return (
     <View style={styles.container}>
-      <View style={styles.searchContainer}>
-        <Ionicons name="search" size={20} color={theme.colors.text.tertiary} />
-        <TextInput
-          style={styles.searchInput}
-          placeholder="Rechercher des sportifs..."
-          placeholderTextColor={theme.colors.text.tertiary}
-          value={searchQuery}
-          onChangeText={setSearchQuery}
-          autoCapitalize="none"
-        />
-        {searchQuery.length > 0 && (
-          <TouchableOpacity onPress={() => setSearchQuery('')}>
-            <Ionicons name="close-circle" size={20} color={theme.colors.text.tertiary} />
+      {/* Sport Filters */}
+      <View style={styles.filtersSection}>
+        <Text style={styles.filterTitle}>Filtrer par sport</Text>
+        <ScrollView
+          horizontal
+          showsHorizontalScrollIndicator={false}
+          contentContainerStyle={styles.filtersScroll}
+        >
+          <TouchableOpacity
+            style={[styles.sportChip, selectedSports.length === 0 && styles.sportChipActive]}
+            onPress={() => setSelectedSports([])}
+          >
+            <Ionicons
+              name="apps"
+              size={18}
+              color={selectedSports.length === 0 ? theme.colors.text.inverse : theme.colors.text.secondary}
+            />
+            <Text style={[styles.sportChipText, selectedSports.length === 0 && styles.sportChipTextActive]}>
+              Tous
+            </Text>
+          </TouchableOpacity>
+          {sports.map((sport) => {
+            const config = sportConfig[sport];
+            const isSelected = selectedSports.includes(sport);
+            return (
+              <TouchableOpacity
+                key={sport}
+                style={[
+                  styles.sportChip,
+                  isSelected && { backgroundColor: config.color, borderColor: config.color },
+                ]}
+                onPress={() => toggleSport(sport)}
+              >
+                <Ionicons
+                  name={config.icon}
+                  size={18}
+                  color={isSelected ? theme.colors.text.inverse : config.color}
+                />
+                <Text style={[styles.sportChipText, isSelected && styles.sportChipTextActive]}>
+                  {config.label}
+                </Text>
+              </TouchableOpacity>
+            );
+          })}
+        </ScrollView>
+        {selectedSports.length > 0 && (
+          <TouchableOpacity
+            style={styles.clearFilters}
+            onPress={() => setSelectedSports([])}
+          >
+            <Ionicons name="close-circle" size={16} color={theme.colors.text.tertiary} />
+            <Text style={styles.clearFiltersText}>Effacer les filtres</Text>
           </TouchableOpacity>
         )}
       </View>
 
-      {isLoading || isSearching ? (
+      {/* Users List */}
+      {isLoading ? (
         <View style={styles.loadingContainer}>
           <ActivityIndicator size="large" color={theme.colors.primary} />
         </View>
@@ -144,8 +170,11 @@ export default function DiscoverScreen() {
           ListEmptyComponent={
             <EmptyState
               icon="compass-outline"
-              title={searchQuery.length >= 2 ? 'Aucun résultat' : 'Personne à découvrir'}
-              description="Revenez plus tard pour découvrir de nouveaux sportifs !"
+              title={selectedSports.length > 0 ? 'Aucun sportif trouve' : 'Personne a decouvrir'}
+              description={selectedSports.length > 0
+                ? 'Essayez de modifier vos filtres pour trouver plus de sportifs.'
+                : 'Revenez plus tard pour decouvrir de nouveaux sportifs !'
+              }
             />
           }
         />
@@ -159,22 +188,59 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: theme.colors.background,
   },
-  searchContainer: {
-    flexDirection: 'row',
-    alignItems: 'center',
+  filtersSection: {
     backgroundColor: theme.colors.surface,
-    margin: theme.spacing.md,
-    borderRadius: theme.borderRadius.lg,
+    paddingTop: theme.spacing.md,
+    paddingBottom: theme.spacing.sm,
+    borderBottomWidth: 1,
+    borderBottomColor: theme.colors.border,
+  },
+  filterTitle: {
+    fontSize: theme.typography.size.sm,
+    fontWeight: theme.typography.weight.semibold,
+    color: theme.colors.text.secondary,
+    textTransform: 'uppercase',
+    letterSpacing: 0.5,
+    marginBottom: theme.spacing.sm,
+    paddingHorizontal: theme.spacing.md,
+  },
+  filtersScroll: {
     paddingHorizontal: theme.spacing.md,
     gap: theme.spacing.sm,
-    borderWidth: 1,
-    borderColor: theme.colors.border,
   },
-  searchInput: {
-    flex: 1,
-    paddingVertical: theme.spacing.md,
-    fontSize: theme.typography.size.lg,
-    color: theme.colors.text.primary,
+  sportChip: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: theme.spacing.md,
+    paddingVertical: theme.spacing.sm,
+    borderRadius: theme.borderRadius.round,
+    backgroundColor: theme.colors.background,
+    borderWidth: 1.5,
+    borderColor: theme.colors.border,
+    gap: theme.spacing.xs,
+  },
+  sportChipActive: {
+    backgroundColor: theme.colors.primary,
+    borderColor: theme.colors.primary,
+  },
+  sportChipText: {
+    fontSize: theme.typography.size.sm,
+    fontWeight: theme.typography.weight.medium,
+    color: theme.colors.text.secondary,
+  },
+  sportChipTextActive: {
+    color: theme.colors.text.inverse,
+  },
+  clearFilters: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: theme.spacing.xs,
+    paddingVertical: theme.spacing.sm,
+  },
+  clearFiltersText: {
+    fontSize: theme.typography.size.sm,
+    color: theme.colors.text.tertiary,
   },
   loadingContainer: {
     flex: 1,
@@ -183,52 +249,9 @@ const styles = StyleSheet.create({
   },
   listContent: {
     padding: theme.spacing.md,
-    paddingTop: 0,
     gap: theme.spacing.md,
   },
   emptyContainer: {
     flex: 1,
-  },
-  userCard: {
-    gap: theme.spacing.md,
-  },
-  userHeader: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: theme.spacing.md,
-  },
-  userInfo: {
-    flex: 1,
-  },
-  userName: {
-    fontSize: theme.typography.size.lg,
-    fontWeight: theme.typography.weight.semibold,
-    color: theme.colors.text.primary,
-  },
-  userBio: {
-    fontSize: theme.typography.size.sm,
-    color: theme.colors.text.secondary,
-    marginTop: theme.spacing.xs,
-  },
-  sportsRow: {
-    flexDirection: 'row',
-    gap: theme.spacing.sm,
-  },
-  addButton: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    backgroundColor: theme.colors.primary,
-    paddingVertical: theme.spacing.sm,
-    borderRadius: theme.borderRadius.md,
-    gap: theme.spacing.xs,
-  },
-  addButtonLoading: {
-    opacity: 0.7,
-  },
-  addButtonText: {
-    color: theme.colors.text.inverse,
-    fontSize: theme.typography.size.md,
-    fontWeight: theme.typography.weight.semibold,
   },
 });

@@ -1,5 +1,6 @@
 import React from 'react';
 import { TouchableOpacity, Text, StyleSheet, ActivityIndicator, ViewStyle, TextStyle } from 'react-native';
+import * as Haptics from 'expo-haptics';
 import { theme } from '@/features/shared/styles/theme';
 
 interface ButtonProps {
@@ -50,12 +51,17 @@ export const Button: React.FC<ButtonProps> = ({
     textStyle,
   ];
 
+  const handlePress = () => {
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+    onPress();
+  };
+
   return (
     <TouchableOpacity
       style={buttonStyles}
-      onPress={onPress}
+      onPress={handlePress}
       disabled={disabled || loading}
-      activeOpacity={0.7}
+      activeOpacity={0.8}
     >
       {loading ? (
         <ActivityIndicator color={variant === 'primary' ? 'white' : theme.colors.primary} />

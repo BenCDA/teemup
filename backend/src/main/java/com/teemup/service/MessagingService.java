@@ -27,7 +27,7 @@ public class MessagingService {
     private final UserRepository userRepository;
 
     @Transactional
-    public ConversationResponse createConversation(UUID creatorId, ConversationRequest request) {
+    public synchronized ConversationResponse createConversation(UUID creatorId, ConversationRequest request) {
         User creator = userRepository.findById(creatorId)
                 .orElseThrow(() -> new RuntimeException("User not found"));
 
@@ -37,10 +37,16 @@ public class MessagingService {
         for (UUID participantId : request.getParticipantIds()) {
             User participant = userRepository.findById(participantId)
                     .orElseThrow(() -> new RuntimeException("Participant not found: " + participantId));
+
+            // Verify users are friends before allowing conversation creation
+            if (!creator.getFriends().contains(participant)) {
+                throw new RuntimeException("You can only message friends. Send a friend request first to: " + participant.getFullName());
+            }
+
             participants.add(participant);
         }
 
-        // Check for existing private conversation
+        // Check for existing private conversation (synchronized to prevent race condition)
         if (participants.size() == 2 && (request.getType() == null || "PRIVATE".equals(request.getType()))) {
             UUID otherUserId = request.getParticipantIds().iterator().next();
             Optional<Conversation> existingConversation = conversationRepository.findPrivateConversation(creatorId, otherUserId);

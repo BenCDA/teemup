@@ -1,7 +1,7 @@
 import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
-import { Colors, Spacing, FontSize } from '@/constants/theme';
+import { theme } from '@/features/shared/styles/theme';
 
 interface HeaderProps {
   title?: string;
@@ -27,7 +27,7 @@ export function Header({
           <View style={styles.left}>
             {showBack && (
               <TouchableOpacity onPress={onBack} style={styles.iconButton}>
-                <Ionicons name="chevron-back" size={24} color={Colors.textOnPrimary} />
+                <Ionicons name="chevron-back" size={24} color={theme.colors.text.inverse} />
               </TouchableOpacity>
             )}
           </View>
@@ -46,7 +46,7 @@ export function Header({
           <View style={styles.right}>
             {rightIcon && (
               <TouchableOpacity onPress={onRightPress} style={styles.iconButton}>
-                <Ionicons name={rightIcon} size={24} color={Colors.textOnPrimary} />
+                <Ionicons name={rightIcon} size={24} color={theme.colors.text.inverse} />
               </TouchableOpacity>
             )}
           </View>
@@ -58,17 +58,17 @@ export function Header({
 
 const styles = StyleSheet.create({
   container: {
-    backgroundColor: Colors.primary,
+    backgroundColor: theme.colors.primary,
   },
   safeArea: {
-    backgroundColor: Colors.primary,
+    backgroundColor: theme.colors.primary,
   },
   content: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    paddingHorizontal: Spacing.md,
-    paddingVertical: Spacing.md,
+    paddingHorizontal: theme.spacing.md,
+    paddingVertical: theme.spacing.md,
   },
   left: {
     width: 40,
@@ -83,21 +83,21 @@ const styles = StyleSheet.create({
     alignItems: 'flex-end',
   },
   iconButton: {
-    padding: Spacing.xs,
+    padding: theme.spacing.xs,
   },
   logoText: {
     fontSize: 28,
     fontWeight: 'bold',
   },
   logoTeem: {
-    color: Colors.textOnPrimary,
+    color: theme.colors.text.inverse,
   },
   logoUp: {
-    color: Colors.secondary,
+    color: theme.colors.gold,
   },
   title: {
-    fontSize: FontSize.xl,
+    fontSize: theme.typography.size.lg,
     fontWeight: '600',
-    color: Colors.textOnPrimary,
+    color: theme.colors.text.inverse,
   },
 });

@@ -1,27 +1,17 @@
 package com.teemup.dto.messaging;
 
 import jakarta.validation.constraints.NotBlank;
-import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.Size;
 import lombok.AllArgsConstructor;
-import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 
-import java.util.UUID;
-
 @Data
-@Builder
 @NoArgsConstructor
 @AllArgsConstructor
-public class MessageRequest {
-
-    @NotNull(message = "Conversation ID is required")
-    private UUID conversationId;
+public class EditMessageRequest {
 
     @NotBlank(message = "Content is required")
     @Size(max = 2000, message = "Message cannot exceed 2000 characters")
     private String content;
-
-    private String type;
 }

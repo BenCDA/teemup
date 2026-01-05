@@ -1,5 +1,5 @@
-import { View, Image, Text, StyleSheet } from 'react-native';
-import { Colors, BorderRadius } from '@/constants/theme';
+import { View, Image, Text, StyleSheet, ViewStyle } from 'react-native';
+import { theme } from '@/features/shared/styles/theme';
 
 interface AvatarProps {
   uri?: string | null;
@@ -7,6 +7,7 @@ interface AvatarProps {
   size?: 'sm' | 'md' | 'lg' | 'xl';
   showOnline?: boolean;
   isOnline?: boolean;
+  style?: ViewStyle;
 }
 
 const sizes = {
@@ -22,6 +23,7 @@ export function Avatar({
   size = 'md',
   showOnline = false,
   isOnline = false,
+  style,
 }: AvatarProps) {
   const dimension = sizes[size];
   const initials = name
@@ -32,7 +34,7 @@ export function Avatar({
     .slice(0, 2);
 
   return (
-    <View style={[styles.container, { width: dimension, height: dimension }]}>
+    <View style={[styles.container, { width: dimension, height: dimension }, style]}>
       {uri ? (
         <Image
           source={{ uri }}
@@ -53,7 +55,7 @@ export function Avatar({
           style={[
             styles.onlineIndicator,
             {
-              backgroundColor: isOnline ? Colors.online : Colors.offline,
+              backgroundColor: isOnline ? theme.colors.success : theme.colors.border,
               width: dimension * 0.3,
               height: dimension * 0.3,
               borderRadius: dimension * 0.15,
@@ -72,20 +74,20 @@ const styles = StyleSheet.create({
     position: 'relative',
   },
   image: {
-    backgroundColor: Colors.background,
+    backgroundColor: theme.colors.background,
   },
   placeholder: {
-    backgroundColor: Colors.primary,
+    backgroundColor: theme.colors.primary,
     alignItems: 'center',
     justifyContent: 'center',
   },
   initials: {
-    color: Colors.textOnPrimary,
+    color: theme.colors.text.inverse,
     fontWeight: '600',
   },
   onlineIndicator: {
     position: 'absolute',
     borderWidth: 2,
-    borderColor: Colors.surface,
+    borderColor: theme.colors.surface,
   },
 });

@@ -39,6 +39,9 @@ public class User {
     private String profilePicture;
 
     @Column
+    private String coverImage;
+
+    @Column
     private String bio;
 
     @ElementCollection(fetch = FetchType.EAGER)

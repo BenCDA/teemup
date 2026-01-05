@@ -1,5 +1,6 @@
 package com.teemup.controller;
 
+import com.teemup.dto.user.PublicUserResponse;
 import com.teemup.dto.user.UpdateUserRequest;
 import com.teemup.dto.user.UserResponse;
 import com.teemup.security.UserDetailsImpl;
@@ -19,9 +20,20 @@ public class UserController {
 
     private final UserService userService;
 
+    /**
+     * Get user profile - returns full data if viewing own profile, public data otherwise.
+     */
     @GetMapping("/{userId}")
-    public ResponseEntity<UserResponse> getUserById(@PathVariable UUID userId) {
-        return ResponseEntity.ok(userService.getUserById(userId));
+    public ResponseEntity<?> getUserById(
+            @PathVariable UUID userId,
+            @AuthenticationPrincipal UserDetailsImpl userDetails
+    ) {
+        // If viewing own profile, return full data including email
+        if (userDetails.getId().equals(userId)) {
+            return ResponseEntity.ok(userService.getUserById(userId));
+        }
+        // Otherwise return public profile without sensitive data
+        return ResponseEntity.ok(userService.getPublicUserById(userId));
     }
 
     @PutMapping("/me")
@@ -33,26 +45,26 @@ public class UserController {
     }
 
     @GetMapping("/search")
-    public ResponseEntity<List<UserResponse>> searchUsers(@RequestParam String query) {
+    public ResponseEntity<List<PublicUserResponse>> searchUsers(@RequestParam String query) {
         return ResponseEntity.ok(userService.searchUsers(query));
     }
 
     @GetMapping("/discover")
-    public ResponseEntity<List<UserResponse>> getDiscoverUsers(
+    public ResponseEntity<List<PublicUserResponse>> getDiscoverUsers(
             @AuthenticationPrincipal UserDetailsImpl userDetails
     ) {
         return ResponseEntity.ok(userService.getDiscoverUsers(userDetails.getId()));
     }
 
     @GetMapping("/friends")
-    public ResponseEntity<List<UserResponse>> getCurrentUserFriends(
+    public ResponseEntity<List<PublicUserResponse>> getCurrentUserFriends(
             @AuthenticationPrincipal UserDetailsImpl userDetails
     ) {
         return ResponseEntity.ok(userService.getUserFriends(userDetails.getId()));
     }
 
     @GetMapping("/{userId}/friends")
-    public ResponseEntity<List<UserResponse>> getUserFriends(@PathVariable UUID userId) {
+    public ResponseEntity<List<PublicUserResponse>> getUserFriends(@PathVariable UUID userId) {
         return ResponseEntity.ok(userService.getUserFriends(userId));
     }
 }

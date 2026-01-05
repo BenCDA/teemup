@@ -6,18 +6,20 @@ import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 
-import java.time.LocalDateTime;
 import java.util.Set;
 import java.util.UUID;
 
+/**
+ * Public user profile DTO - excludes sensitive information like email, exact age, lastSeen.
+ * Used when viewing other users' profiles.
+ */
 @Data
 @Builder
 @NoArgsConstructor
 @AllArgsConstructor
-public class UserResponse {
+public class PublicUserResponse {
 
     private UUID id;
-    private String email;
     private String firstName;
     private String lastName;
     private String fullName;
@@ -26,18 +28,25 @@ public class UserResponse {
     private String bio;
     private Set<String> sports;
     private Boolean isOnline;
-    private LocalDateTime lastSeen;
-    private LocalDateTime createdAt;
-
-    // Verification fields
     private Boolean isVerified;
-    private Integer verifiedAge;
-    private String verifiedGender;
+    // Only expose age range, not exact age (privacy)
+    private String ageRange;
 
-    public static UserResponse fromEntity(User user) {
-        return UserResponse.builder()
+    public static PublicUserResponse fromEntity(User user) {
+        String ageRange = null;
+        if (user.getVerifiedAge() != null) {
+            int age = user.getVerifiedAge();
+            if (age < 20) ageRange = "18-19";
+            else if (age < 25) ageRange = "20-24";
+            else if (age < 30) ageRange = "25-29";
+            else if (age < 35) ageRange = "30-34";
+            else if (age < 40) ageRange = "35-39";
+            else if (age < 50) ageRange = "40-49";
+            else ageRange = "50+";
+        }
+
+        return PublicUserResponse.builder()
                 .id(user.getId())
-                .email(user.getEmail())
                 .firstName(user.getFirstName())
                 .lastName(user.getLastName())
                 .fullName(user.getFullName())
@@ -46,11 +55,8 @@ public class UserResponse {
                 .bio(user.getBio())
                 .sports(user.getSports())
                 .isOnline(user.getIsOnline())
-                .lastSeen(user.getLastSeen())
-                .createdAt(user.getCreatedAt())
                 .isVerified(user.getIsVerified())
-                .verifiedAge(user.getVerifiedAge())
-                .verifiedGender(user.getVerifiedGender() != null ? user.getVerifiedGender().name() : null)
+                .ageRange(ageRange)
                 .build();
     }
 }

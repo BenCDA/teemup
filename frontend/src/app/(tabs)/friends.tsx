@@ -12,6 +12,7 @@ import {
 import { router } from 'expo-router';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { Ionicons } from '@expo/vector-icons';
+import * as Haptics from 'expo-haptics';
 import { friendService } from '@/features/friends/friendService';
 import { messagingService } from '@/features/messaging/messagingService';
 import { User, FriendRequest } from '@/types';
@@ -36,6 +37,7 @@ export default function FriendsScreen() {
   const acceptMutation = useMutation({
     mutationFn: friendService.acceptFriendRequest,
     onSuccess: () => {
+      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
       queryClient.invalidateQueries({ queryKey: ['friends'] });
       queryClient.invalidateQueries({ queryKey: ['friendRequests'] });
     },
@@ -44,6 +46,7 @@ export default function FriendsScreen() {
   const rejectMutation = useMutation({
     mutationFn: friendService.rejectFriendRequest,
     onSuccess: () => {
+      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
       queryClient.invalidateQueries({ queryKey: ['friendRequests'] });
     },
   });

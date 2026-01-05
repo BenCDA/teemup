@@ -12,6 +12,10 @@ export const theme = {
     primaryDark: '#2196F3',
     primaryLight: '#64B5F6',
 
+    // Accent colors
+    sport: '#E67E22',        // Orange for sport tags
+    gold: '#F4D03F',         // Yellow/gold for profile wave
+
     // Neutral colors
     background: '#f5f5f5',
     surface: '#ffffff',

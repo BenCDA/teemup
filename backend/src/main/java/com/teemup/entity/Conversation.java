@@ -2,6 +2,7 @@ package com.teemup.entity;
 
 import jakarta.persistence.*;
 import lombok.*;
+import org.hibernate.annotations.BatchSize;
 import org.hibernate.annotations.CreationTimestamp;
 import org.hibernate.annotations.UpdateTimestamp;
 
@@ -31,12 +32,13 @@ public class Conversation {
     @Builder.Default
     private ConversationType type = ConversationType.PRIVATE;
 
-    @ManyToMany(fetch = FetchType.EAGER)
+    @ManyToMany(fetch = FetchType.LAZY)
     @JoinTable(
         name = "conversation_participants",
         joinColumns = @JoinColumn(name = "conversation_id"),
         inverseJoinColumns = @JoinColumn(name = "user_id")
     )
+    @BatchSize(size = 20)
     @Builder.Default
     private Set<User> participants = new HashSet<>();
 

@@ -1,7 +1,7 @@
 import { View, Text, StyleSheet } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { Button } from './Button';
-import { Colors, Spacing, FontSize } from '@/constants/theme';
+import { theme } from '@/features/shared/styles/theme';
 
 interface EmptyStateProps {
   icon?: keyof typeof Ionicons.glyphMap;
@@ -20,7 +20,7 @@ export function EmptyState({
 }: EmptyStateProps) {
   return (
     <View style={styles.container}>
-      <Ionicons name={icon} size={64} color={Colors.textLight} />
+      <Ionicons name={icon} size={64} color={theme.colors.text.tertiary} />
       <Text style={styles.title}>{title}</Text>
       {description && <Text style={styles.description}>{description}</Text>}
       {actionLabel && onAction && (
@@ -42,21 +42,21 @@ const styles = StyleSheet.create({
     flex: 1,
     alignItems: 'center',
     justifyContent: 'center',
-    padding: Spacing.xl,
-    gap: Spacing.md,
+    padding: theme.spacing.xl,
+    gap: theme.spacing.md,
   },
   title: {
-    fontSize: FontSize.xl,
+    fontSize: theme.typography.size.lg,
     fontWeight: '600',
-    color: Colors.text,
+    color: theme.colors.text.primary,
     textAlign: 'center',
   },
   description: {
-    fontSize: FontSize.md,
-    color: Colors.textSecondary,
+    fontSize: theme.typography.size.md,
+    color: theme.colors.text.secondary,
     textAlign: 'center',
   },
   button: {
-    marginTop: Spacing.md,
+    marginTop: theme.spacing.md,
   },
 });

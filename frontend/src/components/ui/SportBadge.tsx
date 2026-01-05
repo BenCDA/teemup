@@ -1,6 +1,6 @@
 import { View, Text, StyleSheet } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import { Colors, Spacing, BorderRadius, FontSize } from '@/constants/theme';
+import { theme } from '@/features/shared/styles/theme';
 
 interface SportBadgeProps {
   sport: string;
@@ -10,7 +10,7 @@ interface SportBadgeProps {
 
 const sportConfig: Record<string, { icon: keyof typeof Ionicons.glyphMap; color: string; label: string }> = {
   running: { icon: 'walk', color: '#FF6B6B', label: 'Course' },
-  cycling: { icon: 'bicycle', color: '#4ECDC4', label: 'Vélo' },
+  cycling: { icon: 'bicycle', color: '#4ECDC4', label: 'Velo' },
   swimming: { icon: 'water', color: '#45B7D1', label: 'Natation' },
   tennis: { icon: 'tennisball', color: '#96CEB4', label: 'Tennis' },
   football: { icon: 'football', color: '#DDA0DD', label: 'Football' },
@@ -20,13 +20,13 @@ const sportConfig: Record<string, { icon: keyof typeof Ionicons.glyphMap; color:
 };
 
 const sizes = {
-  sm: { badge: 32, icon: 16, font: FontSize.xs },
-  md: { badge: 48, icon: 24, font: FontSize.sm },
-  lg: { badge: 64, icon: 32, font: FontSize.md },
+  sm: { badge: 32, icon: 16, font: theme.typography.size.xs },
+  md: { badge: 48, icon: 24, font: theme.typography.size.sm },
+  lg: { badge: 64, icon: 32, font: theme.typography.size.md },
 };
 
 export function SportBadge({ sport, size = 'md', showLabel = false }: SportBadgeProps) {
-  const config = sportConfig[sport.toLowerCase()] || { icon: 'help', color: Colors.textLight, label: sport };
+  const config = sportConfig[sport.toLowerCase()] || { icon: 'help', color: theme.colors.text.tertiary, label: sport };
   const sizeConfig = sizes[size];
 
   return (
@@ -42,7 +42,7 @@ export function SportBadge({ sport, size = 'md', showLabel = false }: SportBadge
           },
         ]}
       >
-        <Ionicons name={config.icon} size={sizeConfig.icon} color={Colors.textOnPrimary} />
+        <Ionicons name={config.icon} size={sizeConfig.icon} color={theme.colors.text.inverse} />
       </View>
       {showLabel && (
         <Text style={[styles.label, { fontSize: sizeConfig.font }]}>{config.label}</Text>
@@ -54,14 +54,14 @@ export function SportBadge({ sport, size = 'md', showLabel = false }: SportBadge
 const styles = StyleSheet.create({
   container: {
     alignItems: 'center',
-    gap: Spacing.xs,
+    gap: theme.spacing.xs,
   },
   badge: {
     alignItems: 'center',
     justifyContent: 'center',
   },
   label: {
-    color: Colors.textSecondary,
+    color: theme.colors.text.secondary,
     fontWeight: '500',
   },
 });

@@ -1,5 +1,6 @@
 package com.teemup.service;
 
+import com.teemup.dto.user.PublicUserResponse;
 import com.teemup.dto.user.UpdateUserRequest;
 import com.teemup.dto.user.UserResponse;
 import com.teemup.entity.User;
@@ -23,6 +24,16 @@ public class UserService {
         User user = userRepository.findById(userId)
                 .orElseThrow(() -> new RuntimeException("User not found"));
         return UserResponse.fromEntity(user);
+    }
+
+    /**
+     * Get public profile of a user (for viewing other users).
+     * Excludes sensitive data like email, exact age, last seen.
+     */
+    public PublicUserResponse getPublicUserById(UUID userId) {
+        User user = userRepository.findById(userId)
+                .orElseThrow(() -> new RuntimeException("User not found"));
+        return PublicUserResponse.fromEntity(user);
     }
 
     public UserResponse getUserByEmail(String email) {
@@ -56,21 +67,21 @@ public class UserService {
         return UserResponse.fromEntity(user);
     }
 
-    public List<UserResponse> searchUsers(String query) {
+    public List<PublicUserResponse> searchUsers(String query) {
         return userRepository.searchUsers(query).stream()
-                .map(UserResponse::fromEntity)
+                .map(PublicUserResponse::fromEntity)
                 .collect(Collectors.toList());
     }
 
-    public List<UserResponse> getDiscoverUsers(UUID currentUserId) {
+    public List<PublicUserResponse> getDiscoverUsers(UUID currentUserId) {
         return userRepository.findNonFriendUsers(currentUserId).stream()
-                .map(UserResponse::fromEntity)
+                .map(PublicUserResponse::fromEntity)
                 .collect(Collectors.toList());
     }
 
-    public List<UserResponse> getUserFriends(UUID userId) {
+    public List<PublicUserResponse> getUserFriends(UUID userId) {
         return userRepository.findFriendsByUserId(userId).stream()
-                .map(UserResponse::fromEntity)
+                .map(PublicUserResponse::fromEntity)
                 .collect(Collectors.toList());
     }
 

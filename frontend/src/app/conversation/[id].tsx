@@ -31,6 +31,7 @@ export default function ConversationScreen() {
   const flatListRef = useRef<FlatList>(null);
   const queryClient = useQueryClient();
   const typingTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+  const typingTimeoutsRef = useRef<Map<string, NodeJS.Timeout>>(new Map());
 
   const { data: conversation, isLoading: conversationLoading } = useQuery({
     queryKey: ['conversation', conversationId],
@@ -102,12 +103,31 @@ export default function ConversationScreen() {
     const unsubTyping = socketService.on('userTyping', (data: { userId: string; conversationId: string }) => {
       if (data.conversationId === conversationId && data.userId !== user?.id) {
         setTypingUsers(prev => [...new Set([...prev, data.userId])]);
+
+        // Clear existing timeout for this user
+        const existingTimeout = typingTimeoutsRef.current.get(data.userId);
+        if (existingTimeout) {
+          clearTimeout(existingTimeout);
+        }
+
+        // Set new timeout to remove typing indicator after 5 seconds
+        const timeout = setTimeout(() => {
+          setTypingUsers(prev => prev.filter(id => id !== data.userId));
+          typingTimeoutsRef.current.delete(data.userId);
+        }, 5000);
+        typingTimeoutsRef.current.set(data.userId, timeout);
       }
     });
 
     const unsubStopTyping = socketService.on('userStoppedTyping', (data: { userId: string; conversationId: string }) => {
       if (data.conversationId === conversationId) {
         setTypingUsers(prev => prev.filter(id => id !== data.userId));
+        // Clear timeout when user explicitly stops typing
+        const existingTimeout = typingTimeoutsRef.current.get(data.userId);
+        if (existingTimeout) {
+          clearTimeout(existingTimeout);
+          typingTimeoutsRef.current.delete(data.userId);
+        }
       }
     });
 
@@ -116,6 +136,9 @@ export default function ConversationScreen() {
       unsubNewMessage();
       unsubTyping();
       unsubStopTyping();
+      // Clear all typing timeouts on cleanup
+      typingTimeoutsRef.current.forEach(timeout => clearTimeout(timeout));
+      typingTimeoutsRef.current.clear();
     };
   }, [conversationId, user?.id]);
 

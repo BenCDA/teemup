@@ -1,18 +1,34 @@
 export interface User {
   id: string;
-  email: string;
+  email?: string; // Only present when viewing own profile
   firstName: string;
   lastName: string;
   fullName: string;
   profilePicture?: string;
+  coverImage?: string;
   bio?: string;
   sports: string[];
   isOnline: boolean;
   lastSeen?: string;
-  createdAt: string;
+  createdAt?: string;
   isVerified?: boolean;
   verifiedAge?: number;
   verifiedGender?: 'MALE' | 'FEMALE';
+  ageRange?: string; // For public profiles (e.g., "20-24", "25-29")
+}
+
+export interface SportEvent {
+  id: string;
+  userId: string;
+  sport: string;
+  title?: string;
+  description?: string;
+  location?: string;
+  date: string;
+  startTime: string;
+  endTime: string;
+  recurrence: 'NONE' | 'DAILY' | 'WEEKLY' | 'BIWEEKLY' | 'MONTHLY';
+  isPublic: boolean;
 }
 
 export interface AuthResponse {
@@ -58,7 +74,7 @@ export interface FriendRequest {
 export interface Notification {
   id: string;
   fromUser?: User;
-  type: 'FRIEND_REQUEST' | 'FRIEND_REQUEST_ACCEPTED' | 'NEW_MESSAGE' | 'GROUP_INVITATION' | 'SYSTEM';
+  type: 'FRIEND_REQUEST' | 'FRIEND_REQUEST_ACCEPTED' | 'NEW_MESSAGE' | 'GROUP_INVITATION' | 'FOLLOW' | 'SYSTEM';
   title: string;
   content?: string;
   referenceId?: string;
