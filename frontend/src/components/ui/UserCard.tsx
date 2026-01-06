@@ -5,6 +5,7 @@ import { User } from '@/types';
 import { Avatar } from './Avatar';
 import { theme } from '@/features/shared/styles/theme';
 import * as Haptics from 'expo-haptics';
+import { getSportConfig, getSportLabel, getSportKey } from '@/constants/sports';
 
 interface UserCardProps {
   user: User;
@@ -12,7 +13,7 @@ interface UserCardProps {
   isAddingFriend?: boolean;
 }
 
-// Default sport cover images
+// Default sport cover images by sport key
 const sportCoverImages: Record<string, string> = {
   'running': 'https://images.unsplash.com/photo-1552674605-db6ffd4facb5?w=800&h=400&fit=crop',
   'swimming': 'https://images.unsplash.com/photo-1530549387789-4c1017266635?w=800&h=400&fit=crop',
@@ -23,6 +24,7 @@ const sportCoverImages: Record<string, string> = {
   'yoga': 'https://images.unsplash.com/photo-1544367567-0f2fcb009e0b?w=800&h=400&fit=crop',
   'gym': 'https://images.unsplash.com/photo-1534438327276-14e5300c3a48?w=800&h=400&fit=crop',
   'boxing': 'https://images.unsplash.com/photo-1549719386-74dfcbf7dbed?w=800&h=400&fit=crop',
+  'hiking': 'https://images.unsplash.com/photo-1551632811-561732d1e306?w=800&h=400&fit=crop',
 };
 
 const defaultCover = 'https://images.unsplash.com/photo-1517649763962-0c623066013b?w=800&h=400&fit=crop';
@@ -31,10 +33,10 @@ function getCoverImage(user: User): string {
   // If user has a custom cover image, use it
   if (user.coverImage) return user.coverImage;
 
-  // Otherwise, pick based on first sport
+  // Otherwise, pick based on first sport (normalize to key)
   if (user.sports && user.sports.length > 0) {
-    const firstSport = user.sports[0].toLowerCase();
-    return sportCoverImages[firstSport] || defaultCover;
+    const sportKey = getSportKey(user.sports[0]);
+    return sportCoverImages[sportKey] || defaultCover;
   }
 
   return defaultCover;
@@ -100,11 +102,24 @@ export function UserCard({ user, onAddFriend, isAddingFriend }: UserCardProps) {
         {/* Sports Tags */}
         {user.sports && user.sports.length > 0 && (
           <View style={styles.sportsContainer}>
-            {user.sports.map((sport, index) => (
-              <View key={index} style={styles.sportTagContainer}>
-                <Text style={styles.sportTag}>{sport}</Text>
-              </View>
-            ))}
+            {user.sports.map((sport, index) => {
+              const config = getSportConfig(sport);
+              const color = config?.color || theme.colors.primary;
+              return (
+                <View
+                  key={index}
+                  style={[
+                    styles.sportTagContainer,
+                    { backgroundColor: `${color}15`, borderColor: `${color}30` },
+                  ]}
+                >
+                  {config && (
+                    <Ionicons name={config.icon} size={12} color={color} style={{ marginRight: 4 }} />
+                  )}
+                  <Text style={[styles.sportTag, { color }]}>{getSportLabel(sport)}</Text>
+                </View>
+              );
+            })}
           </View>
         )}
 
@@ -198,14 +213,15 @@ const styles = StyleSheet.create({
     gap: theme.spacing.xs,
   },
   sportTagContainer: {
-    backgroundColor: `${theme.colors.primary}15`,
+    flexDirection: 'row',
+    alignItems: 'center',
     paddingHorizontal: theme.spacing.sm,
     paddingVertical: theme.spacing.xs,
     borderRadius: theme.borderRadius.round,
+    borderWidth: 1,
   },
   sportTag: {
     fontSize: theme.typography.size.xs,
-    color: theme.colors.primary,
     fontWeight: theme.typography.weight.medium,
   },
   addButton: {

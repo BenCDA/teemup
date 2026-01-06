@@ -21,9 +21,10 @@ import { userService } from '@/features/user/userService';
 import { friendService } from '@/features/friends/friendService';
 import { messagingService } from '@/features/messaging/messagingService';
 import { useAuth } from '@/features/auth/AuthContext';
-import { Avatar } from '@/components/ui';
+import { Avatar, SportBadge } from '@/components/ui';
 import { theme } from '@/features/shared/styles/theme';
 import { User, SportEvent } from '@/types';
+import { getSportConfig, getSportLabel, getSportKey } from '@/constants/sports';
 
 const HEADER_HEIGHT = 180;
 const AVATAR_SIZE = 100;
@@ -198,20 +199,28 @@ export default function UserProfileScreen() {
           />
         }
       >
-        {/* Wave Header */}
+        {/* Cover Header */}
         <View style={styles.headerContainer}>
-          <Svg
-            height={HEADER_HEIGHT}
-            width="100%"
-            viewBox="0 0 400 180"
-            preserveAspectRatio="none"
-            style={styles.wave}
-          >
-            <Path
-              d="M0,0 L400,0 L400,120 Q300,180 200,140 Q100,100 0,160 L0,0 Z"
-              fill={WAVE_COLOR}
+          {user.coverImage ? (
+            <Image
+              source={{ uri: user.coverImage }}
+              style={styles.coverImage}
+              resizeMode="cover"
             />
-          </Svg>
+          ) : (
+            <Svg
+              height={HEADER_HEIGHT}
+              width="100%"
+              viewBox="0 0 400 180"
+              preserveAspectRatio="none"
+              style={styles.wave}
+            >
+              <Path
+                d="M0,0 L400,0 L400,120 Q300,180 200,140 Q100,100 0,160 L0,0 Z"
+                fill={WAVE_COLOR}
+              />
+            </Svg>
+          )}
 
           {/* Back Button */}
           <TouchableOpacity
@@ -238,6 +247,15 @@ export default function UserProfileScreen() {
           {user.bio && <Text style={styles.userBio}>{user.bio}</Text>}
         </View>
 
+        {/* Sports Section */}
+        {user.sports && user.sports.length > 0 && (
+          <View style={styles.sportsSection}>
+            {user.sports.map((sport, index) => (
+              <SportBadge key={index} sport={sport} size="md" showLabel />
+            ))}
+          </View>
+        )}
+
         {/* Action Buttons */}
         <View style={styles.actionButtons}>
           <TouchableOpacity
@@ -254,9 +272,12 @@ export default function UserProfileScreen() {
             )}
           </TouchableOpacity>
 
-          <TouchableOpacity style={styles.messageButton} onPress={handleMessage}>
-            <Ionicons name="chatbubble" size={20} color="#fff" />
-          </TouchableOpacity>
+          {/* Only show message button if already friends */}
+          {isFriend && (
+            <TouchableOpacity style={styles.messageButton} onPress={handleMessage}>
+              <Ionicons name="chatbubble" size={20} color="#fff" />
+            </TouchableOpacity>
+          )}
         </View>
 
         {/* Friends Section */}
@@ -289,7 +310,7 @@ export default function UserProfileScreen() {
                   />
                 </View>
                 <View style={styles.sportInfo}>
-                  <Text style={styles.sportName}>{sport}</Text>
+                  <Text style={styles.sportName}>{getSportLabel(sport)}</Text>
                   {sportEvents.map((event) => (
                     <View key={event.id} style={styles.scheduleRow}>
                       <Text style={styles.scheduleDate}>
@@ -322,19 +343,23 @@ export default function UserProfileScreen() {
   );
 }
 
-// Helper function to get sport image
+// Helper function to get sport image (by sport key)
+const sportImages: Record<string, string> = {
+  'running': 'https://images.unsplash.com/photo-1552674605-db6ffd4facb5?w=400',
+  'swimming': 'https://images.unsplash.com/photo-1530549387789-4c1017266635?w=400',
+  'tennis': 'https://images.unsplash.com/photo-1554068865-24cecd4e34b8?w=400',
+  'football': 'https://images.unsplash.com/photo-1579952363873-27f3bade9f55?w=400',
+  'basketball': 'https://images.unsplash.com/photo-1546519638-68e109498ffc?w=400',
+  'cycling': 'https://images.unsplash.com/photo-1541625602330-2277a4c46182?w=400',
+  'yoga': 'https://images.unsplash.com/photo-1544367567-0f2fcb009e0b?w=400',
+  'gym': 'https://images.unsplash.com/photo-1534438327276-14e5300c3a48?w=400',
+  'boxing': 'https://images.unsplash.com/photo-1549719386-74dfcbf7dbed?w=400',
+  'hiking': 'https://images.unsplash.com/photo-1551632811-561732d1e306?w=400',
+};
+
 function getSportImage(sport: string): string {
-  const sportImages: Record<string, string> = {
-    'Running': 'https://images.unsplash.com/photo-1552674605-db6ffd4facb5?w=400',
-    'Swimming': 'https://images.unsplash.com/photo-1530549387789-4c1017266635?w=400',
-    'Tennis': 'https://images.unsplash.com/photo-1554068865-24cecd4e34b8?w=400',
-    'Football': 'https://images.unsplash.com/photo-1579952363873-27f3bade9f55?w=400',
-    'Basketball': 'https://images.unsplash.com/photo-1546519638-68e109498ffc?w=400',
-    'Cycling': 'https://images.unsplash.com/photo-1541625602330-2277a4c46182?w=400',
-    'Yoga': 'https://images.unsplash.com/photo-1544367567-0f2fcb009e0b?w=400',
-    'Boxing': 'https://images.unsplash.com/photo-1549719386-74dfcbf7dbed?w=400',
-  };
-  return sportImages[sport] || 'https://images.unsplash.com/photo-1517649763962-0c623066013b?w=400';
+  const sportKey = getSportKey(sport);
+  return sportImages[sportKey] || 'https://images.unsplash.com/photo-1517649763962-0c623066013b?w=400';
 }
 
 const styles = StyleSheet.create({
@@ -370,6 +395,13 @@ const styles = StyleSheet.create({
     top: 0,
     left: 0,
     right: 0,
+  },
+  coverImage: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    height: HEADER_HEIGHT,
   },
   backButton: {
     position: 'absolute',
@@ -410,6 +442,14 @@ const styles = StyleSheet.create({
     color: theme.colors.text.secondary,
     textAlign: 'center',
     lineHeight: 22,
+  },
+  sportsSection: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    justifyContent: 'center',
+    gap: theme.spacing.md,
+    paddingHorizontal: theme.spacing.lg,
+    paddingTop: theme.spacing.md,
   },
   actionButtons: {
     flexDirection: 'row',

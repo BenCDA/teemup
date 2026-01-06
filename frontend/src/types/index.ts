@@ -15,6 +15,9 @@ export interface User {
   verifiedAge?: number;
   verifiedGender?: 'MALE' | 'FEMALE';
   ageRange?: string; // For public profiles (e.g., "20-24", "25-29")
+  onboardingCompleted?: boolean;
+  latitude?: number;
+  longitude?: number;
 }
 
 export interface SportEvent {
@@ -24,11 +27,14 @@ export interface SportEvent {
   title?: string;
   description?: string;
   location?: string;
+  latitude?: number;
+  longitude?: number;
   date: string;
   startTime: string;
   endTime: string;
   recurrence: 'NONE' | 'DAILY' | 'WEEKLY' | 'BIWEEKLY' | 'MONTHLY';
   isPublic: boolean;
+  distanceKm?: number; // Calculated distance from user
 }
 
 export interface AuthResponse {

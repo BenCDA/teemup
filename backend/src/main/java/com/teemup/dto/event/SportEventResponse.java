@@ -22,11 +22,16 @@ public class SportEventResponse {
     private String title;
     private String description;
     private String location;
+    private Double latitude;
+    private Double longitude;
     private LocalDate date;
     private LocalTime startTime;
     private LocalTime endTime;
     private String recurrence;
     private Boolean isPublic;
+
+    // Distance from user (calculated field, null if not applicable)
+    private Double distanceKm;
 
     public static SportEventResponse fromEntity(SportEvent event) {
         return SportEventResponse.builder()
@@ -36,11 +41,19 @@ public class SportEventResponse {
                 .title(event.getTitle())
                 .description(event.getDescription())
                 .location(event.getLocation())
+                .latitude(event.getLatitude())
+                .longitude(event.getLongitude())
                 .date(event.getDate())
                 .startTime(event.getStartTime())
                 .endTime(event.getEndTime())
                 .recurrence(event.getRecurrence().name())
                 .isPublic(event.getIsPublic())
                 .build();
+    }
+
+    public static SportEventResponse fromEntityWithDistance(SportEvent event, Double distanceKm) {
+        SportEventResponse response = fromEntity(event);
+        response.setDistanceKm(distanceKm);
+        return response;
     }
 }

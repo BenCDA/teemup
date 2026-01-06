@@ -93,7 +93,8 @@ export default function RegisterScreen() {
     try {
       await register(email, password, firstName, lastName, verificationImage);
       setLoadingMessage('');
-      router.replace('/(tabs)');
+      // Redirect to onboarding for new users
+      router.replace('/onboarding');
     } catch (error: any) {
       const errorMessage = error.response?.data?.errors?.password
         || error.response?.data?.message

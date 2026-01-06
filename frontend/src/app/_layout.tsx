@@ -20,6 +20,7 @@ export default function RootLayout() {
         <StatusBar style="auto" />
         <Stack screenOptions={{ headerShown: false }}>
           <Stack.Screen name="(auth)" options={{ headerShown: false }} />
+          <Stack.Screen name="onboarding" options={{ headerShown: false }} />
           <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
           <Stack.Screen
             name="conversation/[id]"
@@ -29,6 +30,7 @@ export default function RootLayout() {
               presentation: 'card',
             }}
           />
+          <Stack.Screen name="event" options={{ headerShown: false }} />
         </Stack>
       </AuthProvider>
     </QueryClientProvider>

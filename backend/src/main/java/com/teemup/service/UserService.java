@@ -56,11 +56,23 @@ public class UserService {
         if (request.getProfilePicture() != null) {
             user.setProfilePicture(request.getProfilePicture());
         }
+        if (request.getCoverImage() != null) {
+            user.setCoverImage(request.getCoverImage());
+        }
         if (request.getBio() != null) {
             user.setBio(request.getBio());
         }
         if (request.getSports() != null) {
             user.setSports(request.getSports());
+        }
+        if (request.getOnboardingCompleted() != null) {
+            user.setOnboardingCompleted(request.getOnboardingCompleted());
+        }
+        if (request.getLatitude() != null) {
+            user.setLatitude(request.getLatitude());
+        }
+        if (request.getLongitude() != null) {
+            user.setLongitude(request.getLongitude());
         }
 
         user = userRepository.save(user);

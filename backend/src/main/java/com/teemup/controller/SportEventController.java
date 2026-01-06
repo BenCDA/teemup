@@ -6,6 +6,7 @@ import com.teemup.security.UserDetailsImpl;
 import com.teemup.service.SportEventService;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
+import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.*;
@@ -25,7 +26,7 @@ public class SportEventController {
             @AuthenticationPrincipal UserDetailsImpl userDetails,
             @Valid @RequestBody CreateSportEventRequest request
     ) {
-        return ResponseEntity.ok(sportEventService.createEvent(userDetails.getId(), request));
+        return ResponseEntity.status(HttpStatus.CREATED).body(sportEventService.createEvent(userDetails.getId(), request));
     }
 
     @GetMapping("/me")
@@ -86,5 +87,24 @@ public class SportEventController {
     @GetMapping("/public/sport/{sport}")
     public ResponseEntity<List<SportEventResponse>> getPublicEventsBySport(@PathVariable String sport) {
         return ResponseEntity.ok(sportEventService.getPublicEventsBySport(sport));
+    }
+
+    /**
+     * Search for public events near a location.
+     *
+     * @param latitude      User's latitude
+     * @param longitude     User's longitude
+     * @param maxDistance   Maximum distance in kilometers (default 50km)
+     * @param sport         Optional sport filter
+     * @return List of events within the specified distance, sorted by proximity
+     */
+    @GetMapping("/nearby")
+    public ResponseEntity<List<SportEventResponse>> searchNearbyEvents(
+            @RequestParam Double latitude,
+            @RequestParam Double longitude,
+            @RequestParam(defaultValue = "50") Double maxDistance,
+            @RequestParam(required = false) String sport
+    ) {
+        return ResponseEntity.ok(sportEventService.searchEventsNearby(latitude, longitude, maxDistance, sport));
     }
 }

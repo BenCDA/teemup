@@ -34,6 +34,13 @@ public class UserResponse {
     private Integer verifiedAge;
     private String verifiedGender;
 
+    // Onboarding
+    private Boolean onboardingCompleted;
+
+    // Location
+    private Double latitude;
+    private Double longitude;
+
     public static UserResponse fromEntity(User user) {
         return UserResponse.builder()
                 .id(user.getId())
@@ -51,6 +58,9 @@ public class UserResponse {
                 .isVerified(user.getIsVerified())
                 .verifiedAge(user.getVerifiedAge())
                 .verifiedGender(user.getVerifiedGender() != null ? user.getVerifiedGender().name() : null)
+                .onboardingCompleted(user.getOnboardingCompleted())
+                .latitude(user.getLatitude())
+                .longitude(user.getLongitude())
                 .build();
     }
 }

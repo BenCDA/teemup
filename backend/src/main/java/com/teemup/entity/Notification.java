@@ -54,6 +54,7 @@ public class Notification {
         FRIEND_REQUEST_ACCEPTED,
         NEW_MESSAGE,
         GROUP_INVITATION,
+        FOLLOW,
         SYSTEM
     }
 }

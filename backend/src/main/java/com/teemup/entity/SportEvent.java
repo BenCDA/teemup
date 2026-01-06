@@ -36,8 +36,15 @@ public class SportEvent {
     @Column
     private String description;
 
+    // Location fields
     @Column
-    private String location;
+    private String location;  // Address string
+
+    @Column
+    private Double latitude;
+
+    @Column
+    private Double longitude;
 
     @Column(nullable = false)
     private LocalDate date;

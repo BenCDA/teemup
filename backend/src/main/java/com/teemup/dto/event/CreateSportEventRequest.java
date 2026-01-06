@@ -26,6 +26,10 @@ public class CreateSportEventRequest {
     @Size(max = 200, message = "Location cannot exceed 200 characters")
     private String location;
 
+    private Double latitude;
+
+    private Double longitude;
+
     @NotNull(message = "Date is required")
     @FutureOrPresent(message = "Event date must be today or in the future")
     private LocalDate date;

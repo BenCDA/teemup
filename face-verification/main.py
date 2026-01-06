@@ -1,6 +1,6 @@
 from fastapi import FastAPI, File, UploadFile, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
-from pydantic import BaseModel
+from pydantic import BaseModel, field_validator
 from deepface import DeepFace
 import numpy as np
 import cv2
@@ -12,6 +12,10 @@ import logging
 # Configure logging
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
+
+# Configuration
+MAX_IMAGE_SIZE = 10 * 1024 * 1024  # 10 MB max
+ALLOWED_ORIGINS = os.getenv("ALLOWED_ORIGINS", "http://localhost:8081,http://localhost:19006").split(",")
 
 app = FastAPI(
     title="TeemUp Face Verification API",
@@ -48,17 +52,31 @@ async def startup_event():
     except Exception as e:
         logger.error(f"Erreur lors du préchargement: {e}")
 
-# CORS configuration
+# CORS configuration - restrict to known origins
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],
+    allow_origins=ALLOWED_ORIGINS,
     allow_credentials=True,
-    allow_methods=["*"],
-    allow_headers=["*"],
+    allow_methods=["GET", "POST"],
+    allow_headers=["Content-Type", "Authorization"],
 )
 
 class Base64ImageRequest(BaseModel):
     image: str  # Base64 encoded image
+
+    @field_validator('image')
+    @classmethod
+    def validate_image_size(cls, v):
+        # Remove data URL prefix if present for size calculation
+        image_data = v
+        if "," in image_data:
+            image_data = image_data.split(",")[1]
+
+        # Check base64 size (actual size is ~75% of base64 size)
+        estimated_size = len(image_data) * 3 / 4
+        if estimated_size > MAX_IMAGE_SIZE:
+            raise ValueError(f"Image trop volumineuse. Maximum: {MAX_IMAGE_SIZE // (1024*1024)} MB")
+        return v
 
 class VerificationResponse(BaseModel):
     success: bool
@@ -183,7 +201,7 @@ async def verify_face(request: Base64ImageRequest):
 
     except Exception as e:
         logger.error(f"Verification error: {str(e)}")
-        raise HTTPException(status_code=500, detail=f"Erreur lors de la vérification: {str(e)}")
+        raise HTTPException(status_code=500, detail="Erreur lors de la vérification. Veuillez réessayer.")
 
 @app.post("/verify-file")
 async def verify_face_file(file: UploadFile = File(...)):
@@ -194,6 +212,13 @@ async def verify_face_file(file: UploadFile = File(...)):
         # Read file content
         contents = await file.read()
 
+        # Validate file size
+        if len(contents) > MAX_IMAGE_SIZE:
+            raise HTTPException(
+                status_code=400,
+                detail=f"Image trop volumineuse. Maximum: {MAX_IMAGE_SIZE // (1024*1024)} MB"
+            )
+
         # Convert to base64 and use the main verify function
         image_base64 = base64.b64encode(contents).decode('utf-8')
 
@@ -202,7 +227,7 @@ async def verify_face_file(file: UploadFile = File(...)):
 
     except Exception as e:
         logger.error(f"File verification error: {str(e)}")
-        raise HTTPException(status_code=500, detail=f"Erreur lors de la vérification: {str(e)}")
+        raise HTTPException(status_code=500, detail="Erreur lors de la vérification. Veuillez réessayer.")
 
 @app.post("/anti-spoof")
 async def check_anti_spoof(request: Base64ImageRequest):
@@ -259,7 +284,7 @@ async def check_anti_spoof(request: Base64ImageRequest):
 
     except Exception as e:
         logger.error(f"Anti-spoof error: {str(e)}")
-        return {"is_real": False, "confidence": 0, "message": f"Erreur: {str(e)}"}
+        return {"is_real": False, "confidence": 0, "message": "Erreur lors de l'analyse. Veuillez réessayer."}
 
 if __name__ == "__main__":
     import uvicorn

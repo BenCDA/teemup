@@ -17,19 +17,7 @@ import { friendService } from '@/features/friends/friendService';
 import { User } from '@/types';
 import { UserCard, EmptyState } from '@/components/ui';
 import { theme } from '@/features/shared/styles/theme';
-
-const sportConfig: Record<string, { icon: keyof typeof Ionicons.glyphMap; color: string; label: string }> = {
-  running: { icon: 'walk', color: '#FF6B6B', label: 'Course' },
-  cycling: { icon: 'bicycle', color: '#4ECDC4', label: 'Velo' },
-  swimming: { icon: 'water', color: '#45B7D1', label: 'Natation' },
-  tennis: { icon: 'tennisball', color: '#96CEB4', label: 'Tennis' },
-  football: { icon: 'football', color: '#DDA0DD', label: 'Football' },
-  basketball: { icon: 'basketball', color: '#F7DC6F', label: 'Basketball' },
-  gym: { icon: 'barbell', color: '#BB8FCE', label: 'Musculation' },
-  yoga: { icon: 'body', color: '#85C1E9', label: 'Yoga' },
-};
-
-const sports = Object.keys(sportConfig);
+import { SPORTS, sportMatchesFilter } from '@/constants/sports';
 
 export default function DiscoverScreen() {
   const [refreshing, setRefreshing] = useState(false);
@@ -73,7 +61,9 @@ export default function DiscoverScreen() {
   let displayedUsers = users;
   if (selectedSports.length > 0 && displayedUsers) {
     displayedUsers = displayedUsers.filter(user =>
-      user.sports?.some(sport => selectedSports.includes(sport.toLowerCase()))
+      user.sports?.some(userSport =>
+        selectedSports.some(filterKey => sportMatchesFilter(userSport, filterKey))
+      )
     );
   }
 
@@ -110,25 +100,24 @@ export default function DiscoverScreen() {
               Tous
             </Text>
           </TouchableOpacity>
-          {sports.map((sport) => {
-            const config = sportConfig[sport];
-            const isSelected = selectedSports.includes(sport);
+          {SPORTS.map((sport) => {
+            const isSelected = selectedSports.includes(sport.key);
             return (
               <TouchableOpacity
-                key={sport}
+                key={sport.key}
                 style={[
                   styles.sportChip,
-                  isSelected && { backgroundColor: config.color, borderColor: config.color },
+                  isSelected && { backgroundColor: sport.color, borderColor: sport.color },
                 ]}
-                onPress={() => toggleSport(sport)}
+                onPress={() => toggleSport(sport.key)}
               >
                 <Ionicons
-                  name={config.icon}
+                  name={sport.icon}
                   size={18}
-                  color={isSelected ? theme.colors.text.inverse : config.color}
+                  color={isSelected ? theme.colors.text.inverse : sport.color}
                 />
                 <Text style={[styles.sportChipText, isSelected && styles.sportChipTextActive]}>
-                  {config.label}
+                  {sport.label}
                 </Text>
               </TouchableOpacity>
             );

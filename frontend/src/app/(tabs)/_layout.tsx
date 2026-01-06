@@ -60,6 +60,18 @@ export default function TabsLayout() {
             }}
           />
           <Tabs.Screen
+            name="events"
+            options={{
+              title: 'Événements',
+              tabBarIcon: ({ focused }) => (
+                <Ionicons
+                  name="calendar"
+                  style={[styles.tabIcon, { color: focused ? activeColor : inactiveColor }]}
+                />
+              ),
+            }}
+          />
+          <Tabs.Screen
             name="friends"
             options={{
               title: 'Amis',

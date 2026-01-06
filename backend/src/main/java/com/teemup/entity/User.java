@@ -88,6 +88,17 @@ public class User {
     @Column
     private LocalDateTime verifiedAt;
 
+    @Column(nullable = false)
+    @Builder.Default
+    private Boolean onboardingCompleted = false;
+
+    // User location for distance-based search
+    @Column
+    private Double latitude;
+
+    @Column
+    private Double longitude;
+
     @ManyToMany
     @JoinTable(
         name = "user_friends",

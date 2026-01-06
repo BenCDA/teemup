@@ -10,3 +10,5 @@ export { HeaderImg } from './HeaderImg';
 export { AuthHeader } from './AuthHeader';
 export { AuthLayout } from './AuthLayout';
 export { FaceVerificationCamera } from './FaceVerificationCamera';
+export { LocationPicker } from './LocationPicker';
+export { DistanceSlider } from './DistanceSlider';

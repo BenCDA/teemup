@@ -33,6 +33,8 @@ public class SportEventService {
                 .title(request.getTitle())
                 .description(request.getDescription())
                 .location(request.getLocation())
+                .latitude(request.getLatitude())
+                .longitude(request.getLongitude())
                 .date(request.getDate())
                 .startTime(request.getStartTime())
                 .endTime(request.getEndTime())
@@ -89,6 +91,8 @@ public class SportEventService {
         event.setTitle(request.getTitle());
         event.setDescription(request.getDescription());
         event.setLocation(request.getLocation());
+        event.setLatitude(request.getLatitude());
+        event.setLongitude(request.getLongitude());
         event.setDate(request.getDate());
         event.setStartTime(request.getStartTime());
         event.setEndTime(request.getEndTime());
@@ -122,4 +126,70 @@ public class SportEventService {
                 .map(SportEventResponse::fromEntity)
                 .collect(Collectors.toList());
     }
+
+    /**
+     * Search public events within a certain distance from user's location.
+     * Uses Haversine formula to calculate distance between coordinates.
+     *
+     * @param userLatitude  User's latitude
+     * @param userLongitude User's longitude
+     * @param maxDistanceKm Maximum distance in kilometers
+     * @param sport         Optional sport filter (null for all sports)
+     * @return List of events within the specified distance, sorted by distance
+     */
+    public List<SportEventResponse> searchEventsNearby(
+            Double userLatitude,
+            Double userLongitude,
+            Double maxDistanceKm,
+            String sport
+    ) {
+        if (userLatitude == null || userLongitude == null) {
+            throw new RuntimeException("User location is required for nearby search");
+        }
+
+        List<SportEvent> events;
+        if (sport != null && !sport.isBlank()) {
+            events = sportEventRepository.findPublicEventsBySportFromDate(sport, LocalDate.now());
+        } else {
+            events = sportEventRepository.findPublicEventsFromDate(LocalDate.now());
+        }
+
+        return events.stream()
+                .filter(event -> event.getLatitude() != null && event.getLongitude() != null)
+                .map(event -> {
+                    double distance = calculateHaversineDistance(
+                            userLatitude, userLongitude,
+                            event.getLatitude(), event.getLongitude()
+                    );
+                    return new EventWithDistance(event, distance);
+                })
+                .filter(ewd -> ewd.distance <= maxDistanceKm)
+                .sorted((a, b) -> Double.compare(a.distance, b.distance))
+                .map(ewd -> SportEventResponse.fromEntityWithDistance(ewd.event, Math.round(ewd.distance * 10.0) / 10.0))
+                .collect(Collectors.toList());
+    }
+
+    /**
+     * Calculate distance between two coordinates using Haversine formula.
+     * Returns distance in kilometers.
+     */
+    private double calculateHaversineDistance(
+            double lat1, double lon1,
+            double lat2, double lon2
+    ) {
+        final double R = 6371; // Earth's radius in kilometers
+
+        double latDistance = Math.toRadians(lat2 - lat1);
+        double lonDistance = Math.toRadians(lon2 - lon1);
+
+        double a = Math.sin(latDistance / 2) * Math.sin(latDistance / 2)
+                + Math.cos(Math.toRadians(lat1)) * Math.cos(Math.toRadians(lat2))
+                * Math.sin(lonDistance / 2) * Math.sin(lonDistance / 2);
+
+        double c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+
+        return R * c;
+    }
+
+    private record EventWithDistance(SportEvent event, double distance) {}
 }

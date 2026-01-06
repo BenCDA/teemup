@@ -8,25 +8,35 @@ import {
   Alert,
   TextInput,
   Modal,
+  Image,
+  ActivityIndicator,
 } from 'react-native';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import Svg, { Path } from 'react-native-svg';
+import * as ImagePicker from 'expo-image-picker';
+import * as Haptics from 'expo-haptics';
 import { useAuth } from '@/features/auth/AuthContext';
 import { Avatar, Card, SportBadge } from '@/components/ui';
 import { theme } from '@/features/shared/styles/theme';
+import { SPORTS } from '@/constants/sports';
 
 const HEADER_HEIGHT = 140;
 const AVATAR_SIZE = 100;
 const WAVE_COLOR = '#F4D03F';
 
 export default function ProfileScreen() {
-  const { user, logout } = useAuth();
+  const { user, logout, updateUser } = useAuth();
   const insets = useSafeAreaInsets();
   const [showEditModal, setShowEditModal] = useState(false);
   const [editBio, setEditBio] = useState(user?.bio || '');
+  const [editProfilePicture, setEditProfilePicture] = useState<string | null>(user?.profilePicture || null);
+  const [editCoverImage, setEditCoverImage] = useState<string | null>(user?.coverImage || null);
+  const [editSports, setEditSports] = useState<string[]>(user?.sports || []);
+  const [isSaving, setIsSaving] = useState(false);
 
   const handleLogout = () => {
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
     Alert.alert(
       'Deconnexion',
       'Etes-vous sur de vouloir vous deconnecter ?',
@@ -41,10 +51,74 @@ export default function ProfileScreen() {
     );
   };
 
-  const handleSaveProfile = () => {
-    // TODO: Implement API call to save profile
-    Alert.alert('Succes', 'Profil mis a jour !');
-    setShowEditModal(false);
+  const openEditModal = () => {
+    setEditBio(user?.bio || '');
+    setEditProfilePicture(user?.profilePicture || null);
+    setEditCoverImage(user?.coverImage || null);
+    setEditSports(user?.sports || []);
+    setShowEditModal(true);
+  };
+
+  const pickImage = async (type: 'profile' | 'cover') => {
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+
+    const permissionResult = await ImagePicker.requestMediaLibraryPermissionsAsync();
+    if (!permissionResult.granted) {
+      Alert.alert('Permission requise', 'Veuillez autoriser l\'acces a votre galerie photo.');
+      return;
+    }
+
+    const result = await ImagePicker.launchImageLibraryAsync({
+      mediaTypes: ['images'],
+      allowsEditing: true,
+      aspect: type === 'cover' ? [16, 9] : [1, 1],
+      quality: 0.8,
+    });
+
+    if (!result.canceled && result.assets[0]) {
+      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+      if (type === 'profile') {
+        setEditProfilePicture(result.assets[0].uri);
+      } else {
+        setEditCoverImage(result.assets[0].uri);
+      }
+    }
+  };
+
+  const toggleSport = (sportKey: string) => {
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    setEditSports(prev =>
+      prev.includes(sportKey)
+        ? prev.filter(s => s !== sportKey)
+        : [...prev, sportKey]
+    );
+  };
+
+  const handleSaveProfile = async () => {
+    setIsSaving(true);
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+
+    try {
+      // TODO: Implement API call to upload images and save profile
+      // For now, update local state
+      if (updateUser) {
+        updateUser({
+          bio: editBio,
+          profilePicture: editProfilePicture || undefined,
+          coverImage: editCoverImage || undefined,
+          sports: editSports,
+        });
+      }
+
+      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+      Alert.alert('Succes', 'Profil mis a jour !');
+      setShowEditModal(false);
+    } catch (error) {
+      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
+      Alert.alert('Erreur', 'Une erreur est survenue lors de la sauvegarde.');
+    } finally {
+      setIsSaving(false);
+    }
   };
 
   return (
@@ -116,7 +190,7 @@ export default function ProfileScreen() {
             <MenuItem
               icon="person-outline"
               label="Modifier le profil"
-              onPress={() => setShowEditModal(true)}
+              onPress={openEditModal}
             />
             <MenuItem
               icon="shield-checkmark-outline"
@@ -154,42 +228,114 @@ export default function ProfileScreen() {
       >
         <SafeAreaView style={styles.modalContainer}>
           <View style={styles.modalHeader}>
-            <TouchableOpacity onPress={() => setShowEditModal(false)}>
-              <Text style={styles.modalCancel}>Annuler</Text>
+            <TouchableOpacity onPress={() => setShowEditModal(false)} disabled={isSaving}>
+              <Text style={[styles.modalCancel, isSaving && styles.modalTextDisabled]}>Annuler</Text>
             </TouchableOpacity>
             <Text style={styles.modalTitle}>Modifier le profil</Text>
-            <TouchableOpacity onPress={handleSaveProfile}>
-              <Text style={styles.modalSave}>Sauver</Text>
+            <TouchableOpacity onPress={handleSaveProfile} disabled={isSaving}>
+              {isSaving ? (
+                <ActivityIndicator size="small" color={theme.colors.primary} />
+              ) : (
+                <Text style={styles.modalSave}>Sauvegarder</Text>
+              )}
             </TouchableOpacity>
           </View>
 
-          <View style={styles.modalContent}>
+          <ScrollView style={styles.modalScrollView} showsVerticalScrollIndicator={false}>
+            {/* Cover Photo Section */}
+            <TouchableOpacity
+              style={styles.coverPhotoSection}
+              onPress={() => pickImage('cover')}
+              activeOpacity={0.8}
+            >
+              {editCoverImage ? (
+                <Image source={{ uri: editCoverImage }} style={styles.coverPhotoPreview} />
+              ) : (
+                <View style={styles.coverPhotoPlaceholder}>
+                  <Ionicons name="image-outline" size={32} color={theme.colors.text.tertiary} />
+                  <Text style={styles.coverPhotoPlaceholderText}>Ajouter une photo de couverture</Text>
+                </View>
+              )}
+              <View style={styles.coverPhotoOverlay}>
+                <Ionicons name="camera" size={20} color={theme.colors.text.inverse} />
+              </View>
+            </TouchableOpacity>
+
+            {/* Profile Photo Section */}
             <View style={styles.modalAvatarSection}>
-              <Avatar
-                uri={user?.profilePicture}
-                name={user?.fullName || '?'}
-                size="xl"
-              />
-              <TouchableOpacity style={styles.changePhotoButton}>
-                <Text style={styles.changePhotoText}>Changer la photo</Text>
+              <TouchableOpacity onPress={() => pickImage('profile')} activeOpacity={0.8}>
+                <View style={styles.avatarEditContainer}>
+                  <Avatar
+                    uri={editProfilePicture || undefined}
+                    name={user?.fullName || '?'}
+                    size="xl"
+                  />
+                  <View style={styles.avatarEditOverlay}>
+                    <Ionicons name="camera" size={20} color={theme.colors.text.inverse} />
+                  </View>
+                </View>
+              </TouchableOpacity>
+              <TouchableOpacity style={styles.changePhotoButton} onPress={() => pickImage('profile')}>
+                <Text style={styles.changePhotoText}>Changer la photo de profil</Text>
               </TouchableOpacity>
             </View>
 
-            <View style={styles.inputGroup}>
-              <Text style={styles.inputLabel}>Bio</Text>
-              <TextInput
-                style={styles.textArea}
-                value={editBio}
-                onChangeText={setEditBio}
-                placeholder="Decrivez-vous en quelques mots..."
-                placeholderTextColor={theme.colors.text.tertiary}
-                multiline
-                numberOfLines={4}
-                maxLength={200}
-              />
-              <Text style={styles.charCount}>{editBio.length}/200</Text>
+            <View style={styles.modalContent}>
+              {/* Bio Section */}
+              <View style={styles.inputGroup}>
+                <Text style={styles.inputLabel}>Bio</Text>
+                <TextInput
+                  style={styles.textArea}
+                  value={editBio}
+                  onChangeText={setEditBio}
+                  placeholder="Decrivez-vous en quelques mots..."
+                  placeholderTextColor={theme.colors.text.tertiary}
+                  multiline
+                  numberOfLines={4}
+                  maxLength={200}
+                />
+                <Text style={styles.charCount}>{editBio.length}/200</Text>
+              </View>
+
+              {/* Sports Section */}
+              <View style={styles.inputGroup}>
+                <Text style={styles.inputLabel}>Mes sports ({editSports.length} selectionnes)</Text>
+                <View style={styles.sportsGrid}>
+                  {SPORTS.map((sport) => {
+                    const isSelected = editSports.includes(sport.key);
+                    return (
+                      <TouchableOpacity
+                        key={sport.key}
+                        style={[
+                          styles.sportChip,
+                          isSelected && { backgroundColor: sport.color, borderColor: sport.color },
+                        ]}
+                        onPress={() => toggleSport(sport.key)}
+                        activeOpacity={0.7}
+                      >
+                        <Ionicons
+                          name={sport.icon}
+                          size={18}
+                          color={isSelected ? theme.colors.text.inverse : sport.color}
+                        />
+                        <Text
+                          style={[
+                            styles.sportChipText,
+                            isSelected && styles.sportChipTextActive,
+                          ]}
+                        >
+                          {sport.label}
+                        </Text>
+                        {isSelected && (
+                          <Ionicons name="checkmark-circle" size={16} color={theme.colors.text.inverse} />
+                        )}
+                      </TouchableOpacity>
+                    );
+                  })}
+                </View>
+              </View>
             </View>
-          </View>
+          </ScrollView>
         </SafeAreaView>
       </Modal>
     </View>
@@ -413,5 +559,75 @@ const styles = StyleSheet.create({
     color: theme.colors.text.tertiary,
     fontSize: theme.typography.size.xs,
     marginTop: theme.spacing.xs,
+  },
+  modalTextDisabled: {
+    opacity: 0.5,
+  },
+  modalScrollView: {
+    flex: 1,
+  },
+  coverPhotoSection: {
+    height: 160,
+    backgroundColor: theme.colors.background,
+    position: 'relative',
+  },
+  coverPhotoPreview: {
+    width: '100%',
+    height: '100%',
+  },
+  coverPhotoPlaceholder: {
+    flex: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: theme.spacing.sm,
+  },
+  coverPhotoPlaceholderText: {
+    color: theme.colors.text.tertiary,
+    fontSize: theme.typography.size.sm,
+  },
+  coverPhotoOverlay: {
+    position: 'absolute',
+    bottom: theme.spacing.sm,
+    right: theme.spacing.sm,
+    backgroundColor: 'rgba(0,0,0,0.6)',
+    borderRadius: theme.borderRadius.round,
+    padding: theme.spacing.sm,
+  },
+  avatarEditContainer: {
+    position: 'relative',
+  },
+  avatarEditOverlay: {
+    position: 'absolute',
+    bottom: 0,
+    right: 0,
+    backgroundColor: theme.colors.primary,
+    borderRadius: theme.borderRadius.round,
+    padding: theme.spacing.sm,
+    borderWidth: 3,
+    borderColor: theme.colors.surface,
+  },
+  sportsGrid: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: theme.spacing.sm,
+  },
+  sportChip: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: theme.spacing.md,
+    paddingVertical: theme.spacing.sm,
+    borderRadius: theme.borderRadius.round,
+    backgroundColor: theme.colors.background,
+    borderWidth: 1.5,
+    borderColor: theme.colors.border,
+    gap: theme.spacing.xs,
+  },
+  sportChipText: {
+    fontSize: theme.typography.size.sm,
+    fontWeight: theme.typography.weight.medium,
+    color: theme.colors.text.secondary,
+  },
+  sportChipTextActive: {
+    color: theme.colors.text.inverse,
   },
 });

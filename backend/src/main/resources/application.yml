@@ -5,6 +5,12 @@ spring:
   application:
     name: teemup-backend
 
+  servlet:
+    multipart:
+      enabled: true
+      max-file-size: 10MB
+      max-request-size: 15MB
+
   datasource:
     url: jdbc:postgresql://${DB_HOST:localhost}:${DB_PORT:5432}/${DB_NAME:teemup}
     username: ${DB_USERNAME:teemup}
@@ -19,6 +25,9 @@ spring:
       hibernate:
         dialect: org.hibernate.dialect.PostgreSQLDialect
         format_sql: true
+
+  flyway:
+    enabled: false
 
 # JWT Configuration
 jwt:
@@ -36,6 +45,12 @@ socketio:
 face:
   verification:
     url: ${FACE_VERIFICATION_URL:http://localhost:5000}
+
+# Cloudinary Configuration
+cloudinary:
+  cloud-name: ${CLOUDINARY_CLOUD_NAME:}
+  api-key: ${CLOUDINARY_API_KEY:}
+  api-secret: ${CLOUDINARY_API_SECRET:}
 
 # Logging
 logging:

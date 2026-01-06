@@ -1,23 +1,13 @@
 import { View, Text, StyleSheet } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { theme } from '@/features/shared/styles/theme';
+import { getSportConfig } from '@/constants/sports';
 
 interface SportBadgeProps {
   sport: string;
   size?: 'sm' | 'md' | 'lg';
   showLabel?: boolean;
 }
-
-const sportConfig: Record<string, { icon: keyof typeof Ionicons.glyphMap; color: string; label: string }> = {
-  running: { icon: 'walk', color: '#FF6B6B', label: 'Course' },
-  cycling: { icon: 'bicycle', color: '#4ECDC4', label: 'Velo' },
-  swimming: { icon: 'water', color: '#45B7D1', label: 'Natation' },
-  tennis: { icon: 'tennisball', color: '#96CEB4', label: 'Tennis' },
-  football: { icon: 'football', color: '#DDA0DD', label: 'Football' },
-  basketball: { icon: 'basketball', color: '#F7DC6F', label: 'Basketball' },
-  gym: { icon: 'barbell', color: '#BB8FCE', label: 'Musculation' },
-  yoga: { icon: 'body', color: '#85C1E9', label: 'Yoga' },
-};
 
 const sizes = {
   sm: { badge: 32, icon: 16, font: theme.typography.size.xs },
@@ -26,7 +16,10 @@ const sizes = {
 };
 
 export function SportBadge({ sport, size = 'md', showLabel = false }: SportBadgeProps) {
-  const config = sportConfig[sport.toLowerCase()] || { icon: 'help', color: theme.colors.text.tertiary, label: sport };
+  const sportConfig = getSportConfig(sport);
+  const config = sportConfig
+    ? { icon: sportConfig.icon, color: sportConfig.color, label: sportConfig.label }
+    : { icon: 'help' as keyof typeof Ionicons.glyphMap, color: theme.colors.text.tertiary, label: sport };
   const sizeConfig = sizes[size];
 
   return (

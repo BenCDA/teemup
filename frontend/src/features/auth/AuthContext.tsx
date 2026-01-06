@@ -11,6 +11,7 @@ interface AuthContextType {
   register: (email: string, password: string, firstName: string, lastName: string, verificationImage: string) => Promise<void>;
   logout: () => Promise<void>;
   refreshUser: () => Promise<void>;
+  updateUser: (updates: Partial<User>) => Promise<void>;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -79,6 +80,17 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
   };
 
+  const updateUser = async (updates: Partial<User>) => {
+    try {
+      const response = await api.put<User>('/users/me', updates);
+      setUser(response.data);
+    } catch (error) {
+      // Fallback to optimistic update if API fails
+      setUser(prev => prev ? { ...prev, ...updates } : null);
+      throw error;
+    }
+  };
+
   return (
     <AuthContext.Provider
       value={{
@@ -89,6 +101,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         register,
         logout,
         refreshUser,
+        updateUser,
       }}
     >
       {children}
