@@ -1,30 +1,52 @@
+import { useEffect, useState } from 'react';
 import { Tabs } from 'expo-router';
-import { StyleSheet, View, StatusBar } from 'react-native';
+import { StyleSheet, View, StatusBar, Text } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons, MaterialCommunityIcons, FontAwesome5 } from '@expo/vector-icons';
+import { useQuery } from '@tanstack/react-query';
 import { theme } from '@/features/shared/styles/theme';
 import { HeaderImg } from '@/components/ui';
+import { notificationService } from '@/features/notifications/notificationService';
+import { friendService } from '@/features/friends/friendService';
 
 /**
- * Mise en page des onglets
- * Définit la structure de navigation des onglets en bas avec un en-tête persistant et une SafeArea centralisée
- * SafeAreaView gère les zones sûres supérieure (noire) et inférieure (blanche) avec des couleurs de fond différentes
+ * Tab Layout - 5 tabs in logical order like modern apps
+ * 1. Discover (Home) - Find new people
+ * 2. Events - Sports events
+ * 3. Messages - Conversations
+ * 4. Friends - Social connections (with notification badge)
+ * 5. Profile - User settings
  */
 export default function TabsLayout() {
   const activeColor = theme.colors.primary;
   const inactiveColor = '#666';
 
+  // Fetch unread counts for badges
+  const { data: unreadCount } = useQuery({
+    queryKey: ['unreadNotifications'],
+    queryFn: notificationService.getUnreadCount,
+    refetchInterval: 30000, // Refresh every 30s
+  });
+
+  const { data: friendRequests } = useQuery({
+    queryKey: ['friendRequests'],
+    queryFn: friendService.getPendingReceivedRequests,
+    refetchInterval: 30000,
+  });
+
+  const friendBadgeCount = (friendRequests?.length || 0) + (unreadCount || 0);
+
   return (
     <View style={styles.outerContainer}>
-      {/* Barre de statut - Texte blanc sur fond noir */}
+      {/* Status Bar */}
       <StatusBar barStyle="light-content" backgroundColor="black" />
 
-      {/* SafeArea supérieure - Noire */}
+      {/* Top Safe Area - Black */}
       <SafeAreaView style={styles.safeAreaTop} edges={['top']}>
         <HeaderImg />
       </SafeAreaView>
 
-      {/* Contenu principal avec SafeArea inférieure - Blanc */}
+      {/* Main Content with Bottom Safe Area */}
       <SafeAreaView style={styles.container} edges={['bottom']}>
         <Tabs
           screenOptions={{
@@ -35,66 +57,72 @@ export default function TabsLayout() {
             tabBarLabelStyle: styles.tabLabel,
           }}
         >
-          <Tabs.Screen
-            name="index"
-            options={{
-              title: 'Messages',
-              tabBarIcon: ({ focused }) => (
-                <MaterialCommunityIcons
-                  name="message"
-                  style={[styles.tabIcon, { color: focused ? activeColor : inactiveColor }]}
-                />
-              ),
-            }}
-          />
+          {/* 1. Discover - Home/Feed */}
           <Tabs.Screen
             name="discover"
             options={{
               title: 'Découvrir',
               tabBarIcon: ({ focused }) => (
                 <Ionicons
-                  name="search"
+                  name={focused ? 'compass' : 'compass-outline'}
                   style={[styles.tabIcon, { color: focused ? activeColor : inactiveColor }]}
                 />
               ),
             }}
           />
+
+          {/* 2. Events */}
           <Tabs.Screen
             name="events"
             options={{
               title: 'Événements',
               tabBarIcon: ({ focused }) => (
                 <Ionicons
-                  name="calendar"
+                  name={focused ? 'calendar' : 'calendar-outline'}
                   style={[styles.tabIcon, { color: focused ? activeColor : inactiveColor }]}
                 />
               ),
             }}
           />
+
+          {/* 3. Messages */}
+          <Tabs.Screen
+            name="index"
+            options={{
+              title: 'Messages',
+              tabBarIcon: ({ focused }) => (
+                <MaterialCommunityIcons
+                  name={focused ? 'message' : 'message-outline'}
+                  style={[styles.tabIcon, { color: focused ? activeColor : inactiveColor }]}
+                />
+              ),
+            }}
+          />
+
+          {/* 4. Friends (with badge for requests + notifications) */}
           <Tabs.Screen
             name="friends"
             options={{
               title: 'Amis',
               tabBarIcon: ({ focused }) => (
-                <Ionicons
-                  name="people"
-                  style={[styles.tabIcon, { color: focused ? activeColor : inactiveColor }]}
-                />
+                <View>
+                  <Ionicons
+                    name={focused ? 'people' : 'people-outline'}
+                    style={[styles.tabIcon, { color: focused ? activeColor : inactiveColor }]}
+                  />
+                  {friendBadgeCount > 0 && (
+                    <View style={styles.badge}>
+                      <Text style={styles.badgeText}>
+                        {friendBadgeCount > 9 ? '9+' : friendBadgeCount}
+                      </Text>
+                    </View>
+                  )}
+                </View>
               ),
             }}
           />
-          <Tabs.Screen
-            name="notifications"
-            options={{
-              title: 'Notifs',
-              tabBarIcon: ({ focused }) => (
-                <Ionicons
-                  name="notifications"
-                  style={[styles.tabIcon, { color: focused ? activeColor : inactiveColor }]}
-                />
-              ),
-            }}
-          />
+
+          {/* 5. Profile */}
           <Tabs.Screen
             name="profile"
             options={{
@@ -102,9 +130,18 @@ export default function TabsLayout() {
               tabBarIcon: ({ focused }) => (
                 <FontAwesome5
                   name="user"
+                  solid={focused}
                   style={[styles.tabIcon, { color: focused ? activeColor : inactiveColor }]}
                 />
               ),
+            }}
+          />
+
+          {/* Hidden - Notifications (accessible from Friends tab) */}
+          <Tabs.Screen
+            name="notifications"
+            options={{
+              href: null, // Hide from tab bar
             }}
           />
         </Tabs>
@@ -135,10 +172,27 @@ const styles = StyleSheet.create({
     elevation: 0,
   },
   tabLabel: {
-    fontSize: 12,
+    fontSize: 11,
     fontWeight: '600',
   },
   tabIcon: {
     fontSize: 24,
+  },
+  badge: {
+    position: 'absolute',
+    top: -4,
+    right: -10,
+    backgroundColor: theme.colors.error,
+    borderRadius: 10,
+    minWidth: 18,
+    height: 18,
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingHorizontal: 4,
+  },
+  badgeText: {
+    color: '#fff',
+    fontSize: 10,
+    fontWeight: '700',
   },
 });

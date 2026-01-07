@@ -1,4 +1,4 @@
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useRef } from 'react';
 import {
   View,
   Text,
@@ -9,10 +9,12 @@ import {
   ActivityIndicator,
   ScrollView,
   Alert,
+  Animated,
 } from 'react-native';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { Ionicons } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
+import { BlurView } from 'expo-blur';
 import { friendService } from '@/features/friends/friendService';
 import { User } from '@/types';
 import { UserCard, EmptyState } from '@/components/ui';
@@ -22,6 +24,7 @@ import { SPORTS, sportMatchesFilter } from '@/constants/sports';
 export default function DiscoverScreen() {
   const [refreshing, setRefreshing] = useState(false);
   const [selectedSports, setSelectedSports] = useState<string[]>([]);
+  const scrollY = useRef(new Animated.Value(0)).current;
   const queryClient = useQueryClient();
 
   const { data: users, isLoading, refetch } = useQuery({
@@ -34,7 +37,7 @@ export default function DiscoverScreen() {
     onSuccess: () => {
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
       queryClient.invalidateQueries({ queryKey: ['discoverUsers'] });
-      Alert.alert('Succes', 'Demande d\'ami envoyee !');
+      Alert.alert('Succès', 'Demande d\'ami envoyée !');
     },
     onError: (error: any) => {
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
@@ -44,6 +47,7 @@ export default function DiscoverScreen() {
 
   const onRefresh = useCallback(async () => {
     setRefreshing(true);
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
     await refetch();
     setRefreshing(false);
   }, [refetch]);
@@ -55,6 +59,11 @@ export default function DiscoverScreen() {
         ? prev.filter(s => s !== sport)
         : [...prev, sport]
     );
+  };
+
+  const clearFilters = () => {
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+    setSelectedSports([]);
   };
 
   // Filter users by selected sports
@@ -77,93 +86,145 @@ export default function DiscoverScreen() {
     );
   };
 
+  const ListHeader = () => (
+    <View style={styles.listHeader}>
+      <Text style={styles.resultsCount}>
+        {displayedUsers?.length || 0} sportif{(displayedUsers?.length || 0) > 1 ? 's' : ''}
+        {selectedSports.length > 0 ? ' trouvé' + ((displayedUsers?.length || 0) > 1 ? 's' : '') : ''}
+      </Text>
+    </View>
+  );
+
   return (
     <View style={styles.container}>
-      {/* Sport Filters */}
-      <View style={styles.filtersSection}>
-        <Text style={styles.filterTitle}>Filtrer par sport</Text>
+      {/* Filters Section */}
+      <View style={styles.filtersContainer}>
+        <View style={styles.filtersHeader}>
+          <View style={styles.filtersTitleRow}>
+            <Ionicons name="options-outline" size={18} color={theme.colors.text.secondary} />
+            <Text style={styles.filtersTitle}>Filtres</Text>
+          </View>
+          {selectedSports.length > 0 && (
+            <TouchableOpacity
+              style={styles.clearButton}
+              onPress={clearFilters}
+              activeOpacity={0.7}
+            >
+              <Text style={styles.clearButtonText}>Effacer ({selectedSports.length})</Text>
+            </TouchableOpacity>
+          )}
+        </View>
+
         <ScrollView
           horizontal
           showsHorizontalScrollIndicator={false}
           contentContainerStyle={styles.filtersScroll}
+          decelerationRate="fast"
         >
+          {/* All button */}
           <TouchableOpacity
-            style={[styles.sportChip, selectedSports.length === 0 && styles.sportChipActive]}
-            onPress={() => setSelectedSports([])}
+            style={[
+              styles.filterChip,
+              selectedSports.length === 0 && styles.filterChipAllActive
+            ]}
+            onPress={clearFilters}
+            activeOpacity={0.7}
           >
             <Ionicons
-              name="apps"
-              size={18}
-              color={selectedSports.length === 0 ? theme.colors.text.inverse : theme.colors.text.secondary}
+              name="globe-outline"
+              size={16}
+              color={selectedSports.length === 0 ? '#fff' : theme.colors.text.secondary}
             />
-            <Text style={[styles.sportChipText, selectedSports.length === 0 && styles.sportChipTextActive]}>
+            <Text style={[
+              styles.filterChipText,
+              selectedSports.length === 0 && styles.filterChipTextActive
+            ]}>
               Tous
             </Text>
           </TouchableOpacity>
+
           {SPORTS.map((sport) => {
             const isSelected = selectedSports.includes(sport.key);
             return (
               <TouchableOpacity
                 key={sport.key}
                 style={[
-                  styles.sportChip,
-                  isSelected && { backgroundColor: sport.color, borderColor: sport.color },
+                  styles.filterChip,
+                  isSelected && {
+                    backgroundColor: sport.color,
+                    borderColor: sport.color,
+                    shadowColor: sport.color,
+                    shadowOffset: { width: 0, height: 4 },
+                    shadowOpacity: 0.3,
+                    shadowRadius: 8,
+                    elevation: 4,
+                  },
                 ]}
                 onPress={() => toggleSport(sport.key)}
+                activeOpacity={0.7}
               >
                 <Ionicons
                   name={sport.icon}
-                  size={18}
-                  color={isSelected ? theme.colors.text.inverse : sport.color}
+                  size={16}
+                  color={isSelected ? '#fff' : sport.color}
                 />
-                <Text style={[styles.sportChipText, isSelected && styles.sportChipTextActive]}>
+                <Text style={[
+                  styles.filterChipText,
+                  isSelected && styles.filterChipTextActive
+                ]}>
                   {sport.label}
                 </Text>
+                {isSelected && (
+                  <View style={styles.checkBadge}>
+                    <Ionicons name="checkmark" size={10} color={sport.color} />
+                  </View>
+                )}
               </TouchableOpacity>
             );
           })}
         </ScrollView>
-        {selectedSports.length > 0 && (
-          <TouchableOpacity
-            style={styles.clearFilters}
-            onPress={() => setSelectedSports([])}
-          >
-            <Ionicons name="close-circle" size={16} color={theme.colors.text.tertiary} />
-            <Text style={styles.clearFiltersText}>Effacer les filtres</Text>
-          </TouchableOpacity>
-        )}
       </View>
 
       {/* Users List */}
       {isLoading ? (
         <View style={styles.loadingContainer}>
           <ActivityIndicator size="large" color={theme.colors.primary} />
+          <Text style={styles.loadingText}>Recherche des sportifs...</Text>
         </View>
       ) : (
-        <FlatList
+        <Animated.FlatList
           data={displayedUsers}
           renderItem={renderUser}
           keyExtractor={(item) => item.id}
+          ListHeaderComponent={ListHeader}
           refreshControl={
             <RefreshControl
               refreshing={refreshing}
               onRefresh={onRefresh}
               colors={[theme.colors.primary]}
               tintColor={theme.colors.primary}
+              progressBackgroundColor={theme.colors.surface}
             />
           }
           contentContainerStyle={[
             styles.listContent,
             displayedUsers?.length === 0 && styles.emptyContainer,
           ]}
+          showsVerticalScrollIndicator={false}
+          onScroll={Animated.event(
+            [{ nativeEvent: { contentOffset: { y: scrollY } } }],
+            { useNativeDriver: true }
+          )}
           ListEmptyComponent={
             <EmptyState
-              icon="compass-outline"
-              title={selectedSports.length > 0 ? 'Aucun sportif trouve' : 'Personne a decouvrir'}
+              icon="search-outline"
+              title={selectedSports.length > 0 ? 'Aucun sportif trouvé' : 'Personne à découvrir'}
               description={selectedSports.length > 0
-                ? 'Essayez de modifier vos filtres pour trouver plus de sportifs.'
-                : 'Revenez plus tard pour decouvrir de nouveaux sportifs !'
+                ? 'Aucun sportif ne correspond à vos filtres actuels.'
+                : 'Revenez plus tard pour découvrir de nouveaux partenaires sportifs !'
               }
+              actionLabel={selectedSports.length > 0 ? 'Effacer les filtres' : undefined}
+              onAction={selectedSports.length > 0 ? clearFilters : undefined}
             />
           }
         />
@@ -177,68 +238,105 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: theme.colors.background,
   },
-  filtersSection: {
+  filtersContainer: {
     backgroundColor: theme.colors.surface,
-    paddingTop: theme.spacing.md,
-    paddingBottom: theme.spacing.sm,
+    paddingTop: 12,
+    paddingBottom: 14,
     borderBottomWidth: 1,
     borderBottomColor: theme.colors.border,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.04,
+    shadowRadius: 8,
+    elevation: 2,
   },
-  filterTitle: {
-    fontSize: theme.typography.size.sm,
-    fontWeight: theme.typography.weight.semibold,
+  filtersHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingHorizontal: 16,
+    marginBottom: 12,
+  },
+  filtersTitleRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+  },
+  filtersTitle: {
+    fontSize: 14,
+    fontWeight: '600',
     color: theme.colors.text.secondary,
     textTransform: 'uppercase',
     letterSpacing: 0.5,
-    marginBottom: theme.spacing.sm,
-    paddingHorizontal: theme.spacing.md,
+  },
+  clearButton: {
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    backgroundColor: `${theme.colors.primary}12`,
+    borderRadius: 16,
+  },
+  clearButtonText: {
+    fontSize: 13,
+    fontWeight: '600',
+    color: theme.colors.primary,
   },
   filtersScroll: {
-    paddingHorizontal: theme.spacing.md,
-    gap: theme.spacing.sm,
+    paddingHorizontal: 16,
+    gap: 10,
   },
-  sportChip: {
+  filterChip: {
     flexDirection: 'row',
     alignItems: 'center',
-    paddingHorizontal: theme.spacing.md,
-    paddingVertical: theme.spacing.sm,
-    borderRadius: theme.borderRadius.round,
+    paddingHorizontal: 14,
+    paddingVertical: 10,
+    borderRadius: 24,
     backgroundColor: theme.colors.background,
     borderWidth: 1.5,
     borderColor: theme.colors.border,
-    gap: theme.spacing.xs,
+    gap: 6,
   },
-  sportChipActive: {
+  filterChipAllActive: {
     backgroundColor: theme.colors.primary,
     borderColor: theme.colors.primary,
   },
-  sportChipText: {
-    fontSize: theme.typography.size.sm,
-    fontWeight: theme.typography.weight.medium,
+  filterChipText: {
+    fontSize: 14,
+    fontWeight: '600',
     color: theme.colors.text.secondary,
   },
-  sportChipTextActive: {
-    color: theme.colors.text.inverse,
+  filterChipTextActive: {
+    color: '#fff',
   },
-  clearFilters: {
-    flexDirection: 'row',
+  checkBadge: {
+    width: 16,
+    height: 16,
+    borderRadius: 8,
+    backgroundColor: '#fff',
     alignItems: 'center',
     justifyContent: 'center',
-    gap: theme.spacing.xs,
-    paddingVertical: theme.spacing.sm,
-  },
-  clearFiltersText: {
-    fontSize: theme.typography.size.sm,
-    color: theme.colors.text.tertiary,
+    marginLeft: 2,
   },
   loadingContainer: {
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
+    gap: 12,
+  },
+  loadingText: {
+    fontSize: 15,
+    color: theme.colors.text.secondary,
+  },
+  listHeader: {
+    paddingBottom: 8,
+  },
+  resultsCount: {
+    fontSize: 14,
+    color: theme.colors.text.tertiary,
+    fontWeight: '500',
   },
   listContent: {
-    padding: theme.spacing.md,
-    gap: theme.spacing.md,
+    padding: 16,
+    gap: 12,
   },
   emptyContainer: {
     flex: 1,

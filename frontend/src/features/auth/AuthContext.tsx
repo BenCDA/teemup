@@ -2,6 +2,7 @@ import React, { createContext, useContext, useState, useEffect, ReactNode } from
 import { User, AuthResponse } from '@/types';
 import api, { setTokens, clearTokens, getAccessToken } from '@/features/shared/api';
 import socketService from '@/features/shared/socket';
+import { router } from 'expo-router';
 
 interface AuthContextType {
   user: User | null;
@@ -69,6 +70,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     await clearTokens();
     socketService.disconnect();
     setUser(null);
+    router.replace('/(auth)/login');
   };
 
   const refreshUser = async () => {

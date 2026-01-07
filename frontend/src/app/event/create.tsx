@@ -63,7 +63,7 @@ export default function CreateEventScreen() {
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
       queryClient.invalidateQueries({ queryKey: ['nearbyEvents'] });
       queryClient.invalidateQueries({ queryKey: ['myEvents'] });
-      Alert.alert('Succes', 'Evenement cree avec succes !', [
+      Alert.alert('Succès', 'Événement créé avec succès !', [
         { text: 'OK', onPress: () => router.back() },
       ]);
     },
@@ -75,12 +75,12 @@ export default function CreateEventScreen() {
 
   const handleSubmit = () => {
     if (!sport) {
-      Alert.alert('Erreur', 'Veuillez selectionner un sport');
+      Alert.alert('Erreur', 'Veuillez sélectionner un sport');
       return;
     }
 
     if (endTime <= startTime) {
-      Alert.alert('Erreur', 'L\'heure de fin doit etre apres l\'heure de debut');
+      Alert.alert('Erreur', 'L\'heure de fin doit être après l\'heure de début');
       return;
     }
 
@@ -134,7 +134,7 @@ export default function CreateEventScreen() {
           <TouchableOpacity onPress={() => router.back()} style={styles.backButton}>
             <Ionicons name="arrow-back" size={24} color={theme.colors.text.primary} />
           </TouchableOpacity>
-          <Text style={styles.headerTitle}>Nouvel evenement</Text>
+          <Text style={styles.headerTitle}>Nouvel événement</Text>
           <View style={styles.backButton} />
         </View>
 
@@ -152,7 +152,7 @@ export default function CreateEventScreen() {
                   <Text style={styles.pickerText}>{selectedSport.label}</Text>
                 </View>
               ) : (
-                <Text style={styles.pickerPlaceholder}>Selectionner un sport</Text>
+                <Text style={styles.pickerPlaceholder}>Sélectionner un sport</Text>
               )}
               <Ionicons name="chevron-down" size={20} color={theme.colors.text.tertiary} />
             </TouchableOpacity>
@@ -188,7 +188,7 @@ export default function CreateEventScreen() {
               style={styles.input}
               value={title}
               onChangeText={setTitle}
-              placeholder="Ex: Session running debutants"
+              placeholder="Ex: Session running débutants"
               placeholderTextColor={theme.colors.text.tertiary}
               maxLength={100}
             />
@@ -201,7 +201,7 @@ export default function CreateEventScreen() {
               style={[styles.input, styles.textArea]}
               value={description}
               onChangeText={setDescription}
-              placeholder="Decrivez votre evenement..."
+              placeholder="Décrivez votre événement..."
               placeholderTextColor={theme.colors.text.tertiary}
               multiline
               numberOfLines={4}
@@ -230,48 +230,104 @@ export default function CreateEventScreen() {
             )}
           </View>
 
-          {/* Time */}
-          <View style={styles.row}>
-            <View style={[styles.section, styles.flex1]}>
-              <Text style={styles.label}>Debut *</Text>
+          {/* Time - Horaires */}
+          <View style={styles.section}>
+            <Text style={styles.label}>Horaires *</Text>
+            <View style={styles.timeContainer}>
+              {/* Start Time */}
               <TouchableOpacity
-                style={styles.picker}
-                onPress={() => setShowStartTimePicker(true)}
+                style={styles.timeButton}
+                onPress={() => {
+                  setShowEndTimePicker(false);
+                  setShowStartTimePicker(true);
+                  Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+                }}
+                activeOpacity={0.7}
               >
-                <Ionicons name="time-outline" size={20} color={theme.colors.text.secondary} />
-                <Text style={styles.pickerText}>{formatTimeDisplay(startTime)}</Text>
+                <View style={styles.timeIconContainer}>
+                  <Ionicons name="play-circle" size={20} color={theme.colors.success} />
+                </View>
+                <View style={styles.timeContent}>
+                  <Text style={styles.timeLabel}>Début</Text>
+                  <Text style={styles.timeValue}>{formatTimeDisplay(startTime)}</Text>
+                </View>
+                <Ionicons name="chevron-forward" size={18} color={theme.colors.text.tertiary} />
               </TouchableOpacity>
-              {showStartTimePicker && (
+
+              <View style={styles.timeSeparator}>
+                <View style={styles.timeLine} />
+                <Ionicons name="arrow-down" size={16} color={theme.colors.text.tertiary} />
+                <View style={styles.timeLine} />
+              </View>
+
+              {/* End Time */}
+              <TouchableOpacity
+                style={styles.timeButton}
+                onPress={() => {
+                  setShowStartTimePicker(false);
+                  setShowEndTimePicker(true);
+                  Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+                }}
+                activeOpacity={0.7}
+              >
+                <View style={[styles.timeIconContainer, { backgroundColor: `${theme.colors.error}15` }]}>
+                  <Ionicons name="stop-circle" size={20} color={theme.colors.error} />
+                </View>
+                <View style={styles.timeContent}>
+                  <Text style={styles.timeLabel}>Fin</Text>
+                  <Text style={styles.timeValue}>{formatTimeDisplay(endTime)}</Text>
+                </View>
+                <Ionicons name="chevron-forward" size={18} color={theme.colors.text.tertiary} />
+              </TouchableOpacity>
+            </View>
+
+            {/* Start Time Picker */}
+            {showStartTimePicker && (
+              <View style={styles.pickerContainer}>
+                <View style={styles.pickerHeader}>
+                  <Text style={styles.pickerHeaderText}>Heure de début</Text>
+                  <TouchableOpacity
+                    onPress={() => setShowStartTimePicker(false)}
+                    style={styles.pickerDoneButton}
+                  >
+                    <Text style={styles.pickerDoneText}>OK</Text>
+                  </TouchableOpacity>
+                </View>
                 <DateTimePicker
                   value={startTime}
                   mode="time"
-                  display={Platform.OS === 'ios' ? 'spinner' : 'default'}
+                  display="spinner"
                   onChange={(event, selectedTime) => {
-                    setShowStartTimePicker(Platform.OS === 'ios');
                     if (selectedTime) setStartTime(selectedTime);
                   }}
+                  style={styles.timePicker}
                 />
-              )}
-            </View>
+              </View>
+            )}
 
-            <View style={[styles.section, styles.flex1]}>
-              <Text style={styles.label}>Fin *</Text>
-              <TouchableOpacity style={styles.picker} onPress={() => setShowEndTimePicker(true)}>
-                <Ionicons name="time-outline" size={20} color={theme.colors.text.secondary} />
-                <Text style={styles.pickerText}>{formatTimeDisplay(endTime)}</Text>
-              </TouchableOpacity>
-              {showEndTimePicker && (
+            {/* End Time Picker */}
+            {showEndTimePicker && (
+              <View style={styles.pickerContainer}>
+                <View style={styles.pickerHeader}>
+                  <Text style={styles.pickerHeaderText}>Heure de fin</Text>
+                  <TouchableOpacity
+                    onPress={() => setShowEndTimePicker(false)}
+                    style={styles.pickerDoneButton}
+                  >
+                    <Text style={styles.pickerDoneText}>OK</Text>
+                  </TouchableOpacity>
+                </View>
                 <DateTimePicker
                   value={endTime}
                   mode="time"
-                  display={Platform.OS === 'ios' ? 'spinner' : 'default'}
+                  display="spinner"
                   onChange={(event, selectedTime) => {
-                    setShowEndTimePicker(Platform.OS === 'ios');
                     if (selectedTime) setEndTime(selectedTime);
                   }}
+                  style={styles.timePicker}
                 />
-              )}
-            </View>
+              </View>
+            )}
           </View>
 
           {/* Location */}
@@ -280,13 +336,13 @@ export default function CreateEventScreen() {
             <LocationPicker
               value={location || undefined}
               onChange={setLocation}
-              placeholder="Ou se deroule l'evenement ?"
+              placeholder="Où se déroule l'événement ?"
             />
           </View>
 
           {/* Recurrence */}
           <View style={styles.section}>
-            <Text style={styles.label}>Recurrence</Text>
+            <Text style={styles.label}>Récurrence</Text>
             <TouchableOpacity
               style={styles.picker}
               onPress={() => setShowRecurrencePicker(!showRecurrencePicker)}
@@ -326,9 +382,9 @@ export default function CreateEventScreen() {
           <View style={styles.section}>
             <View style={styles.switchRow}>
               <View>
-                <Text style={styles.label}>Evenement public</Text>
+                <Text style={styles.label}>Événement public</Text>
                 <Text style={styles.switchDescription}>
-                  Les evenements publics sont visibles par tous
+                  Les événements publics sont visibles par tous
                 </Text>
               </View>
               <Switch
@@ -355,7 +411,7 @@ export default function CreateEventScreen() {
             ) : (
               <>
                 <Ionicons name="add-circle" size={20} color={theme.colors.text.inverse} />
-                <Text style={styles.submitButtonText}>Creer l'evenement</Text>
+                <Text style={styles.submitButtonText}>Créer l'événement</Text>
               </>
             )}
           </TouchableOpacity>
@@ -524,5 +580,88 @@ const styles = StyleSheet.create({
   },
   bottomSpacer: {
     height: theme.spacing.xxl,
+  },
+  // Time picker styles
+  timeContainer: {
+    backgroundColor: theme.colors.surface,
+    borderRadius: theme.borderRadius.md,
+    borderWidth: 1,
+    borderColor: theme.colors.border,
+    overflow: 'hidden',
+  },
+  timeButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    padding: theme.spacing.md,
+    gap: theme.spacing.md,
+  },
+  timeIconContainer: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: `${theme.colors.success}15`,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  timeContent: {
+    flex: 1,
+  },
+  timeLabel: {
+    fontSize: theme.typography.size.xs,
+    color: theme.colors.text.tertiary,
+    textTransform: 'uppercase',
+    letterSpacing: 0.5,
+  },
+  timeValue: {
+    fontSize: theme.typography.size.lg,
+    fontWeight: theme.typography.weight.semibold,
+    color: theme.colors.text.primary,
+    marginTop: 2,
+  },
+  timeSeparator: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: theme.spacing.md,
+  },
+  timeLine: {
+    flex: 1,
+    height: 1,
+    backgroundColor: theme.colors.border,
+  },
+  pickerContainer: {
+    backgroundColor: theme.colors.surface,
+    borderRadius: theme.borderRadius.md,
+    marginTop: theme.spacing.sm,
+    borderWidth: 1,
+    borderColor: theme.colors.border,
+    overflow: 'hidden',
+  },
+  pickerHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    padding: theme.spacing.md,
+    borderBottomWidth: 1,
+    borderBottomColor: theme.colors.border,
+    backgroundColor: theme.colors.background,
+  },
+  pickerHeaderText: {
+    fontSize: theme.typography.size.md,
+    fontWeight: theme.typography.weight.semibold,
+    color: theme.colors.text.primary,
+  },
+  pickerDoneButton: {
+    paddingHorizontal: theme.spacing.md,
+    paddingVertical: theme.spacing.xs,
+    backgroundColor: theme.colors.primary,
+    borderRadius: theme.borderRadius.sm,
+  },
+  pickerDoneText: {
+    fontSize: theme.typography.size.sm,
+    fontWeight: theme.typography.weight.semibold,
+    color: theme.colors.text.inverse,
+  },
+  timePicker: {
+    height: 150,
   },
 });

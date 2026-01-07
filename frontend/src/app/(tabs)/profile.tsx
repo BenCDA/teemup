@@ -10,10 +10,12 @@ import {
   Modal,
   Image,
   ActivityIndicator,
+  ImageBackground,
+  Dimensions,
 } from 'react-native';
-import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
-import Svg, { Path } from 'react-native-svg';
+import { LinearGradient } from 'expo-linear-gradient';
 import * as ImagePicker from 'expo-image-picker';
 import * as Haptics from 'expo-haptics';
 import { useAuth } from '@/features/auth/AuthContext';
@@ -21,13 +23,12 @@ import { Avatar, Card, SportBadge } from '@/components/ui';
 import { theme } from '@/features/shared/styles/theme';
 import { SPORTS } from '@/constants/sports';
 
-const HEADER_HEIGHT = 140;
-const AVATAR_SIZE = 100;
-const WAVE_COLOR = '#F4D03F';
+const { width: SCREEN_WIDTH } = Dimensions.get('window');
+const HEADER_HEIGHT = 180;
+const AVATAR_SIZE = 110;
 
 export default function ProfileScreen() {
   const { user, logout, updateUser } = useAuth();
-  const insets = useSafeAreaInsets();
   const [showEditModal, setShowEditModal] = useState(false);
   const [editBio, setEditBio] = useState(user?.bio || '');
   const [editProfilePicture, setEditProfilePicture] = useState<string | null>(user?.profilePicture || null);
@@ -38,12 +39,12 @@ export default function ProfileScreen() {
   const handleLogout = () => {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
     Alert.alert(
-      'Deconnexion',
-      'Etes-vous sur de vouloir vous deconnecter ?',
+      'Déconnexion',
+      'Êtes-vous sûr de vouloir vous déconnecter ?',
       [
         { text: 'Annuler', style: 'cancel' },
         {
-          text: 'Se deconnecter',
+          text: 'Se déconnecter',
           style: 'destructive',
           onPress: logout,
         },
@@ -64,7 +65,7 @@ export default function ProfileScreen() {
 
     const permissionResult = await ImagePicker.requestMediaLibraryPermissionsAsync();
     if (!permissionResult.granted) {
-      Alert.alert('Permission requise', 'Veuillez autoriser l\'acces a votre galerie photo.');
+      Alert.alert('Permission requise', 'Veuillez autoriser l\'accès à votre galerie photo.');
       return;
     }
 
@@ -99,10 +100,8 @@ export default function ProfileScreen() {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
 
     try {
-      // TODO: Implement API call to upload images and save profile
-      // For now, update local state
       if (updateUser) {
-        updateUser({
+        await updateUser({
           bio: editBio,
           profilePicture: editProfilePicture || undefined,
           coverImage: editCoverImage || undefined,
@@ -111,7 +110,7 @@ export default function ProfileScreen() {
       }
 
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-      Alert.alert('Succes', 'Profil mis a jour !');
+      Alert.alert('Succès', 'Profil mis à jour !');
       setShowEditModal(false);
     } catch (error) {
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
@@ -124,22 +123,36 @@ export default function ProfileScreen() {
   return (
     <View style={styles.container}>
       <ScrollView style={styles.scrollView} showsVerticalScrollIndicator={false}>
-        {/* Wave Header with SafeArea */}
-        <View style={[styles.headerContainer, { height: HEADER_HEIGHT + AVATAR_SIZE / 2 + insets.top }]}>
-          {/* Status bar background */}
-          <View style={[styles.statusBarBg, { height: insets.top }]} />
-          <Svg
-            height={HEADER_HEIGHT}
-            width="100%"
-            viewBox="0 0 400 140"
-            preserveAspectRatio="none"
-            style={[styles.wave, { top: insets.top }]}
-          >
-            <Path
-              d="M0,0 L400,0 L400,90 Q300,140 200,110 Q100,80 0,120 L0,0 Z"
-              fill={WAVE_COLOR}
+        {/* Cover Image Header */}
+        <View style={styles.headerContainer}>
+          {user?.coverImage ? (
+            <ImageBackground
+              source={{ uri: user.coverImage }}
+              style={styles.coverImage}
+              resizeMode="cover"
+            >
+              <LinearGradient
+                colors={['transparent', 'rgba(0,0,0,0.6)']}
+                style={styles.coverGradient}
+              />
+            </ImageBackground>
+          ) : (
+            <LinearGradient
+              colors={[theme.colors.primary, '#1a1a2e']}
+              start={{ x: 0, y: 0 }}
+              end={{ x: 1, y: 1 }}
+              style={styles.coverPlaceholder}
             />
-          </Svg>
+          )}
+
+          {/* Edit Button */}
+          <TouchableOpacity
+            style={styles.editHeaderButton}
+            onPress={openEditModal}
+            activeOpacity={0.8}
+          >
+            <Ionicons name="pencil" size={16} color="#fff" />
+          </TouchableOpacity>
 
           {/* Avatar */}
           <View style={styles.avatarWrapper}>
@@ -151,6 +164,11 @@ export default function ProfileScreen() {
               isOnline={user?.isOnline}
               style={styles.avatar}
             />
+            {user?.isVerified && (
+              <View style={styles.verifiedIcon}>
+                <Ionicons name="checkmark-circle" size={28} color={theme.colors.success} />
+              </View>
+            )}
           </View>
         </View>
 
@@ -161,16 +179,36 @@ export default function ProfileScreen() {
 
           {user?.isVerified && (
             <View style={styles.verifiedBadge}>
-              <Ionicons name="shield-checkmark" size={16} color={theme.colors.success} />
-              <Text style={styles.verifiedText}>Profil verifie</Text>
+              <Ionicons name="shield-checkmark" size={14} color={theme.colors.success} />
+              <Text style={styles.verifiedText}>Profil vérifié</Text>
             </View>
           )}
         </View>
 
         <View style={styles.content}>
+          {/* Stats Section */}
+          <View style={styles.statsContainer}>
+            <View style={styles.statItem}>
+              <Text style={styles.statNumber}>{user?.sports?.length || 0}</Text>
+              <Text style={styles.statLabel}>Sports</Text>
+            </View>
+            <View style={styles.statDivider} />
+            <View style={styles.statItem}>
+              <Text style={styles.statNumber}>{user?.verifiedAge || '-'}</Text>
+              <Text style={styles.statLabel}>Âge</Text>
+            </View>
+            <View style={styles.statDivider} />
+            <View style={styles.statItem}>
+              <Text style={styles.statNumber}>
+                {user?.verifiedGender === 'MALE' ? 'H' : user?.verifiedGender === 'FEMALE' ? 'F' : '-'}
+              </Text>
+              <Text style={styles.statLabel}>Genre</Text>
+            </View>
+          </View>
+
           {user?.bio && (
             <Card variant="elevated" style={styles.section}>
-              <Text style={styles.sectionTitle}>Bio</Text>
+              <Text style={styles.sectionTitle}>À propos</Text>
               <Text style={styles.bio}>{user.bio}</Text>
             </Card>
           )}
@@ -194,25 +232,25 @@ export default function ProfileScreen() {
             />
             <MenuItem
               icon="shield-checkmark-outline"
-              label="Confidentialite"
-              onPress={() => Alert.alert('Info', 'Fonctionnalite a venir')}
+              label="Confidentialité"
+              onPress={() => Alert.alert('Info', 'Fonctionnalité à venir')}
             />
             <MenuItem
               icon="notifications-outline"
               label="Notifications"
-              onPress={() => Alert.alert('Info', 'Fonctionnalite a venir')}
+              onPress={() => Alert.alert('Info', 'Fonctionnalité à venir')}
             />
             <MenuItem
               icon="help-circle-outline"
               label="Aide & Support"
-              onPress={() => Alert.alert('Info', 'Fonctionnalite a venir')}
+              onPress={() => Alert.alert('Info', 'Fonctionnalité à venir')}
               showDivider={false}
             />
           </Card>
 
-          <TouchableOpacity style={styles.logoutButton} onPress={handleLogout}>
+          <TouchableOpacity style={styles.logoutButton} onPress={handleLogout} activeOpacity={0.8}>
             <Ionicons name="log-out-outline" size={22} color={theme.colors.error} />
-            <Text style={styles.logoutText}>Se deconnecter</Text>
+            <Text style={styles.logoutText}>Se déconnecter</Text>
           </TouchableOpacity>
 
           <Text style={styles.version}>Version 1.0.0</Text>
@@ -236,7 +274,7 @@ export default function ProfileScreen() {
               {isSaving ? (
                 <ActivityIndicator size="small" color={theme.colors.primary} />
               ) : (
-                <Text style={styles.modalSave}>Sauvegarder</Text>
+                <Text style={styles.modalSave}>Enregistrer</Text>
               )}
             </TouchableOpacity>
           </View>
@@ -251,13 +289,17 @@ export default function ProfileScreen() {
               {editCoverImage ? (
                 <Image source={{ uri: editCoverImage }} style={styles.coverPhotoPreview} />
               ) : (
-                <View style={styles.coverPhotoPlaceholder}>
-                  <Ionicons name="image-outline" size={32} color={theme.colors.text.tertiary} />
-                  <Text style={styles.coverPhotoPlaceholderText}>Ajouter une photo de couverture</Text>
-                </View>
+                <LinearGradient
+                  colors={[theme.colors.primary, '#1a1a2e']}
+                  style={styles.coverPhotoPlaceholder}
+                >
+                  <Ionicons name="image-outline" size={32} color="rgba(255,255,255,0.7)" />
+                  <Text style={styles.coverPhotoPlaceholderText}>Ajouter une bannière</Text>
+                </LinearGradient>
               )}
               <View style={styles.coverPhotoOverlay}>
-                <Ionicons name="camera" size={20} color={theme.colors.text.inverse} />
+                <Ionicons name="camera" size={18} color="#fff" />
+                <Text style={styles.coverPhotoOverlayText}>Modifier</Text>
               </View>
             </TouchableOpacity>
 
@@ -271,12 +313,12 @@ export default function ProfileScreen() {
                     size="xl"
                   />
                   <View style={styles.avatarEditOverlay}>
-                    <Ionicons name="camera" size={20} color={theme.colors.text.inverse} />
+                    <Ionicons name="camera" size={18} color="#fff" />
                   </View>
                 </View>
               </TouchableOpacity>
               <TouchableOpacity style={styles.changePhotoButton} onPress={() => pickImage('profile')}>
-                <Text style={styles.changePhotoText}>Changer la photo de profil</Text>
+                <Text style={styles.changePhotoText}>Changer la photo</Text>
               </TouchableOpacity>
             </View>
 
@@ -288,7 +330,7 @@ export default function ProfileScreen() {
                   style={styles.textArea}
                   value={editBio}
                   onChangeText={setEditBio}
-                  placeholder="Decrivez-vous en quelques mots..."
+                  placeholder="Décrivez-vous en quelques mots..."
                   placeholderTextColor={theme.colors.text.tertiary}
                   multiline
                   numberOfLines={4}
@@ -299,7 +341,12 @@ export default function ProfileScreen() {
 
               {/* Sports Section */}
               <View style={styles.inputGroup}>
-                <Text style={styles.inputLabel}>Mes sports ({editSports.length} selectionnes)</Text>
+                <Text style={styles.inputLabel}>
+                  Mes sports
+                  {editSports.length > 0 && (
+                    <Text style={styles.sportCount}> • {editSports.length} sélectionné{editSports.length > 1 ? 's' : ''}</Text>
+                  )}
+                </Text>
                 <View style={styles.sportsGrid}>
                   {SPORTS.map((sport) => {
                     const isSelected = editSports.includes(sport.key);
@@ -316,7 +363,7 @@ export default function ProfileScreen() {
                         <Ionicons
                           name={sport.icon}
                           size={18}
-                          color={isSelected ? theme.colors.text.inverse : sport.color}
+                          color={isSelected ? '#fff' : sport.color}
                         />
                         <Text
                           style={[
@@ -327,7 +374,7 @@ export default function ProfileScreen() {
                           {sport.label}
                         </Text>
                         {isSelected && (
-                          <Ionicons name="checkmark-circle" size={16} color={theme.colors.text.inverse} />
+                          <Ionicons name="checkmark" size={16} color="#fff" />
                         )}
                       </TouchableOpacity>
                     );
@@ -352,10 +399,12 @@ interface MenuItemProps {
 function MenuItem({ icon, label, onPress, showDivider = true }: MenuItemProps) {
   return (
     <>
-      <TouchableOpacity style={styles.menuItem} onPress={onPress}>
-        <Ionicons name={icon} size={22} color={theme.colors.primary} />
+      <TouchableOpacity style={styles.menuItem} onPress={onPress} activeOpacity={0.6}>
+        <View style={styles.menuIconContainer}>
+          <Ionicons name={icon} size={20} color={theme.colors.primary} />
+        </View>
         <Text style={styles.menuText}>{label}</Text>
-        <Ionicons name="chevron-forward" size={20} color={theme.colors.text.tertiary} />
+        <Ionicons name="chevron-forward" size={18} color={theme.colors.text.tertiary} />
       </TouchableOpacity>
       {showDivider && <View style={styles.menuDivider} />}
     </>
@@ -365,26 +414,37 @@ function MenuItem({ icon, label, onPress, showDivider = true }: MenuItemProps) {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: theme.colors.surface,
+    backgroundColor: theme.colors.background,
   },
   scrollView: {
     flex: 1,
   },
   headerContainer: {
+    height: HEADER_HEIGHT + AVATAR_SIZE / 2,
     position: 'relative',
   },
-  wave: {
-    position: 'absolute',
-    top: 0,
-    left: 0,
-    right: 0,
+  coverImage: {
+    width: '100%',
+    height: HEADER_HEIGHT,
   },
-  statusBarBg: {
+  coverGradient: {
     position: 'absolute',
-    top: 0,
+    bottom: 0,
     left: 0,
     right: 0,
-    backgroundColor: WAVE_COLOR,
+    height: 80,
+  },
+  coverPlaceholder: {
+    width: '100%',
+    height: HEADER_HEIGHT,
+  },
+  editHeaderButton: {
+    position: 'absolute',
+    top: 12,
+    right: 12,
+    backgroundColor: 'rgba(0,0,0,0.5)',
+    borderRadius: 20,
+    padding: 8,
   },
   avatarWrapper: {
     position: 'absolute',
@@ -395,37 +455,77 @@ const styles = StyleSheet.create({
   },
   avatar: {
     borderWidth: 4,
-    borderColor: theme.colors.surface,
+    borderColor: theme.colors.background,
+  },
+  verifiedIcon: {
+    position: 'absolute',
+    bottom: 4,
+    right: 4,
+    backgroundColor: theme.colors.background,
+    borderRadius: 14,
   },
   userInfo: {
     alignItems: 'center',
     paddingHorizontal: theme.spacing.lg,
-    paddingTop: theme.spacing.md,
+    paddingTop: theme.spacing.sm,
   },
   name: {
-    fontSize: 24,
-    fontWeight: theme.typography.weight.bold,
-    color: theme.colors.primary,
-    marginBottom: theme.spacing.xs,
+    fontSize: 26,
+    fontWeight: '700',
+    color: theme.colors.text.primary,
+    marginBottom: 2,
   },
   email: {
-    fontSize: theme.typography.size.md,
+    fontSize: 15,
     color: theme.colors.text.secondary,
   },
   verifiedBadge: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: theme.spacing.xs,
+    gap: 4,
     marginTop: theme.spacing.sm,
     backgroundColor: `${theme.colors.success}15`,
-    paddingHorizontal: theme.spacing.md,
-    paddingVertical: theme.spacing.xs,
-    borderRadius: theme.borderRadius.round,
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 20,
   },
   verifiedText: {
-    fontSize: theme.typography.size.sm,
+    fontSize: 13,
     color: theme.colors.success,
-    fontWeight: theme.typography.weight.medium,
+    fontWeight: '600',
+  },
+  statsContainer: {
+    flexDirection: 'row',
+    backgroundColor: theme.colors.surface,
+    borderRadius: 16,
+    padding: theme.spacing.md,
+    marginBottom: theme.spacing.md,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.06,
+    shadowRadius: 8,
+    elevation: 2,
+  },
+  statItem: {
+    flex: 1,
+    alignItems: 'center',
+  },
+  statNumber: {
+    fontSize: 22,
+    fontWeight: '700',
+    color: theme.colors.primary,
+  },
+  statLabel: {
+    fontSize: 12,
+    color: theme.colors.text.secondary,
+    marginTop: 2,
+    textTransform: 'uppercase',
+    letterSpacing: 0.5,
+  },
+  statDivider: {
+    width: 1,
+    backgroundColor: theme.colors.border,
+    marginVertical: 4,
   },
   content: {
     padding: theme.spacing.md,
@@ -434,22 +534,22 @@ const styles = StyleSheet.create({
     marginBottom: theme.spacing.md,
   },
   sectionTitle: {
-    fontSize: theme.typography.size.sm,
-    fontWeight: theme.typography.weight.semibold,
+    fontSize: 13,
+    fontWeight: '600',
     color: theme.colors.text.secondary,
-    marginBottom: theme.spacing.md,
+    marginBottom: theme.spacing.sm,
     textTransform: 'uppercase',
     letterSpacing: 0.5,
   },
   bio: {
-    fontSize: theme.typography.size.lg,
+    fontSize: 16,
     color: theme.colors.text.primary,
     lineHeight: 24,
   },
   sportsContainer: {
     flexDirection: 'row',
     flexWrap: 'wrap',
-    gap: theme.spacing.md,
+    gap: 10,
   },
   menuSection: {
     marginBottom: theme.spacing.md,
@@ -461,42 +561,51 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     padding: theme.spacing.md,
-    gap: theme.spacing.md,
+    gap: 12,
+  },
+  menuIconContainer: {
+    width: 36,
+    height: 36,
+    borderRadius: 10,
+    backgroundColor: `${theme.colors.primary}12`,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   menuText: {
     flex: 1,
-    fontSize: theme.typography.size.lg,
+    fontSize: 16,
     color: theme.colors.text.primary,
+    fontWeight: '500',
   },
   menuDivider: {
     height: 1,
     backgroundColor: theme.colors.border,
-    marginLeft: theme.spacing.md + 22 + theme.spacing.md,
+    marginLeft: 60,
   },
   logoutButton: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    padding: theme.spacing.md,
-    backgroundColor: `${theme.colors.error}15`,
-    borderRadius: theme.borderRadius.lg,
-    gap: theme.spacing.sm,
+    padding: 16,
+    backgroundColor: `${theme.colors.error}10`,
+    borderRadius: 14,
+    gap: 8,
   },
   logoutText: {
-    fontSize: theme.typography.size.lg,
-    fontWeight: theme.typography.weight.semibold,
+    fontSize: 16,
+    fontWeight: '600',
     color: theme.colors.error,
   },
   version: {
     textAlign: 'center',
     color: theme.colors.text.tertiary,
-    fontSize: theme.typography.size.sm,
+    fontSize: 13,
     padding: theme.spacing.xl,
   },
   // Modal styles
   modalContainer: {
     flex: 1,
-    backgroundColor: theme.colors.surface,
+    backgroundColor: theme.colors.background,
   },
   modalHeader: {
     flexDirection: 'row',
@@ -505,60 +614,73 @@ const styles = StyleSheet.create({
     padding: theme.spacing.md,
     borderBottomWidth: 1,
     borderBottomColor: theme.colors.border,
+    backgroundColor: theme.colors.surface,
   },
   modalTitle: {
-    fontSize: theme.typography.size.lg,
-    fontWeight: theme.typography.weight.semibold,
+    fontSize: 17,
+    fontWeight: '600',
     color: theme.colors.text.primary,
   },
   modalCancel: {
-    fontSize: theme.typography.size.md,
+    fontSize: 16,
     color: theme.colors.text.secondary,
   },
   modalSave: {
-    fontSize: theme.typography.size.md,
+    fontSize: 16,
     color: theme.colors.primary,
-    fontWeight: theme.typography.weight.semibold,
+    fontWeight: '600',
   },
   modalContent: {
     padding: theme.spacing.lg,
   },
   modalAvatarSection: {
     alignItems: 'center',
-    marginBottom: theme.spacing.xl,
+    marginTop: -AVATAR_SIZE / 2,
+    marginBottom: theme.spacing.lg,
   },
   changePhotoButton: {
-    marginTop: theme.spacing.md,
+    marginTop: theme.spacing.sm,
+    paddingHorizontal: 16,
+    paddingVertical: 8,
+    backgroundColor: `${theme.colors.primary}12`,
+    borderRadius: 20,
   },
   changePhotoText: {
     color: theme.colors.primary,
-    fontSize: theme.typography.size.md,
-    fontWeight: theme.typography.weight.medium,
+    fontSize: 14,
+    fontWeight: '600',
   },
   inputGroup: {
-    marginBottom: theme.spacing.lg,
+    marginBottom: theme.spacing.xl,
   },
   inputLabel: {
-    fontSize: theme.typography.size.sm,
-    fontWeight: theme.typography.weight.semibold,
+    fontSize: 13,
+    fontWeight: '600',
     color: theme.colors.text.secondary,
     marginBottom: theme.spacing.sm,
     textTransform: 'uppercase',
+    letterSpacing: 0.5,
+  },
+  sportCount: {
+    textTransform: 'none',
+    color: theme.colors.primary,
   },
   textArea: {
-    backgroundColor: theme.colors.background,
-    borderRadius: theme.borderRadius.md,
+    backgroundColor: theme.colors.surface,
+    borderRadius: 12,
     padding: theme.spacing.md,
-    fontSize: theme.typography.size.md,
+    fontSize: 16,
     color: theme.colors.text.primary,
     minHeight: 100,
     textAlignVertical: 'top',
+    borderWidth: 1,
+    borderColor: theme.colors.border,
   },
   charCount: {
     textAlign: 'right',
     color: theme.colors.text.tertiary,
-    fontSize: theme.typography.size.xs,
-    marginTop: theme.spacing.xs,
+    fontSize: 12,
+    marginTop: 6,
   },
   modalTextDisabled: {
     opacity: 0.5,
@@ -567,7 +689,7 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   coverPhotoSection: {
-    height: 160,
+    height: 180,
     backgroundColor: theme.colors.background,
     position: 'relative',
   },
@@ -582,16 +704,26 @@ const styles = StyleSheet.create({
     gap: theme.spacing.sm,
   },
   coverPhotoPlaceholderText: {
-    color: theme.colors.text.tertiary,
-    fontSize: theme.typography.size.sm,
+    color: 'rgba(255,255,255,0.8)',
+    fontSize: 14,
+    fontWeight: '500',
   },
   coverPhotoOverlay: {
     position: 'absolute',
-    bottom: theme.spacing.sm,
-    right: theme.spacing.sm,
+    bottom: 12,
+    right: 12,
     backgroundColor: 'rgba(0,0,0,0.6)',
-    borderRadius: theme.borderRadius.round,
-    padding: theme.spacing.sm,
+    borderRadius: 20,
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+  },
+  coverPhotoOverlayText: {
+    color: '#fff',
+    fontSize: 13,
+    fontWeight: '500',
   },
   avatarEditContainer: {
     position: 'relative',
@@ -601,33 +733,33 @@ const styles = StyleSheet.create({
     bottom: 0,
     right: 0,
     backgroundColor: theme.colors.primary,
-    borderRadius: theme.borderRadius.round,
-    padding: theme.spacing.sm,
+    borderRadius: 20,
+    padding: 8,
     borderWidth: 3,
-    borderColor: theme.colors.surface,
+    borderColor: theme.colors.background,
   },
   sportsGrid: {
     flexDirection: 'row',
     flexWrap: 'wrap',
-    gap: theme.spacing.sm,
+    gap: 10,
   },
   sportChip: {
     flexDirection: 'row',
     alignItems: 'center',
-    paddingHorizontal: theme.spacing.md,
-    paddingVertical: theme.spacing.sm,
-    borderRadius: theme.borderRadius.round,
-    backgroundColor: theme.colors.background,
+    paddingHorizontal: 14,
+    paddingVertical: 10,
+    borderRadius: 12,
+    backgroundColor: theme.colors.surface,
     borderWidth: 1.5,
     borderColor: theme.colors.border,
-    gap: theme.spacing.xs,
+    gap: 8,
   },
   sportChipText: {
-    fontSize: theme.typography.size.sm,
-    fontWeight: theme.typography.weight.medium,
+    fontSize: 14,
+    fontWeight: '500',
     color: theme.colors.text.secondary,
   },
   sportChipTextActive: {
-    color: theme.colors.text.inverse,
+    color: '#fff',
   },
 });
