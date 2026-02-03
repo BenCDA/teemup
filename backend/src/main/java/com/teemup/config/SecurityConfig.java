@@ -44,6 +44,8 @@ public class SecurityConfig {
                                 "/api/auth/**",
                                 "/api/health",
                                 "/api/verification/**",
+                                "/api/events/public/**",
+                                "/api/events/nearby",
                                 "/ws/**",
                                 "/socket.io/**"
                         ).permitAll()

@@ -1,7 +1,24 @@
 import axios, { AxiosError, InternalAxiosRequestConfig } from 'axios';
 import * as SecureStore from 'expo-secure-store';
+import Constants from 'expo-constants';
 
-const API_URL = process.env.EXPO_PUBLIC_API_URL || 'http://localhost:8000';
+// Auto-detect API URL from Expo's dev server (no cache issues)
+const getApiUrl = (): string => {
+  if (__DEV__) {
+    // In dev: always auto-detect from Expo debugger host
+    const debuggerHost = Constants.expoConfig?.hostUri ?? Constants.manifest?.debuggerHost;
+    if (debuggerHost) {
+      const ip = debuggerHost.split(':')[0];
+      console.log('[API] Auto-detected IP:', ip);
+      return `http://${ip}:8000`;
+    }
+  }
+  // Production or fallback: use env or localhost
+  return process.env.EXPO_PUBLIC_API_URL || 'http://localhost:8000';
+};
+
+const API_URL = getApiUrl();
+console.log('[API] Using:', API_URL);
 
 export const api = axios.create({
   baseURL: `${API_URL}/api`,

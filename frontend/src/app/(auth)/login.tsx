@@ -20,11 +20,16 @@ export default function LoginScreen() {
     setIsLoading(true);
     try {
       await login(email, password);
-      router.replace('/(tabs)');
+      router.replace('/(tabs)/discover');
     } catch (error: any) {
+      console.log('=== LOGIN ERROR ===');
+      console.log('Error:', error);
+      console.log('Response:', error.response);
+      console.log('Message:', error.message);
+      console.log('===================');
       Alert.alert(
         'Erreur de connexion',
-        error.response?.data?.message || 'Email ou mot de passe incorrect'
+        error.response?.data?.message || error.message || 'Email ou mot de passe incorrect'
       );
     } finally {
       setIsLoading(false);
@@ -35,14 +40,6 @@ export default function LoginScreen() {
     <AuthLayout>
       <Text style={styles.title}>Connexion</Text>
 
-      <View style={styles.signupPrompt}>
-        <Text style={styles.signupText}>Pas de compte ? Créez en un </Text>
-        <Link href="/(auth)/register" asChild>
-          <TouchableOpacity>
-            <Text style={styles.signupLink}>ici.</Text>
-          </TouchableOpacity>
-        </Link>
-      </View>
 
       <Input
         label="Email"
@@ -97,19 +94,6 @@ const styles = StyleSheet.create({
     marginBottom: theme.spacing.sm,
     letterSpacing: theme.typography.letterSpacing.tight,
     color: theme.colors.text.primary,
-  },
-  signupPrompt: {
-    flexDirection: 'row',
-    marginBottom: theme.spacing.lg,
-  },
-  signupText: {
-    fontSize: theme.typography.size.md,
-    color: theme.colors.text.secondary,
-  },
-  signupLink: {
-    fontSize: theme.typography.size.md,
-    color: theme.colors.primary,
-    fontWeight: theme.typography.weight.semibold,
   },
   loginButton: {
     marginTop: theme.spacing.sm,

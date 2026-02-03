@@ -21,6 +21,7 @@ import { eventService, CreateEventRequest } from '@/features/events/eventService
 import { LocationPicker } from '@/components/ui';
 import { theme } from '@/features/shared/styles/theme';
 import { SPORTS } from '@/constants/sports';
+import { useAuth } from '@/features/auth/AuthContext';
 
 type RecurrenceType = 'NONE' | 'DAILY' | 'WEEKLY' | 'BIWEEKLY' | 'MONTHLY';
 
@@ -34,6 +35,7 @@ const RECURRENCE_OPTIONS: { value: RecurrenceType; label: string }[] = [
 
 export default function CreateEventScreen() {
   const queryClient = useQueryClient();
+  const { user } = useAuth();
 
   // Form state
   const [sport, setSport] = useState<string>('');
@@ -49,6 +51,9 @@ export default function CreateEventScreen() {
   const [endTime, setEndTime] = useState(new Date(Date.now() + 60 * 60 * 1000)); // +1 hour
   const [recurrence, setRecurrence] = useState<RecurrenceType>('NONE');
   const [isPublic, setIsPublic] = useState(true);
+  const [maxParticipants, setMaxParticipants] = useState<string>('');
+  const [isPaid, setIsPaid] = useState(false);
+  const [price, setPrice] = useState<string>('');
 
   // Picker visibility
   const [showDatePicker, setShowDatePicker] = useState(false);
@@ -98,6 +103,9 @@ export default function CreateEventScreen() {
       endTime: formatTime(endTime),
       recurrence,
       isPublic,
+      maxParticipants: maxParticipants ? parseInt(maxParticipants, 10) : undefined,
+      isPaid: user?.isPro ? isPaid : false,
+      price: user?.isPro && isPaid && price ? parseFloat(price) : undefined,
     };
 
     createMutation.mutate(eventData);
@@ -378,6 +386,28 @@ export default function CreateEventScreen() {
             )}
           </View>
 
+          {/* Max Participants */}
+          <View style={styles.section}>
+            <Text style={styles.label}>Nombre max de participants (optionnel)</Text>
+            <View style={styles.participantsContainer}>
+              <View style={styles.participantsIconContainer}>
+                <Ionicons name="people" size={20} color={theme.colors.primary} />
+              </View>
+              <TextInput
+                style={styles.participantsInput}
+                value={maxParticipants}
+                onChangeText={(text) => setMaxParticipants(text.replace(/[^0-9]/g, ''))}
+                placeholder="Illimité"
+                placeholderTextColor={theme.colors.text.tertiary}
+                keyboardType="number-pad"
+                maxLength={3}
+              />
+              {maxParticipants ? (
+                <Text style={styles.participantsLabel}>participants</Text>
+              ) : null}
+            </View>
+          </View>
+
           {/* Public/Private */}
           <View style={styles.section}>
             <View style={styles.switchRow}>
@@ -398,6 +428,48 @@ export default function CreateEventScreen() {
               />
             </View>
           </View>
+
+          {/* Paid Event (Pro users only) */}
+          {user?.isPro && (
+            <View style={styles.section}>
+              <View style={styles.switchRow}>
+                <View>
+                  <Text style={styles.label}>Événement payant</Text>
+                  <Text style={styles.switchDescription}>
+                    Les participants devront payer pour rejoindre
+                  </Text>
+                </View>
+                <Switch
+                  value={isPaid}
+                  onValueChange={(value) => {
+                    setIsPaid(value);
+                    if (!value) setPrice('');
+                    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+                  }}
+                  trackColor={{ false: theme.colors.border, true: `${theme.colors.success}50` }}
+                  thumbColor={isPaid ? theme.colors.success : theme.colors.text.tertiary}
+                />
+              </View>
+
+              {isPaid && (
+                <View style={styles.priceContainer}>
+                  <View style={styles.priceIconContainer}>
+                    <Ionicons name="cash" size={20} color={theme.colors.success} />
+                  </View>
+                  <TextInput
+                    style={styles.priceInput}
+                    value={price}
+                    onChangeText={(text) => setPrice(text.replace(/[^0-9.,]/g, ''))}
+                    placeholder="0.00"
+                    placeholderTextColor={theme.colors.text.tertiary}
+                    keyboardType="decimal-pad"
+                    maxLength={7}
+                  />
+                  <Text style={styles.priceLabel}>€</Text>
+                </View>
+              )}
+            </View>
+          )}
 
           {/* Submit Button */}
           <TouchableOpacity
@@ -663,5 +735,69 @@ const styles = StyleSheet.create({
   },
   timePicker: {
     height: 150,
+  },
+  // Participants styles
+  participantsContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: theme.colors.surface,
+    borderRadius: theme.borderRadius.md,
+    borderWidth: 1,
+    borderColor: theme.colors.border,
+    paddingHorizontal: theme.spacing.md,
+    paddingVertical: theme.spacing.sm,
+    gap: theme.spacing.md,
+  },
+  participantsIconContainer: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: `${theme.colors.primary}15`,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  participantsInput: {
+    flex: 1,
+    fontSize: theme.typography.size.lg,
+    fontWeight: theme.typography.weight.semibold,
+    color: theme.colors.text.primary,
+    paddingVertical: theme.spacing.sm,
+  },
+  participantsLabel: {
+    fontSize: theme.typography.size.sm,
+    color: theme.colors.text.secondary,
+  },
+  // Price styles
+  priceContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: theme.colors.surface,
+    borderRadius: theme.borderRadius.md,
+    borderWidth: 1,
+    borderColor: theme.colors.border,
+    paddingHorizontal: theme.spacing.md,
+    paddingVertical: theme.spacing.sm,
+    gap: theme.spacing.md,
+    marginTop: theme.spacing.sm,
+  },
+  priceIconContainer: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: `${theme.colors.success}15`,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  priceInput: {
+    flex: 1,
+    fontSize: theme.typography.size.lg,
+    fontWeight: theme.typography.weight.semibold,
+    color: theme.colors.text.primary,
+    paddingVertical: theme.spacing.sm,
+  },
+  priceLabel: {
+    fontSize: theme.typography.size.lg,
+    fontWeight: theme.typography.weight.semibold,
+    color: theme.colors.success,
   },
 });

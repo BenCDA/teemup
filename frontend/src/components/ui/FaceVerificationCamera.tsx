@@ -1,4 +1,4 @@
-import { useState, useRef } from 'react';
+import { useState, useRef, useEffect } from 'react';
 import {
   View,
   Text,
@@ -7,9 +7,11 @@ import {
   ActivityIndicator,
   Modal,
   Image,
+  Animated,
 } from 'react-native';
 import { CameraView, CameraType, useCameraPermissions } from 'expo-camera';
 import { Ionicons } from '@expo/vector-icons';
+import * as Haptics from 'expo-haptics';
 import { theme } from '@/features/shared/styles/theme';
 
 interface FaceVerificationCameraProps {
@@ -30,8 +32,13 @@ export function FaceVerificationCamera({
   const [capturedImage, setCapturedImage] = useState<string | null>(null);
   const cameraRef = useRef<CameraView>(null);
 
+  const [isCapturing, setIsCapturing] = useState(false);
+
   const takePicture = async () => {
-    if (cameraRef.current) {
+    if (cameraRef.current && !isCapturing) {
+      setIsCapturing(true);
+      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+
       try {
         const photo = await cameraRef.current.takePictureAsync({
           base64: true,
@@ -40,16 +47,21 @@ export function FaceVerificationCamera({
         });
 
         if (photo?.base64) {
+          Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
           setCapturedImage(`data:image/jpeg;base64,${photo.base64}`);
         }
       } catch (error) {
+        Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
         console.error('Error taking picture:', error);
+      } finally {
+        setIsCapturing(false);
       }
     }
   };
 
   const confirmPhoto = () => {
-    if (capturedImage) {
+    if (capturedImage && !isVerifying) {
+      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
       onCapture(capturedImage);
     }
   };
@@ -106,8 +118,20 @@ export function FaceVerificationCamera({
 
             {isVerifying ? (
               <View style={styles.verifyingOverlay}>
-                <ActivityIndicator size="large" color={theme.colors.text.inverse} />
-                <Text style={styles.verifyingText}>Analyse en cours...</Text>
+                <View style={styles.verifyingContent}>
+                  <View style={styles.verifyingIconContainer}>
+                    <Ionicons name="scan" size={48} color={theme.colors.primary} />
+                  </View>
+                  <ActivityIndicator
+                    size="large"
+                    color={theme.colors.primary}
+                    style={styles.verifyingSpinner}
+                  />
+                  <Text style={styles.verifyingText}>Analyse en cours...</Text>
+                  <Text style={styles.verifyingSubtext}>
+                    Vérification de votre visage et de votre âge
+                  </Text>
+                </View>
               </View>
             ) : (
               <View style={styles.previewActions}>
@@ -313,14 +337,36 @@ const styles = StyleSheet.create({
     left: 0,
     right: 0,
     bottom: 0,
-    backgroundColor: 'rgba(0,0,0,0.7)',
+    backgroundColor: 'rgba(0,0,0,0.85)',
     justifyContent: 'center',
     alignItems: 'center',
+  },
+  verifyingContent: {
+    alignItems: 'center',
+    padding: theme.spacing.xl,
+  },
+  verifyingIconContainer: {
+    width: 80,
+    height: 80,
+    borderRadius: 40,
+    backgroundColor: 'rgba(66, 165, 245, 0.2)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginBottom: theme.spacing.md,
+  },
+  verifyingSpinner: {
+    marginBottom: theme.spacing.md,
   },
   verifyingText: {
     color: theme.colors.text.inverse,
     fontSize: theme.typography.size.lg,
-    marginTop: theme.spacing.md,
+    fontWeight: theme.typography.weight.semibold,
+    marginBottom: theme.spacing.xs,
+  },
+  verifyingSubtext: {
+    color: theme.colors.text.tertiary,
+    fontSize: theme.typography.size.sm,
+    textAlign: 'center',
   },
   previewActions: {
     position: 'absolute',

@@ -39,7 +39,9 @@ if [ $? -eq 0 ]; then
     echo "To view logs:    docker compose logs -f backend"
     echo "To stop:         docker compose down"
     echo ""
-    echo "Frontend: cd frontend && npm start"
+    echo "Frontend: cd frontend && npx expo start"
+    echo ""
+    echo "Note: Frontend auto-detects backend IP - no config needed!"
     echo "========================================"
 else
     echo ""

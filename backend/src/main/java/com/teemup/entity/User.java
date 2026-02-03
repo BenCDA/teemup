@@ -92,6 +92,11 @@ public class User {
     @Builder.Default
     private Boolean onboardingCompleted = false;
 
+    // Pro user status (can create paid events)
+    @Column(nullable = false)
+    @Builder.Default
+    private Boolean isPro = false;
+
     // User location for distance-based search
     @Column
     private Double latitude;

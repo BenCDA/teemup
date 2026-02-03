@@ -1,10 +1,10 @@
 import { useState } from 'react';
-import { View, Text, TouchableOpacity, StyleSheet, Alert, Image, ActivityIndicator, Modal } from 'react-native';
+import { View, Text, TouchableOpacity, StyleSheet, Alert, Image, ActivityIndicator, Switch } from 'react-native';
 import { Link, router } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { useAuth } from '@/features/auth/AuthContext';
 import { authService } from '@/features/auth/authService';
-import { Button, Input, AuthLayout, FaceVerificationCamera } from '@/components/ui';
+import { Button, Input, AuthLayout, FaceVerificationCamera, LoadingOverlay, useToast } from '@/components/ui';
 import { theme } from '@/features/shared/styles/theme';
 import { FaceVerificationResponse } from '@/types';
 
@@ -19,8 +19,9 @@ export default function RegisterScreen() {
   const [showCamera, setShowCamera] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [isVerifying, setIsVerifying] = useState(false);
-  const [loadingMessage, setLoadingMessage] = useState('');
+  const [isPro, setIsPro] = useState(false);
   const { register } = useAuth();
+  const toast = useToast();
 
   const validatePassword = (pwd: string): string | null => {
     if (pwd.length < 8) return 'Le mot de passe doit contenir au moins 8 caractères';
@@ -68,41 +69,60 @@ export default function RegisterScreen() {
 
   const handleRegister = async () => {
     if (!firstName.trim() || !lastName.trim() || !email.trim() || !password || !confirmPassword) {
-      Alert.alert('Erreur', 'Veuillez remplir tous les champs');
+      toast.show({ message: 'Veuillez remplir tous les champs', type: 'warning' });
       return;
     }
 
     if (password !== confirmPassword) {
-      Alert.alert('Erreur', 'Les mots de passe ne correspondent pas');
+      toast.show({ message: 'Les mots de passe ne correspondent pas', type: 'error' });
       return;
     }
 
     const passwordError = validatePassword(password);
     if (passwordError) {
-      Alert.alert('Mot de passe invalide', passwordError);
+      toast.show({ message: passwordError, type: 'error', duration: 4000 });
       return;
     }
 
     if (!verificationImage || !verificationResult?.isAdult) {
-      Alert.alert('Vérification requise', 'Veuillez prendre une photo pour vérifier votre identité (18+ requis)');
+      toast.show({
+        message: 'Veuillez prendre une photo pour vérifier votre identité',
+        type: 'warning',
+        action: { label: 'Vérifier', onPress: () => setShowCamera(true) },
+      });
       return;
     }
 
     setIsLoading(true);
-    setLoadingMessage('Création de votre compte...');
     try {
-      await register(email, password, firstName, lastName, verificationImage);
-      setLoadingMessage('');
-      // Redirect to onboarding for new users
+      await register(email, password, firstName, lastName, verificationImage, isPro);
+      toast.show({ message: 'Compte créé avec succès !', type: 'success' });
       router.replace('/onboarding');
     } catch (error: any) {
-      const errorMessage = error.response?.data?.errors?.password
-        || error.response?.data?.message
-        || 'Une erreur est survenue';
-      Alert.alert('Erreur d\'inscription', errorMessage);
+      const errorCode = error.response?.data?.code;
+      const errorMessage = error.response?.data?.message || 'Une erreur est survenue';
+
+      // Handle specific error codes
+      if (errorCode === 'EMAIL_EXISTS') {
+        Alert.alert(
+          'Email déjà utilisé',
+          'Un compte existe déjà avec cet email. Souhaitez-vous vous connecter ?',
+          [
+            { text: 'Annuler', style: 'cancel' },
+            { text: 'Se connecter', onPress: () => router.push('/(auth)/login') },
+          ]
+        );
+      } else if (errorCode === 'FACE_VERIFICATION_FAILED') {
+        Alert.alert('Vérification échouée', errorMessage, [
+          { text: 'Réessayer', onPress: () => setShowCamera(true) },
+        ]);
+        setVerificationImage(null);
+        setVerificationResult(null);
+      } else {
+        Alert.alert('Erreur d\'inscription', errorMessage);
+      }
     } finally {
       setIsLoading(false);
-      setLoadingMessage('');
     }
   };
 
@@ -169,6 +189,27 @@ export default function RegisterScreen() {
         placeholder="********"
         secureTextEntry
       />
+
+      {/* Pro Account Section */}
+      <View style={styles.proSection}>
+        <View style={styles.proRow}>
+          <View style={styles.proInfo}>
+            <View style={styles.proLabelRow}>
+              <Ionicons name="star" size={18} color={theme.colors.warning} />
+              <Text style={styles.proLabel}>Compte Pro</Text>
+            </View>
+            <Text style={styles.proHint}>
+              Les comptes Pro peuvent créer des événements payants
+            </Text>
+          </View>
+          <Switch
+            value={isPro}
+            onValueChange={setIsPro}
+            trackColor={{ false: theme.colors.border, true: `${theme.colors.warning}50` }}
+            thumbColor={isPro ? theme.colors.warning : theme.colors.text.tertiary}
+          />
+        </View>
+      </View>
 
       {/* Face Verification Section */}
       <View style={styles.verificationSection}>
@@ -262,16 +303,12 @@ export default function RegisterScreen() {
         isVerifying={isVerifying}
       />
 
-      {/* Loading Modal */}
-      <Modal visible={isLoading} transparent animationType="fade">
-        <View style={styles.loadingOverlay}>
-          <View style={styles.loadingContainer}>
-            <ActivityIndicator size="large" color={theme.colors.primary} />
-            <Text style={styles.loadingTitle}>Inscription en cours</Text>
-            <Text style={styles.loadingMessage}>{loadingMessage}</Text>
-          </View>
-        </View>
-      </Modal>
+      {/* Loading Overlay */}
+      <LoadingOverlay
+        visible={isLoading}
+        message="Création de votre compte"
+        subMessage="Veuillez patienter..."
+      />
     </AuthLayout>
   );
 }
@@ -455,30 +492,37 @@ const styles = StyleSheet.create({
     fontSize: theme.typography.size.md,
     fontWeight: theme.typography.weight.semibold,
   },
-  loadingOverlay: {
-    flex: 1,
-    backgroundColor: 'rgba(0, 0, 0, 0.7)',
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  loadingContainer: {
-    backgroundColor: theme.colors.surface,
-    borderRadius: theme.borderRadius.lg,
-    padding: theme.spacing.xl,
-    alignItems: 'center',
-    marginHorizontal: theme.spacing.xl,
-    maxWidth: 300,
-  },
-  loadingTitle: {
-    fontSize: theme.typography.size.lg,
-    fontWeight: theme.typography.weight.bold,
-    color: theme.colors.text.primary,
+  proSection: {
     marginTop: theme.spacing.md,
+    marginBottom: theme.spacing.md,
   },
-  loadingMessage: {
+  proRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    backgroundColor: `${theme.colors.warning}10`,
+    borderWidth: 1,
+    borderColor: `${theme.colors.warning}30`,
+    borderRadius: theme.borderRadius.md,
+    padding: theme.spacing.md,
+  },
+  proInfo: {
+    flex: 1,
+    marginRight: theme.spacing.md,
+  },
+  proLabelRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: theme.spacing.xs,
+  },
+  proLabel: {
     fontSize: theme.typography.size.md,
-    color: theme.colors.primary,
-    marginTop: theme.spacing.sm,
-    textAlign: 'center',
+    fontWeight: theme.typography.weight.semibold,
+    color: theme.colors.text.primary,
+  },
+  proHint: {
+    fontSize: theme.typography.size.xs,
+    color: theme.colors.text.tertiary,
+    marginTop: theme.spacing.xs,
   },
 });

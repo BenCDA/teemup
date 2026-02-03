@@ -1,7 +1,20 @@
 import { io, Socket } from 'socket.io-client';
+import Constants from 'expo-constants';
 import { getAccessToken } from './api';
 
-const SOCKET_URL = process.env.EXPO_PUBLIC_SOCKET_URL || 'http://localhost:9092';
+// Auto-detect Socket URL from Expo's dev server
+const getSocketUrl = (): string => {
+  if (__DEV__) {
+    const debuggerHost = Constants.expoConfig?.hostUri ?? Constants.manifest?.debuggerHost;
+    if (debuggerHost) {
+      const ip = debuggerHost.split(':')[0];
+      return `http://${ip}:9092`;
+    }
+  }
+  return process.env.EXPO_PUBLIC_SOCKET_URL || 'http://localhost:9092';
+};
+
+const SOCKET_URL = getSocketUrl();
 
 export type ConnectionStatus = 'connected' | 'disconnected' | 'connecting' | 'error';
 
@@ -31,11 +44,12 @@ class SocketService {
     }
 
     this.socket = io(SOCKET_URL, {
-      query: { token },
+      auth: { token }, // Token in auth object (secure) instead of query params
       transports: ['websocket'],
       reconnection: true,
       reconnectionAttempts: 5,
       reconnectionDelay: 1000,
+      reconnectionDelayMax: 5000,
     });
 
     this.socket.on('connect', () => {

@@ -18,6 +18,7 @@ export interface User {
   onboardingCompleted?: boolean;
   latitude?: number;
   longitude?: number;
+  isPro?: boolean; // Pro users can create paid events
 }
 
 export interface SportEvent {
@@ -34,7 +35,27 @@ export interface SportEvent {
   endTime: string;
   recurrence: 'NONE' | 'DAILY' | 'WEEKLY' | 'BIWEEKLY' | 'MONTHLY';
   isPublic: boolean;
+  maxParticipants?: number;
   distanceKm?: number; // Calculated distance from user
+  isPaid?: boolean; // Paid event (Pro users only)
+  price?: number; // Price in euros
+  // Organizer info
+  organizer?: {
+    id: string;
+    fullName: string;
+    profilePicture?: string;
+  };
+  // Participants
+  participants?: EventParticipant[];
+  participantCount?: number;
+  isParticipating?: boolean;
+}
+
+export interface EventParticipant {
+  userId: string;
+  fullName: string;
+  profilePicture?: string;
+  status: 'PENDING' | 'CONFIRMED' | 'DECLINED' | 'CANCELLED';
 }
 
 export interface AuthResponse {

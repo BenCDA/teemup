@@ -13,6 +13,9 @@ export interface CreateEventRequest {
   endTime: string;
   recurrence?: 'NONE' | 'DAILY' | 'WEEKLY' | 'BIWEEKLY' | 'MONTHLY';
   isPublic?: boolean;
+  maxParticipants?: number;
+  isPaid?: boolean;
+  price?: number;
 }
 
 export interface NearbyEventsParams {
@@ -69,6 +72,22 @@ export const eventService = {
 
   getEventsBySport: async (sport: string): Promise<SportEvent[]> => {
     const response = await api.get<SportEvent[]>(`/events/public/sport/${sport}`);
+    return response.data;
+  },
+
+  // Participation
+  joinEvent: async (eventId: string): Promise<SportEvent> => {
+    const response = await api.post<SportEvent>(`/events/${eventId}/join`);
+    return response.data;
+  },
+
+  leaveEvent: async (eventId: string): Promise<SportEvent> => {
+    const response = await api.delete<SportEvent>(`/events/${eventId}/leave`);
+    return response.data;
+  },
+
+  getParticipatingEvents: async (): Promise<SportEvent[]> => {
+    const response = await api.get<SportEvent[]>('/events/me/participating');
     return response.data;
   },
 };

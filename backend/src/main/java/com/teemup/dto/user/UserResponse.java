@@ -41,6 +41,9 @@ public class UserResponse {
     private Double latitude;
     private Double longitude;
 
+    // Pro status
+    private Boolean isPro;
+
     public static UserResponse fromEntity(User user) {
         return UserResponse.builder()
                 .id(user.getId())
@@ -61,6 +64,7 @@ public class UserResponse {
                 .onboardingCompleted(user.getOnboardingCompleted())
                 .latitude(user.getLatitude())
                 .longitude(user.getLongitude())
+                .isPro(user.getIsPro())
                 .build();
     }
 }

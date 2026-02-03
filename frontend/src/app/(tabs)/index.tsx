@@ -187,7 +187,7 @@ export default function MessagesScreen() {
               style={[styles.lastMessage, hasUnread && styles.lastMessageUnread]}
               numberOfLines={1}
             >
-              {item.lastMessage?.senderId === user?.id && (
+              {item.lastMessage?.sender?.id === user?.id && (
                 <Text style={styles.youPrefix}>Vous : </Text>
               )}
               {item.lastMessage?.content || 'Démarrer la conversation'}

@@ -8,6 +8,8 @@ import org.hibernate.annotations.UpdateTimestamp;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.LocalTime;
+import java.util.ArrayList;
+import java.util.List;
 import java.util.UUID;
 
 @Entity
@@ -64,12 +66,28 @@ public class SportEvent {
     @Builder.Default
     private Boolean isPublic = true;
 
+    // Paid event fields (only for Pro users)
+    @Column(nullable = false)
+    @Builder.Default
+    private Boolean isPaid = false;
+
+    @Column
+    private Double price;  // Price in euros
+
     @CreationTimestamp
     @Column(updatable = false)
     private LocalDateTime createdAt;
 
     @UpdateTimestamp
     private LocalDateTime updatedAt;
+
+    @OneToMany(mappedBy = "event", cascade = CascadeType.ALL, orphanRemoval = true)
+    @Builder.Default
+    private List<EventParticipant> participants = new ArrayList<>();
+
+    // Maximum number of participants (null = unlimited)
+    @Column
+    private Integer maxParticipants;
 
     public enum RecurrenceType {
         NONE,           // One-time event

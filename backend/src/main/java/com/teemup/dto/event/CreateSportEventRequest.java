@@ -45,6 +45,17 @@ public class CreateSportEventRequest {
 
     private Boolean isPublic = true;
 
+    @Min(value = 2, message = "Minimum 2 participants required")
+    @Max(value = 100, message = "Maximum 100 participants allowed")
+    private Integer maxParticipants;
+
+    // Paid event fields (only for Pro users)
+    private Boolean isPaid = false;
+
+    @Min(value = 0, message = "Price cannot be negative")
+    @Max(value = 10000, message = "Price cannot exceed 10000€")
+    private Double price;
+
     /**
      * Validates that endTime is after startTime.
      * Called by custom validator or in service layer.

@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useMemo } from 'react';
 import {
   View,
   Text,
@@ -8,6 +8,7 @@ import {
   Image,
   ActivityIndicator,
   Alert,
+  TextInput,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { router } from 'expo-router';
@@ -17,7 +18,7 @@ import * as Haptics from 'expo-haptics';
 import { useAuth } from '@/features/auth/AuthContext';
 import { Avatar, Button } from '@/components/ui';
 import { theme } from '@/features/shared/styles/theme';
-import { SPORTS } from '@/constants/sports';
+import { SPORTS, getPopularSports, searchSports, SportConfig } from '@/constants/sports';
 
 type Step = 'sports' | 'profile-photo' | 'cover-photo';
 
@@ -28,6 +29,21 @@ export default function OnboardingScreen() {
   const [profilePicture, setProfilePicture] = useState<string | null>(null);
   const [coverImage, setCoverImage] = useState<string | null>(null);
   const [isSaving, setIsSaving] = useState(false);
+  const [searchQuery, setSearchQuery] = useState('');
+  const [showAllSports, setShowAllSports] = useState(false);
+
+  const isPro = user?.isPro;
+
+  // Filter sports based on search and showAll
+  const displayedSports = useMemo(() => {
+    if (searchQuery.trim()) {
+      return searchSports(searchQuery);
+    }
+    if (showAllSports) {
+      return SPORTS.filter(s => s.key !== 'other');
+    }
+    return getPopularSports();
+  }, [searchQuery, showAllSports]);
 
   const toggleSport = (sportKey: string) => {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
@@ -43,7 +59,7 @@ export default function OnboardingScreen() {
 
     const permissionResult = await ImagePicker.requestMediaLibraryPermissionsAsync();
     if (!permissionResult.granted) {
-      Alert.alert('Permission requise', 'Veuillez autoriser l\'acces a votre galerie photo.');
+      Alert.alert('Permission requise', 'Veuillez autoriser l\'accès à votre galerie photo.');
       return;
     }
 
@@ -69,7 +85,7 @@ export default function OnboardingScreen() {
 
     if (step === 'sports') {
       if (selectedSports.length === 0) {
-        Alert.alert('Sports requis', 'Veuillez selectionner au moins un sport.');
+        Alert.alert('Sports requis', 'Veuillez sélectionner au moins un sport.');
         return;
       }
       setStep('profile-photo');
@@ -105,7 +121,7 @@ export default function OnboardingScreen() {
       router.replace('/(tabs)');
     } catch (error) {
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
-      Alert.alert('Erreur', 'Une erreur est survenue. Veuillez reessayer.');
+      Alert.alert('Erreur', 'Une erreur est survenue. Veuillez réessayer.');
     } finally {
       setIsSaving(false);
     }
@@ -121,17 +137,27 @@ export default function OnboardingScreen() {
 
   const getStepTitle = () => {
     switch (step) {
-      case 'sports': return 'Quels sports pratiquez-vous ?';
-      case 'profile-photo': return 'Ajoutez une photo de profil';
-      case 'cover-photo': return 'Ajoutez une photo de couverture';
+      case 'sports':
+        return isPro ? 'Quels sports proposez-vous ?' : 'Quels sports pratiquez-vous ?';
+      case 'profile-photo':
+        return isPro ? 'Ajoutez votre logo ou photo' : 'Ajoutez une photo de profil';
+      case 'cover-photo':
+        return 'Ajoutez une photo de couverture';
     }
   };
 
   const getStepSubtitle = () => {
     switch (step) {
-      case 'sports': return 'Selectionnez les sports que vous pratiquez pour trouver des partenaires.';
-      case 'profile-photo': return 'Une photo de profil aide les autres sportifs a vous reconnaitre.';
-      case 'cover-photo': return 'Personnalisez votre profil avec une belle photo de couverture.';
+      case 'sports':
+        return isPro
+          ? 'Sélectionnez les sports que vous proposez pour vos événements.'
+          : 'Sélectionnez les sports que vous pratiquez pour trouver des partenaires.';
+      case 'profile-photo':
+        return isPro
+          ? 'Une photo professionnelle aide à établir la confiance avec vos clients.'
+          : 'Une photo de profil aide les autres sportifs à vous reconnaître.';
+      case 'cover-photo':
+        return 'Personnalisez votre profil avec une belle photo de couverture.';
     }
   };
 
@@ -142,7 +168,7 @@ export default function OnboardingScreen() {
         <View style={styles.progressBar}>
           <View style={[styles.progressFill, { width: `${(getStepNumber() / 3) * 100}%` }]} />
         </View>
-        <Text style={styles.progressText}>Etape {getStepNumber()}/3</Text>
+        <Text style={styles.progressText}>Étape {getStepNumber()}/3</Text>
       </View>
 
       {/* Header */}
@@ -154,42 +180,107 @@ export default function OnboardingScreen() {
       {/* Content */}
       <ScrollView style={styles.scrollView} showsVerticalScrollIndicator={false}>
         {step === 'sports' && (
-          <View style={styles.sportsGrid}>
-            {SPORTS.map((sport) => {
-              const isSelected = selectedSports.includes(sport.key);
-              return (
-                <TouchableOpacity
-                  key={sport.key}
-                  style={[
-                    styles.sportCard,
-                    isSelected && { borderColor: sport.color, backgroundColor: `${sport.color}15` },
-                  ]}
-                  onPress={() => toggleSport(sport.key)}
-                  activeOpacity={0.7}
-                >
-                  <View
-                    style={[
-                      styles.sportIconContainer,
-                      { backgroundColor: isSelected ? sport.color : `${sport.color}20` },
-                    ]}
-                  >
-                    <Ionicons
-                      name={sport.icon}
-                      size={28}
-                      color={isSelected ? theme.colors.text.inverse : sport.color}
-                    />
-                  </View>
-                  <Text style={[styles.sportLabel, isSelected && { color: sport.color }]}>
-                    {sport.label}
-                  </Text>
-                  {isSelected && (
-                    <View style={[styles.checkBadge, { backgroundColor: sport.color }]}>
-                      <Ionicons name="checkmark" size={14} color={theme.colors.text.inverse} />
-                    </View>
-                  )}
+          <View>
+            {/* Search Bar */}
+            <View style={styles.searchContainer}>
+              <Ionicons name="search" size={20} color={theme.colors.text.tertiary} />
+              <TextInput
+                style={styles.searchInput}
+                placeholder="Rechercher un sport..."
+                placeholderTextColor={theme.colors.text.tertiary}
+                value={searchQuery}
+                onChangeText={setSearchQuery}
+                autoCapitalize="none"
+                autoCorrect={false}
+              />
+              {searchQuery.length > 0 && (
+                <TouchableOpacity onPress={() => setSearchQuery('')}>
+                  <Ionicons name="close-circle" size={20} color={theme.colors.text.tertiary} />
                 </TouchableOpacity>
-              );
-            })}
+              )}
+            </View>
+
+            {/* Toggle Popular / All Sports */}
+            {!searchQuery && (
+              <View style={styles.toggleContainer}>
+                <TouchableOpacity
+                  style={[styles.toggleButton, !showAllSports && styles.toggleButtonActive]}
+                  onPress={() => setShowAllSports(false)}
+                >
+                  <Ionicons name="star" size={16} color={!showAllSports ? theme.colors.primary : theme.colors.text.tertiary} />
+                  <Text style={[styles.toggleText, !showAllSports && styles.toggleTextActive]}>
+                    Populaires
+                  </Text>
+                </TouchableOpacity>
+                <TouchableOpacity
+                  style={[styles.toggleButton, showAllSports && styles.toggleButtonActive]}
+                  onPress={() => setShowAllSports(true)}
+                >
+                  <Ionicons name="grid" size={16} color={showAllSports ? theme.colors.primary : theme.colors.text.tertiary} />
+                  <Text style={[styles.toggleText, showAllSports && styles.toggleTextActive]}>
+                    Tous ({SPORTS.length - 1})
+                  </Text>
+                </TouchableOpacity>
+              </View>
+            )}
+
+            {/* Selected Count */}
+            {selectedSports.length > 0 && (
+              <View style={styles.selectedCount}>
+                <Ionicons name="checkmark-circle" size={16} color={theme.colors.success} />
+                <Text style={styles.selectedCountText}>
+                  {selectedSports.length} sport{selectedSports.length > 1 ? 's' : ''} sélectionné{selectedSports.length > 1 ? 's' : ''}
+                </Text>
+              </View>
+            )}
+
+            {/* Sports Grid */}
+            <View style={styles.sportsGrid}>
+              {displayedSports.map((sport) => {
+                const isSelected = selectedSports.includes(sport.key);
+                return (
+                  <TouchableOpacity
+                    key={sport.key}
+                    style={[
+                      styles.sportCard,
+                      isSelected && { borderColor: sport.color, backgroundColor: `${sport.color}15` },
+                    ]}
+                    onPress={() => toggleSport(sport.key)}
+                    activeOpacity={0.7}
+                  >
+                    <View
+                      style={[
+                        styles.sportIconContainer,
+                        { backgroundColor: isSelected ? sport.color : `${sport.color}20` },
+                      ]}
+                    >
+                      <Ionicons
+                        name={sport.icon}
+                        size={28}
+                        color={isSelected ? theme.colors.text.inverse : sport.color}
+                      />
+                    </View>
+                    <Text style={[styles.sportLabel, isSelected && { color: sport.color }]} numberOfLines={2}>
+                      {sport.label}
+                    </Text>
+                    {isSelected && (
+                      <View style={[styles.checkBadge, { backgroundColor: sport.color }]}>
+                        <Ionicons name="checkmark" size={14} color={theme.colors.text.inverse} />
+                      </View>
+                    )}
+                  </TouchableOpacity>
+                );
+              })}
+            </View>
+
+            {/* No Results */}
+            {displayedSports.length === 0 && searchQuery && (
+              <View style={styles.noResults}>
+                <Ionicons name="search-outline" size={48} color={theme.colors.text.tertiary} />
+                <Text style={styles.noResultsText}>Aucun sport trouvé</Text>
+                <Text style={styles.noResultsSubtext}>Essayez un autre terme de recherche</Text>
+              </View>
+            )}
           </View>
         )}
 
@@ -305,10 +396,10 @@ const styles = StyleSheet.create({
   header: {
     paddingHorizontal: theme.spacing.lg,
     paddingTop: theme.spacing.xl,
-    paddingBottom: theme.spacing.lg,
+    paddingBottom: theme.spacing.md,
   },
   title: {
-    fontSize: 28,
+    fontSize: 26,
     fontWeight: theme.typography.weight.bold,
     color: theme.colors.text.primary,
     marginBottom: theme.spacing.sm,
@@ -322,6 +413,62 @@ const styles = StyleSheet.create({
     flex: 1,
     paddingHorizontal: theme.spacing.lg,
   },
+  // Search
+  searchContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: theme.colors.background,
+    borderRadius: theme.borderRadius.md,
+    paddingHorizontal: theme.spacing.md,
+    paddingVertical: theme.spacing.sm,
+    marginBottom: theme.spacing.md,
+    gap: theme.spacing.sm,
+  },
+  searchInput: {
+    flex: 1,
+    fontSize: theme.typography.size.md,
+    color: theme.colors.text.primary,
+    paddingVertical: theme.spacing.xs,
+  },
+  // Toggle buttons
+  toggleContainer: {
+    flexDirection: 'row',
+    gap: theme.spacing.sm,
+    marginBottom: theme.spacing.md,
+  },
+  toggleButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingVertical: theme.spacing.sm,
+    paddingHorizontal: theme.spacing.md,
+    borderRadius: theme.borderRadius.round,
+    backgroundColor: theme.colors.background,
+    gap: theme.spacing.xs,
+  },
+  toggleButtonActive: {
+    backgroundColor: `${theme.colors.primary}15`,
+  },
+  toggleText: {
+    fontSize: theme.typography.size.sm,
+    color: theme.colors.text.tertiary,
+    fontWeight: theme.typography.weight.medium,
+  },
+  toggleTextActive: {
+    color: theme.colors.primary,
+  },
+  // Selected count
+  selectedCount: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: theme.spacing.xs,
+    marginBottom: theme.spacing.md,
+  },
+  selectedCountText: {
+    fontSize: theme.typography.size.sm,
+    color: theme.colors.success,
+    fontWeight: theme.typography.weight.medium,
+  },
+  // Sports grid
   sportsGrid: {
     flexDirection: 'row',
     flexWrap: 'wrap',
@@ -330,26 +477,26 @@ const styles = StyleSheet.create({
   },
   sportCard: {
     width: '30%',
-    aspectRatio: 0.9,
+    aspectRatio: 0.85,
     alignItems: 'center',
     justifyContent: 'center',
     backgroundColor: theme.colors.background,
     borderRadius: theme.borderRadius.lg,
     borderWidth: 2,
     borderColor: theme.colors.border,
-    padding: theme.spacing.sm,
+    padding: theme.spacing.xs,
     position: 'relative',
   },
   sportIconContainer: {
-    width: 56,
-    height: 56,
-    borderRadius: 28,
+    width: 50,
+    height: 50,
+    borderRadius: 25,
     alignItems: 'center',
     justifyContent: 'center',
-    marginBottom: theme.spacing.sm,
+    marginBottom: theme.spacing.xs,
   },
   sportLabel: {
-    fontSize: theme.typography.size.sm,
+    fontSize: theme.typography.size.xs,
     fontWeight: theme.typography.weight.medium,
     color: theme.colors.text.primary,
     textAlign: 'center',
@@ -364,6 +511,22 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
+  // No results
+  noResults: {
+    alignItems: 'center',
+    paddingVertical: theme.spacing.xxl,
+    gap: theme.spacing.sm,
+  },
+  noResultsText: {
+    fontSize: theme.typography.size.lg,
+    fontWeight: theme.typography.weight.semibold,
+    color: theme.colors.text.secondary,
+  },
+  noResultsSubtext: {
+    fontSize: theme.typography.size.sm,
+    color: theme.colors.text.tertiary,
+  },
+  // Photo sections
   photoSection: {
     alignItems: 'center',
     paddingVertical: theme.spacing.xl,

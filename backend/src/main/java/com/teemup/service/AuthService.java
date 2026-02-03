@@ -4,8 +4,11 @@ import com.teemup.dto.auth.*;
 import com.teemup.dto.user.UserResponse;
 import com.teemup.dto.verification.FaceVerificationResponse;
 import com.teemup.entity.User;
+import com.teemup.exception.EmailAlreadyExistsException;
 import com.teemup.exception.FaceVerificationException;
+import com.teemup.exception.InvalidTokenException;
 import com.teemup.repository.UserRepository;
+import jakarta.persistence.EntityNotFoundException;
 import com.teemup.security.JwtService;
 import com.teemup.security.UserDetailsImpl;
 import lombok.RequiredArgsConstructor;
@@ -31,7 +34,7 @@ public class AuthService {
     @Transactional
     public AuthResponse register(RegisterRequest request) {
         if (userRepository.existsByEmail(request.getEmail())) {
-            throw new RuntimeException("Email already exists");
+            throw new EmailAlreadyExistsException(request.getEmail());
         }
 
         // Verify face before registration
@@ -54,6 +57,7 @@ public class AuthService {
                 .firstName(request.getFirstName())
                 .lastName(request.getLastName())
                 .provider(User.AuthProvider.LOCAL)
+                .isPro(request.getIsPro() != null && request.getIsPro())
                 .build();
 
         // Apply verification data to user
@@ -87,7 +91,7 @@ public class AuthService {
 
         UserDetailsImpl userDetails = (UserDetailsImpl) authentication.getPrincipal();
         User user = userRepository.findByEmail(userDetails.getEmail())
-                .orElseThrow(() -> new RuntimeException("User not found"));
+                .orElseThrow(() -> new EntityNotFoundException("Utilisateur non trouvé"));
 
         String accessToken = jwtService.generateToken(userDetails, user.getId());
         String refreshToken = jwtService.generateRefreshToken(userDetails, user.getId());
@@ -110,12 +114,12 @@ public class AuthService {
         String userEmail = jwtService.extractUsernameFromRefreshToken(refreshToken);
 
         User user = userRepository.findByEmail(userEmail)
-                .orElseThrow(() -> new RuntimeException("User not found"));
+                .orElseThrow(() -> new EntityNotFoundException("Utilisateur non trouvé"));
 
         UserDetailsImpl userDetails = UserDetailsImpl.build(user);
 
         if (!jwtService.isRefreshTokenValid(refreshToken, userDetails)) {
-            throw new RuntimeException("Invalid refresh token");
+            throw new InvalidTokenException("Token de rafraîchissement invalide");
         }
 
         String newAccessToken = jwtService.generateToken(userDetails, user.getId());
@@ -135,7 +139,7 @@ public class AuthService {
     @Transactional
     public void logout(String userEmail) {
         User user = userRepository.findByEmail(userEmail)
-                .orElseThrow(() -> new RuntimeException("User not found"));
+                .orElseThrow(() -> new EntityNotFoundException("Utilisateur non trouvé"));
 
         user.setRefreshToken(null);
         user.setIsOnline(false);
@@ -144,7 +148,7 @@ public class AuthService {
 
     public UserResponse getCurrentUser(String userEmail) {
         User user = userRepository.findByEmail(userEmail)
-                .orElseThrow(() -> new RuntimeException("User not found"));
+                .orElseThrow(() -> new EntityNotFoundException("Utilisateur non trouvé"));
 
         return UserResponse.fromEntity(user);
     }

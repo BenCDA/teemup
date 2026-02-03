@@ -5,7 +5,6 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons, MaterialCommunityIcons, FontAwesome5 } from '@expo/vector-icons';
 import { useQuery } from '@tanstack/react-query';
 import { theme } from '@/features/shared/styles/theme';
-import { HeaderImg } from '@/components/ui';
 import { notificationService } from '@/features/notifications/notificationService';
 import { friendService } from '@/features/friends/friendService';
 
@@ -39,12 +38,10 @@ export default function TabsLayout() {
   return (
     <View style={styles.outerContainer}>
       {/* Status Bar */}
-      <StatusBar barStyle="light-content" backgroundColor="black" />
+      <StatusBar barStyle="dark-content" backgroundColor="white" />
 
-      {/* Top Safe Area - Black */}
-      <SafeAreaView style={styles.safeAreaTop} edges={['top']}>
-        <HeaderImg />
-      </SafeAreaView>
+      {/* Top Safe Area */}
+      <SafeAreaView style={styles.safeAreaTop} edges={['top']} />
 
       {/* Main Content with Bottom Safe Area */}
       <SafeAreaView style={styles.container} edges={['bottom']}>
@@ -153,10 +150,10 @@ export default function TabsLayout() {
 const styles = StyleSheet.create({
   outerContainer: {
     flex: 1,
-    backgroundColor: 'black',
+    backgroundColor: 'white',
   },
   safeAreaTop: {
-    backgroundColor: 'black',
+    backgroundColor: 'white',
   },
   container: {
     flex: 1,

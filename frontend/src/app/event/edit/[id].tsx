@@ -1,0 +1,776 @@
+import { useState, useEffect } from 'react';
+import {
+  View,
+  Text,
+  ScrollView,
+  TouchableOpacity,
+  StyleSheet,
+  TextInput,
+  Switch,
+  Alert,
+  ActivityIndicator,
+  Platform,
+} from 'react-native';
+import { router, useLocalSearchParams } from 'expo-router';
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { Ionicons } from '@expo/vector-icons';
+import * as Haptics from 'expo-haptics';
+import DateTimePicker from '@react-native-community/datetimepicker';
+import { SafeAreaView } from 'react-native-safe-area-context';
+import { eventService, CreateEventRequest } from '@/features/events/eventService';
+import { LocationPicker } from '@/components/ui';
+import { theme } from '@/features/shared/styles/theme';
+import { SPORTS } from '@/constants/sports';
+import { useAuth } from '@/features/auth/AuthContext';
+
+type RecurrenceType = 'NONE' | 'DAILY' | 'WEEKLY' | 'BIWEEKLY' | 'MONTHLY';
+
+const RECURRENCE_OPTIONS: { value: RecurrenceType; label: string }[] = [
+  { value: 'NONE', label: 'Aucune' },
+  { value: 'DAILY', label: 'Quotidien' },
+  { value: 'WEEKLY', label: 'Hebdomadaire' },
+  { value: 'BIWEEKLY', label: 'Bi-hebdomadaire' },
+  { value: 'MONTHLY', label: 'Mensuel' },
+];
+
+export default function EditEventScreen() {
+  const { id } = useLocalSearchParams<{ id: string }>();
+  const queryClient = useQueryClient();
+  const { user } = useAuth();
+
+  // Fetch existing event
+  const { data: event, isLoading: isLoadingEvent } = useQuery({
+    queryKey: ['event', id],
+    queryFn: () => eventService.getEventById(id!),
+    enabled: !!id,
+  });
+
+  // Form state
+  const [sport, setSport] = useState<string>('');
+  const [title, setTitle] = useState('');
+  const [description, setDescription] = useState('');
+  const [location, setLocation] = useState<{
+    address: string;
+    latitude: number;
+    longitude: number;
+  } | null>(null);
+  const [date, setDate] = useState(new Date());
+  const [startTime, setStartTime] = useState(new Date());
+  const [endTime, setEndTime] = useState(new Date(Date.now() + 60 * 60 * 1000));
+  const [recurrence, setRecurrence] = useState<RecurrenceType>('NONE');
+  const [isPublic, setIsPublic] = useState(true);
+  const [maxParticipants, setMaxParticipants] = useState<string>('');
+  const [isPaid, setIsPaid] = useState(false);
+  const [price, setPrice] = useState<string>('');
+
+  // Picker visibility
+  const [showDatePicker, setShowDatePicker] = useState(false);
+  const [showStartTimePicker, setShowStartTimePicker] = useState(false);
+  const [showEndTimePicker, setShowEndTimePicker] = useState(false);
+  const [showSportPicker, setShowSportPicker] = useState(false);
+  const [showRecurrencePicker, setShowRecurrencePicker] = useState(false);
+
+  // Populate form with existing event data
+  useEffect(() => {
+    if (event) {
+      setSport(event.sport);
+      setTitle(event.title || '');
+      setDescription(event.description || '');
+      if (event.location && event.latitude && event.longitude) {
+        setLocation({
+          address: event.location,
+          latitude: event.latitude,
+          longitude: event.longitude,
+        });
+      }
+      setDate(new Date(event.date));
+
+      // Parse time strings
+      const [startHour, startMin] = event.startTime.split(':').map(Number);
+      const [endHour, endMin] = event.endTime.split(':').map(Number);
+      const startDate = new Date();
+      startDate.setHours(startHour, startMin, 0);
+      const endDate = new Date();
+      endDate.setHours(endHour, endMin, 0);
+      setStartTime(startDate);
+      setEndTime(endDate);
+
+      setRecurrence(event.recurrence as RecurrenceType);
+      setIsPublic(event.isPublic);
+      setMaxParticipants(event.maxParticipants?.toString() || '');
+      setIsPaid(event.isPaid || false);
+      setPrice(event.price?.toString() || '');
+    }
+  }, [event]);
+
+  const updateMutation = useMutation({
+    mutationFn: (data: Partial<CreateEventRequest>) => eventService.updateEvent(id!, data),
+    onSuccess: () => {
+      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+      queryClient.invalidateQueries({ queryKey: ['event', id] });
+      queryClient.invalidateQueries({ queryKey: ['nearbyEvents'] });
+      queryClient.invalidateQueries({ queryKey: ['myEvents'] });
+      Alert.alert('Succès', 'Événement modifié avec succès !', [
+        { text: 'OK', onPress: () => router.back() },
+      ]);
+    },
+    onError: (error: any) => {
+      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
+      Alert.alert('Erreur', error.response?.data?.message || 'Une erreur est survenue');
+    },
+  });
+
+  const handleSubmit = () => {
+    if (!sport) {
+      Alert.alert('Erreur', 'Veuillez sélectionner un sport');
+      return;
+    }
+
+    if (endTime <= startTime) {
+      Alert.alert('Erreur', 'L\'heure de fin doit être après l\'heure de début');
+      return;
+    }
+
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+
+    const eventData: Partial<CreateEventRequest> = {
+      sport,
+      title: title.trim() || undefined,
+      description: description.trim() || undefined,
+      location: location?.address,
+      latitude: location?.latitude,
+      longitude: location?.longitude,
+      date: date.toISOString().split('T')[0],
+      startTime: formatTime(startTime),
+      endTime: formatTime(endTime),
+      recurrence,
+      isPublic,
+      maxParticipants: maxParticipants ? parseInt(maxParticipants, 10) : undefined,
+      isPaid: user?.isPro ? isPaid : false,
+      price: user?.isPro && isPaid && price ? parseFloat(price) : undefined,
+    };
+
+    updateMutation.mutate(eventData);
+  };
+
+  const formatTime = (d: Date): string => {
+    return d.toTimeString().slice(0, 5);
+  };
+
+  const formatDateDisplay = (d: Date): string => {
+    return d.toLocaleDateString('fr-FR', {
+      weekday: 'long',
+      day: 'numeric',
+      month: 'long',
+      year: 'numeric',
+    });
+  };
+
+  const formatTimeDisplay = (d: Date): string => {
+    return d.toLocaleTimeString('fr-FR', {
+      hour: '2-digit',
+      minute: '2-digit',
+    });
+  };
+
+  const selectedSport = SPORTS.find((s) => s.key === sport);
+  const selectedRecurrence = RECURRENCE_OPTIONS.find((r) => r.value === recurrence);
+
+  if (isLoadingEvent) {
+    return (
+      <SafeAreaView style={styles.safeArea}>
+        <View style={styles.loadingContainer}>
+          <ActivityIndicator size="large" color={theme.colors.primary} />
+          <Text style={styles.loadingText}>Chargement...</Text>
+        </View>
+      </SafeAreaView>
+    );
+  }
+
+  return (
+    <SafeAreaView style={styles.safeArea} edges={['top']}>
+      <View style={styles.container}>
+        {/* Header */}
+        <View style={styles.header}>
+          <TouchableOpacity onPress={() => router.back()} style={styles.backButton}>
+            <Ionicons name="arrow-back" size={24} color={theme.colors.text.primary} />
+          </TouchableOpacity>
+          <Text style={styles.headerTitle}>Modifier l'événement</Text>
+          <View style={styles.backButton} />
+        </View>
+
+        <ScrollView style={styles.content} showsVerticalScrollIndicator={false}>
+          {/* Sport Picker */}
+          <View style={styles.section}>
+            <Text style={styles.label}>Sport *</Text>
+            <TouchableOpacity
+              style={styles.picker}
+              onPress={() => setShowSportPicker(!showSportPicker)}
+            >
+              {selectedSport ? (
+                <View style={styles.pickerContent}>
+                  <Ionicons name={selectedSport.icon} size={20} color={selectedSport.color} />
+                  <Text style={styles.pickerText}>{selectedSport.label}</Text>
+                </View>
+              ) : (
+                <Text style={styles.pickerPlaceholder}>Sélectionner un sport</Text>
+              )}
+              <Ionicons name="chevron-down" size={20} color={theme.colors.text.tertiary} />
+            </TouchableOpacity>
+
+            {showSportPicker && (
+              <View style={styles.optionsList}>
+                {SPORTS.map((s) => (
+                  <TouchableOpacity
+                    key={s.key}
+                    style={[styles.option, sport === s.key && styles.optionSelected]}
+                    onPress={() => {
+                      setSport(s.key);
+                      setShowSportPicker(false);
+                      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+                    }}
+                  >
+                    <Ionicons name={s.icon} size={20} color={s.color} />
+                    <Text style={[styles.optionText, sport === s.key && styles.optionTextSelected]}>
+                      {s.label}
+                    </Text>
+                  </TouchableOpacity>
+                ))}
+              </View>
+            )}
+          </View>
+
+          {/* Title */}
+          <View style={styles.section}>
+            <Text style={styles.label}>Titre (optionnel)</Text>
+            <TextInput
+              style={styles.input}
+              value={title}
+              onChangeText={setTitle}
+              placeholder="Ex: Session running débutants"
+              placeholderTextColor={theme.colors.text.tertiary}
+              maxLength={100}
+            />
+          </View>
+
+          {/* Description */}
+          <View style={styles.section}>
+            <Text style={styles.label}>Description (optionnel)</Text>
+            <TextInput
+              style={[styles.input, styles.textArea]}
+              value={description}
+              onChangeText={setDescription}
+              placeholder="Décrivez votre événement..."
+              placeholderTextColor={theme.colors.text.tertiary}
+              multiline
+              numberOfLines={4}
+              maxLength={500}
+            />
+          </View>
+
+          {/* Date */}
+          <View style={styles.section}>
+            <Text style={styles.label}>Date *</Text>
+            <TouchableOpacity style={styles.picker} onPress={() => setShowDatePicker(true)}>
+              <Ionicons name="calendar-outline" size={20} color={theme.colors.text.secondary} />
+              <Text style={styles.pickerText}>{formatDateDisplay(date)}</Text>
+            </TouchableOpacity>
+            {showDatePicker && (
+              <DateTimePicker
+                value={date}
+                mode="date"
+                display={Platform.OS === 'ios' ? 'spinner' : 'default'}
+                minimumDate={new Date()}
+                onChange={(event, selectedDate) => {
+                  setShowDatePicker(Platform.OS === 'ios');
+                  if (selectedDate) setDate(selectedDate);
+                }}
+              />
+            )}
+          </View>
+
+          {/* Time */}
+          <View style={styles.section}>
+            <Text style={styles.label}>Horaires *</Text>
+            <View style={styles.timeContainer}>
+              <TouchableOpacity
+                style={styles.timeButton}
+                onPress={() => {
+                  setShowEndTimePicker(false);
+                  setShowStartTimePicker(true);
+                  Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+                }}
+              >
+                <View style={styles.timeIconContainer}>
+                  <Ionicons name="play-circle" size={20} color={theme.colors.success} />
+                </View>
+                <View style={styles.timeContent}>
+                  <Text style={styles.timeLabel}>Début</Text>
+                  <Text style={styles.timeValue}>{formatTimeDisplay(startTime)}</Text>
+                </View>
+              </TouchableOpacity>
+
+              <View style={styles.timeSeparator}>
+                <View style={styles.timeLine} />
+                <Ionicons name="arrow-down" size={16} color={theme.colors.text.tertiary} />
+                <View style={styles.timeLine} />
+              </View>
+
+              <TouchableOpacity
+                style={styles.timeButton}
+                onPress={() => {
+                  setShowStartTimePicker(false);
+                  setShowEndTimePicker(true);
+                  Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+                }}
+              >
+                <View style={[styles.timeIconContainer, { backgroundColor: `${theme.colors.error}15` }]}>
+                  <Ionicons name="stop-circle" size={20} color={theme.colors.error} />
+                </View>
+                <View style={styles.timeContent}>
+                  <Text style={styles.timeLabel}>Fin</Text>
+                  <Text style={styles.timeValue}>{formatTimeDisplay(endTime)}</Text>
+                </View>
+              </TouchableOpacity>
+            </View>
+
+            {showStartTimePicker && (
+              <View style={styles.pickerContainer}>
+                <View style={styles.pickerHeader}>
+                  <Text style={styles.pickerHeaderText}>Heure de début</Text>
+                  <TouchableOpacity
+                    onPress={() => setShowStartTimePicker(false)}
+                    style={styles.pickerDoneButton}
+                  >
+                    <Text style={styles.pickerDoneText}>OK</Text>
+                  </TouchableOpacity>
+                </View>
+                <DateTimePicker
+                  value={startTime}
+                  mode="time"
+                  display="spinner"
+                  onChange={(event, selectedTime) => {
+                    if (selectedTime) setStartTime(selectedTime);
+                  }}
+                  style={styles.timePicker}
+                />
+              </View>
+            )}
+
+            {showEndTimePicker && (
+              <View style={styles.pickerContainer}>
+                <View style={styles.pickerHeader}>
+                  <Text style={styles.pickerHeaderText}>Heure de fin</Text>
+                  <TouchableOpacity
+                    onPress={() => setShowEndTimePicker(false)}
+                    style={styles.pickerDoneButton}
+                  >
+                    <Text style={styles.pickerDoneText}>OK</Text>
+                  </TouchableOpacity>
+                </View>
+                <DateTimePicker
+                  value={endTime}
+                  mode="time"
+                  display="spinner"
+                  onChange={(event, selectedTime) => {
+                    if (selectedTime) setEndTime(selectedTime);
+                  }}
+                  style={styles.timePicker}
+                />
+              </View>
+            )}
+          </View>
+
+          {/* Location */}
+          <View style={styles.section}>
+            <Text style={styles.label}>Localisation</Text>
+            <LocationPicker
+              value={location || undefined}
+              onChange={setLocation}
+              placeholder="Où se déroule l'événement ?"
+            />
+          </View>
+
+          {/* Recurrence */}
+          <View style={styles.section}>
+            <Text style={styles.label}>Récurrence</Text>
+            <TouchableOpacity
+              style={styles.picker}
+              onPress={() => setShowRecurrencePicker(!showRecurrencePicker)}
+            >
+              <Ionicons name="repeat" size={20} color={theme.colors.text.secondary} />
+              <Text style={styles.pickerText}>{selectedRecurrence?.label}</Text>
+              <Ionicons name="chevron-down" size={20} color={theme.colors.text.tertiary} />
+            </TouchableOpacity>
+
+            {showRecurrencePicker && (
+              <View style={styles.optionsList}>
+                {RECURRENCE_OPTIONS.map((option) => (
+                  <TouchableOpacity
+                    key={option.value}
+                    style={[styles.option, recurrence === option.value && styles.optionSelected]}
+                    onPress={() => {
+                      setRecurrence(option.value);
+                      setShowRecurrencePicker(false);
+                      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+                    }}
+                  >
+                    <Text
+                      style={[
+                        styles.optionText,
+                        recurrence === option.value && styles.optionTextSelected,
+                      ]}
+                    >
+                      {option.label}
+                    </Text>
+                  </TouchableOpacity>
+                ))}
+              </View>
+            )}
+          </View>
+
+          {/* Max Participants */}
+          <View style={styles.section}>
+            <Text style={styles.label}>Nombre max de participants (optionnel)</Text>
+            <View style={styles.participantsContainer}>
+              <View style={styles.participantsIconContainer}>
+                <Ionicons name="people" size={20} color={theme.colors.primary} />
+              </View>
+              <TextInput
+                style={styles.participantsInput}
+                value={maxParticipants}
+                onChangeText={(text) => setMaxParticipants(text.replace(/[^0-9]/g, ''))}
+                placeholder="Illimité"
+                placeholderTextColor={theme.colors.text.tertiary}
+                keyboardType="number-pad"
+                maxLength={3}
+              />
+              {maxParticipants ? (
+                <Text style={styles.participantsLabel}>participants</Text>
+              ) : null}
+            </View>
+          </View>
+
+          {/* Public/Private */}
+          <View style={styles.section}>
+            <View style={styles.switchRow}>
+              <View>
+                <Text style={styles.label}>Événement public</Text>
+                <Text style={styles.switchDescription}>
+                  Les événements publics sont visibles par tous
+                </Text>
+              </View>
+              <Switch
+                value={isPublic}
+                onValueChange={(value) => {
+                  setIsPublic(value);
+                  Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+                }}
+                trackColor={{ false: theme.colors.border, true: `${theme.colors.primary}50` }}
+                thumbColor={isPublic ? theme.colors.primary : theme.colors.text.tertiary}
+              />
+            </View>
+          </View>
+
+          {/* Paid Event (Pro users only) */}
+          {user?.isPro && (
+            <View style={styles.section}>
+              <View style={styles.switchRow}>
+                <View>
+                  <Text style={styles.label}>Événement payant</Text>
+                  <Text style={styles.switchDescription}>
+                    Les participants devront payer pour rejoindre
+                  </Text>
+                </View>
+                <Switch
+                  value={isPaid}
+                  onValueChange={(value) => {
+                    setIsPaid(value);
+                    if (!value) setPrice('');
+                    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+                  }}
+                  trackColor={{ false: theme.colors.border, true: `${theme.colors.success}50` }}
+                  thumbColor={isPaid ? theme.colors.success : theme.colors.text.tertiary}
+                />
+              </View>
+
+              {isPaid && (
+                <View style={styles.priceContainer}>
+                  <View style={styles.priceIconContainer}>
+                    <Ionicons name="cash" size={20} color={theme.colors.success} />
+                  </View>
+                  <TextInput
+                    style={styles.priceInput}
+                    value={price}
+                    onChangeText={(text) => setPrice(text.replace(/[^0-9.,]/g, ''))}
+                    placeholder="0.00"
+                    placeholderTextColor={theme.colors.text.tertiary}
+                    keyboardType="decimal-pad"
+                    maxLength={7}
+                  />
+                  <Text style={styles.priceLabel}>€</Text>
+                </View>
+              )}
+            </View>
+          )}
+
+          {/* Submit Button */}
+          <TouchableOpacity
+            style={[styles.submitButton, updateMutation.isPending && styles.submitButtonDisabled]}
+            onPress={handleSubmit}
+            disabled={updateMutation.isPending}
+            activeOpacity={0.8}
+          >
+            {updateMutation.isPending ? (
+              <ActivityIndicator size="small" color={theme.colors.text.inverse} />
+            ) : (
+              <>
+                <Ionicons name="checkmark-circle" size={20} color={theme.colors.text.inverse} />
+                <Text style={styles.submitButtonText}>Enregistrer les modifications</Text>
+              </>
+            )}
+          </TouchableOpacity>
+
+          <View style={styles.bottomSpacer} />
+        </ScrollView>
+      </View>
+    </SafeAreaView>
+  );
+}
+
+const styles = StyleSheet.create({
+  safeArea: { flex: 1, backgroundColor: theme.colors.surface },
+  container: { flex: 1, backgroundColor: theme.colors.background },
+  loadingContainer: { flex: 1, justifyContent: 'center', alignItems: 'center', gap: 12 },
+  loadingText: { fontSize: 15, color: theme.colors.text.secondary },
+  header: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingHorizontal: theme.spacing.md,
+    paddingVertical: theme.spacing.md,
+    backgroundColor: theme.colors.surface,
+    borderBottomWidth: 1,
+    borderBottomColor: theme.colors.border,
+  },
+  backButton: { width: 40, height: 40, justifyContent: 'center', alignItems: 'center' },
+  headerTitle: {
+    fontSize: theme.typography.size.lg,
+    fontWeight: theme.typography.weight.bold,
+    color: theme.colors.text.primary,
+  },
+  content: { flex: 1, padding: theme.spacing.md },
+  section: { marginBottom: theme.spacing.lg },
+  label: {
+    fontSize: theme.typography.size.sm,
+    fontWeight: theme.typography.weight.semibold,
+    color: theme.colors.text.secondary,
+    marginBottom: theme.spacing.sm,
+    textTransform: 'uppercase',
+    letterSpacing: 0.5,
+  },
+  input: {
+    backgroundColor: theme.colors.surface,
+    borderRadius: theme.borderRadius.md,
+    borderWidth: 1,
+    borderColor: theme.colors.border,
+    paddingHorizontal: theme.spacing.md,
+    paddingVertical: theme.spacing.md,
+    fontSize: theme.typography.size.md,
+    color: theme.colors.text.primary,
+  },
+  textArea: { height: 100, textAlignVertical: 'top' },
+  picker: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: theme.colors.surface,
+    borderRadius: theme.borderRadius.md,
+    borderWidth: 1,
+    borderColor: theme.colors.border,
+    paddingHorizontal: theme.spacing.md,
+    paddingVertical: theme.spacing.md,
+    gap: theme.spacing.sm,
+  },
+  pickerContent: { flexDirection: 'row', alignItems: 'center', flex: 1, gap: theme.spacing.sm },
+  pickerText: { flex: 1, fontSize: theme.typography.size.md, color: theme.colors.text.primary },
+  pickerPlaceholder: { flex: 1, fontSize: theme.typography.size.md, color: theme.colors.text.tertiary },
+  optionsList: {
+    backgroundColor: theme.colors.surface,
+    borderRadius: theme.borderRadius.md,
+    borderWidth: 1,
+    borderColor: theme.colors.border,
+    marginTop: theme.spacing.xs,
+    overflow: 'hidden',
+    maxHeight: 250,
+  },
+  option: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: theme.spacing.md,
+    paddingVertical: theme.spacing.sm,
+    gap: theme.spacing.sm,
+    borderBottomWidth: 1,
+    borderBottomColor: theme.colors.border,
+  },
+  optionSelected: { backgroundColor: `${theme.colors.primary}10` },
+  optionText: { fontSize: theme.typography.size.md, color: theme.colors.text.primary },
+  optionTextSelected: { color: theme.colors.primary, fontWeight: theme.typography.weight.semibold },
+  switchRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    backgroundColor: theme.colors.surface,
+    borderRadius: theme.borderRadius.md,
+    padding: theme.spacing.md,
+    borderWidth: 1,
+    borderColor: theme.colors.border,
+  },
+  switchDescription: { fontSize: theme.typography.size.xs, color: theme.colors.text.tertiary, marginTop: 2 },
+  submitButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: theme.colors.primary,
+    paddingVertical: theme.spacing.md,
+    paddingHorizontal: theme.spacing.lg,
+    borderRadius: theme.borderRadius.md,
+    gap: theme.spacing.sm,
+    marginTop: theme.spacing.md,
+  },
+  submitButtonDisabled: { opacity: 0.7 },
+  submitButtonText: {
+    color: theme.colors.text.inverse,
+    fontSize: theme.typography.size.md,
+    fontWeight: theme.typography.weight.semibold,
+  },
+  bottomSpacer: { height: theme.spacing.xxl },
+  timeContainer: {
+    backgroundColor: theme.colors.surface,
+    borderRadius: theme.borderRadius.md,
+    borderWidth: 1,
+    borderColor: theme.colors.border,
+    overflow: 'hidden',
+  },
+  timeButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    padding: theme.spacing.md,
+    gap: theme.spacing.md,
+  },
+  timeIconContainer: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: `${theme.colors.success}15`,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  timeContent: { flex: 1 },
+  timeLabel: {
+    fontSize: theme.typography.size.xs,
+    color: theme.colors.text.tertiary,
+    textTransform: 'uppercase',
+    letterSpacing: 0.5,
+  },
+  timeValue: {
+    fontSize: theme.typography.size.lg,
+    fontWeight: theme.typography.weight.semibold,
+    color: theme.colors.text.primary,
+    marginTop: 2,
+  },
+  timeSeparator: { flexDirection: 'row', alignItems: 'center', paddingHorizontal: theme.spacing.md },
+  timeLine: { flex: 1, height: 1, backgroundColor: theme.colors.border },
+  pickerContainer: {
+    backgroundColor: theme.colors.surface,
+    borderRadius: theme.borderRadius.md,
+    marginTop: theme.spacing.sm,
+    borderWidth: 1,
+    borderColor: theme.colors.border,
+    overflow: 'hidden',
+  },
+  pickerHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    padding: theme.spacing.md,
+    borderBottomWidth: 1,
+    borderBottomColor: theme.colors.border,
+    backgroundColor: theme.colors.background,
+  },
+  pickerHeaderText: {
+    fontSize: theme.typography.size.md,
+    fontWeight: theme.typography.weight.semibold,
+    color: theme.colors.text.primary,
+  },
+  pickerDoneButton: {
+    paddingHorizontal: theme.spacing.md,
+    paddingVertical: theme.spacing.xs,
+    backgroundColor: theme.colors.primary,
+    borderRadius: theme.borderRadius.sm,
+  },
+  pickerDoneText: {
+    fontSize: theme.typography.size.sm,
+    fontWeight: theme.typography.weight.semibold,
+    color: theme.colors.text.inverse,
+  },
+  timePicker: { height: 150 },
+  participantsContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: theme.colors.surface,
+    borderRadius: theme.borderRadius.md,
+    borderWidth: 1,
+    borderColor: theme.colors.border,
+    paddingHorizontal: theme.spacing.md,
+    paddingVertical: theme.spacing.sm,
+    gap: theme.spacing.md,
+  },
+  participantsIconContainer: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: `${theme.colors.primary}15`,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  participantsInput: {
+    flex: 1,
+    fontSize: theme.typography.size.lg,
+    fontWeight: theme.typography.weight.semibold,
+    color: theme.colors.text.primary,
+    paddingVertical: theme.spacing.sm,
+  },
+  participantsLabel: { fontSize: theme.typography.size.sm, color: theme.colors.text.secondary },
+  priceContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: theme.colors.surface,
+    borderRadius: theme.borderRadius.md,
+    borderWidth: 1,
+    borderColor: theme.colors.border,
+    paddingHorizontal: theme.spacing.md,
+    paddingVertical: theme.spacing.sm,
+    gap: theme.spacing.md,
+    marginTop: theme.spacing.sm,
+  },
+  priceIconContainer: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: `${theme.colors.success}15`,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  priceInput: {
+    flex: 1,
+    fontSize: theme.typography.size.lg,
+    fontWeight: theme.typography.weight.semibold,
+    color: theme.colors.text.primary,
+    paddingVertical: theme.spacing.sm,
+  },
+  priceLabel: {
+    fontSize: theme.typography.size.lg,
+    fontWeight: theme.typography.weight.semibold,
+    color: theme.colors.success,
+  },
+});

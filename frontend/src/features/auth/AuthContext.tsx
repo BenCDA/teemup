@@ -9,7 +9,7 @@ interface AuthContextType {
   isLoading: boolean;
   isAuthenticated: boolean;
   login: (email: string, password: string) => Promise<void>;
-  register: (email: string, password: string, firstName: string, lastName: string, verificationImage: string) => Promise<void>;
+  register: (email: string, password: string, firstName: string, lastName: string, verificationImage: string, isPro?: boolean) => Promise<void>;
   logout: () => Promise<void>;
   refreshUser: () => Promise<void>;
   updateUser: (updates: Partial<User>) => Promise<void>;
@@ -48,13 +48,14 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     await socketService.connect();
   };
 
-  const register = async (email: string, password: string, firstName: string, lastName: string, verificationImage: string) => {
+  const register = async (email: string, password: string, firstName: string, lastName: string, verificationImage: string, isPro: boolean = false) => {
     const response = await api.post<AuthResponse>('/auth/register', {
       email,
       password,
       firstName,
       lastName,
       verificationImage,
+      isPro,
     });
     await setTokens(response.data.accessToken, response.data.refreshToken);
     setUser(response.data.user);
@@ -65,12 +66,14 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     try {
       await api.post('/auth/logout');
     } catch (error) {
-      // Ignore errors during logout
+      // Log error but continue with local logout
+      console.warn('Logout API call failed, proceeding with local cleanup:', error);
+    } finally {
+      await clearTokens();
+      socketService.disconnect();
+      setUser(null);
+      router.replace('/(auth)/login');
     }
-    await clearTokens();
-    socketService.disconnect();
-    setUser(null);
-    router.replace('/(auth)/login');
   };
 
   const refreshUser = async () => {
@@ -83,12 +86,16 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   };
 
   const updateUser = async (updates: Partial<User>) => {
+    const previousUser = user;
+    // Optimistic update
+    setUser((prev) => (prev ? { ...prev, ...updates } : null));
+
     try {
       const response = await api.put<User>('/users/me', updates);
       setUser(response.data);
     } catch (error) {
-      // Fallback to optimistic update if API fails
-      setUser(prev => prev ? { ...prev, ...updates } : null);
+      // Rollback on error
+      setUser(previousUser);
       throw error;
     }
   };
