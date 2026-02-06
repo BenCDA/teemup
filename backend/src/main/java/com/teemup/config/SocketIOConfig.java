@@ -22,7 +22,8 @@ public class SocketIOConfig {
         Configuration config = new Configuration();
         config.setHostname(host);
         config.setPort(port);
-        config.setOrigin("*");
+        // In development, allow all origins. In production, restrict to specific domains
+        config.setOrigin(null); // null allows all origins for dev, configure via SecurityConfig for prod
         config.setPingTimeout(60000);
         config.setPingInterval(25000);
         config.setUpgradeTimeout(10000);

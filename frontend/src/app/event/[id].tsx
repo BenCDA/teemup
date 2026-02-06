@@ -22,47 +22,9 @@ import { messagingService } from '@/features/messaging/messagingService';
 import { useAuth } from '@/features/auth/AuthContext';
 import { Avatar } from '@/components/ui';
 import { theme } from '@/features/shared/styles/theme';
-import { getSportConfig, getSportLabel, getSportKey } from '@/constants/sports';
-import { EventParticipant } from '@/types';
-
-// Cover images par sport
-const sportCoverImages: Record<string, string> = {
-  football: 'https://images.unsplash.com/photo-1579952363873-27f3bade9f55?w=800&h=400&fit=crop',
-  basketball: 'https://images.unsplash.com/photo-1546519638-68e109498ffc?w=800&h=400&fit=crop',
-  volleyball: 'https://images.unsplash.com/photo-1612872087720-bb876e2e67d1?w=800&h=400&fit=crop',
-  handball: 'https://images.unsplash.com/photo-1558618666-fcd25c85cd64?w=800&h=400&fit=crop',
-  rugby: 'https://images.unsplash.com/photo-1529900748604-07564a03e7a6?w=800&h=400&fit=crop',
-  tennis: 'https://images.unsplash.com/photo-1554068865-24cecd4e34b8?w=800&h=400&fit=crop',
-  padel: 'https://images.unsplash.com/photo-1554068865-24cecd4e34b8?w=800&h=400&fit=crop',
-  badminton: 'https://images.unsplash.com/photo-1626224583764-f87db24ac4ea?w=800&h=400&fit=crop',
-  squash: 'https://images.unsplash.com/photo-1554068865-24cecd4e34b8?w=800&h=400&fit=crop',
-  pingpong: 'https://images.unsplash.com/photo-1609710228159-0fa9bd7c0827?w=800&h=400&fit=crop',
-  running: 'https://images.unsplash.com/photo-1552674605-db6ffd4facb5?w=800&h=400&fit=crop',
-  cycling: 'https://images.unsplash.com/photo-1541625602330-2277a4c46182?w=800&h=400&fit=crop',
-  swimming: 'https://images.unsplash.com/photo-1530549387789-4c1017266635?w=800&h=400&fit=crop',
-  gym: 'https://images.unsplash.com/photo-1534438327276-14e5300c3a48?w=800&h=400&fit=crop',
-  crossfit: 'https://images.unsplash.com/photo-1541534741688-6078c6bfb5c5?w=800&h=400&fit=crop',
-  yoga: 'https://images.unsplash.com/photo-1544367567-0f2fcb009e0b?w=800&h=400&fit=crop',
-  boxing: 'https://images.unsplash.com/photo-1549719386-74dfcbf7dbed?w=800&h=400&fit=crop',
-  martial_arts: 'https://images.unsplash.com/photo-1555597673-b21d5c935865?w=800&h=400&fit=crop',
-  hiking: 'https://images.unsplash.com/photo-1551632811-561732d1e306?w=800&h=400&fit=crop',
-  climbing: 'https://images.unsplash.com/photo-1522163182402-834f871fd851?w=800&h=400&fit=crop',
-  skiing: 'https://images.unsplash.com/photo-1551524559-8af4e6624178?w=800&h=400&fit=crop',
-  surf: 'https://images.unsplash.com/photo-1502680390469-be75c86b636f?w=800&h=400&fit=crop',
-  golf: 'https://images.unsplash.com/photo-1535131749006-b7f58c99034b?w=800&h=400&fit=crop',
-  petanque: 'https://images.unsplash.com/photo-1595435742656-5272d0b3fa82?w=800&h=400&fit=crop',
-  rowing: 'https://images.unsplash.com/photo-1541534401786-2077eed87a74?w=800&h=400&fit=crop',
-  dance: 'https://images.unsplash.com/photo-1504609813442-a8924e83f76e?w=800&h=400&fit=crop',
-  skateboard: 'https://images.unsplash.com/photo-1547447134-cd3f5c716030?w=800&h=400&fit=crop',
-  equitation: 'https://images.unsplash.com/photo-1553284965-83fd3e82fa5a?w=800&h=400&fit=crop',
-};
-
-const defaultCover = 'https://images.unsplash.com/photo-1517649763962-0c623066013b?w=800&h=400&fit=crop';
-
-function getCoverImage(sport: string): string {
-  const sportKey = getSportKey(sport);
-  return sportCoverImages[sportKey] || defaultCover;
-}
+import { getSportConfig, getSportLabel } from '@/constants/sports';
+import { getCoverImageForSport } from '@/constants/defaultImages';
+import { EventParticipant, AxiosApiError } from '@/types';
 
 function formatDate(dateStr: string): string {
   const date = new Date(dateStr);
@@ -127,7 +89,7 @@ export default function EventDetailScreen() {
       queryClient.invalidateQueries({ queryKey: ['event', id] });
       queryClient.invalidateQueries({ queryKey: ['nearbyEvents'] });
     },
-    onError: (error: any) => {
+    onError: (error: AxiosApiError) => {
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
       const message = error?.response?.data?.message || 'Impossible de rejoindre l\'événement';
       Alert.alert('Erreur', message);
@@ -141,10 +103,13 @@ export default function EventDetailScreen() {
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
       queryClient.invalidateQueries({ queryKey: ['event', id] });
       queryClient.invalidateQueries({ queryKey: ['nearbyEvents'] });
+      queryClient.invalidateQueries({ queryKey: ['myEvents'] });
+      Alert.alert('Succès', 'Vous avez quitté l\'événement');
     },
-    onError: () => {
+    onError: (error: AxiosApiError) => {
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
-      Alert.alert('Erreur', 'Impossible de quitter l\'événement');
+      const message = error?.response?.data?.message || 'Impossible de quitter l\'événement';
+      Alert.alert('Erreur', message);
     },
   });
 
@@ -241,7 +206,7 @@ export default function EventDetailScreen() {
         <ScrollView showsVerticalScrollIndicator={false}>
           {/* Cover Image */}
           <View style={styles.coverContainer}>
-            <Image source={{ uri: getCoverImage(event.sport) }} style={styles.coverImage} resizeMode="cover" />
+            <Image source={{ uri: getCoverImageForSport(event.sport) }} style={styles.coverImage} resizeMode="cover" />
             <LinearGradient colors={['transparent', 'rgba(0,0,0,0.6)']} style={styles.coverGradient} />
             {/* Sport Badge */}
             <View style={[styles.sportBadge, { backgroundColor: sportColor }]}>

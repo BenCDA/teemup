@@ -4,6 +4,7 @@ import { Link, router } from 'expo-router';
 import { useAuth } from '@/features/auth/AuthContext';
 import { Button, Input, AuthLayout } from '@/components/ui';
 import { theme } from '@/features/shared/styles/theme';
+import { AxiosApiError } from '@/types';
 
 export default function LoginScreen() {
   const [email, setEmail] = useState('');
@@ -21,15 +22,11 @@ export default function LoginScreen() {
     try {
       await login(email, password);
       router.replace('/(tabs)/discover');
-    } catch (error: any) {
-      console.log('=== LOGIN ERROR ===');
-      console.log('Error:', error);
-      console.log('Response:', error.response);
-      console.log('Message:', error.message);
-      console.log('===================');
+    } catch (error) {
+      const axiosError = error as AxiosApiError;
       Alert.alert(
         'Erreur de connexion',
-        error.response?.data?.message || error.message || 'Email ou mot de passe incorrect'
+        axiosError.response?.data?.message || axiosError.message || 'Email ou mot de passe incorrect'
       );
     } finally {
       setIsLoading(false);
@@ -39,7 +36,7 @@ export default function LoginScreen() {
   return (
     <AuthLayout>
       <Text style={styles.title}>Connexion</Text>
-
+      <Text style={styles.subtitle}>Retrouvez vos partenaires sportifs</Text>
 
       <Input
         label="Email"

@@ -16,7 +16,7 @@ import { Ionicons } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
 import { BlurView } from 'expo-blur';
 import { friendService } from '@/features/friends/friendService';
-import { User } from '@/types';
+import { User, AxiosApiError } from '@/types';
 import { UserCard, EmptyState } from '@/components/ui';
 import { theme } from '@/features/shared/styles/theme';
 import { SPORTS, sportMatchesFilter } from '@/constants/sports';
@@ -32,14 +32,39 @@ export default function DiscoverScreen() {
     queryFn: friendService.getDiscoverUsers,
   });
 
+  // Fetch sent pending requests to track which users already have a request
+  const { data: sentRequests } = useQuery({
+    queryKey: ['sentFriendRequests'],
+    queryFn: friendService.getPendingSentRequests,
+  });
+
+  // Create a map of userId -> requestId for quick lookup
+  const pendingRequestsMap = new Map<string, string>();
+  sentRequests?.forEach(request => {
+    pendingRequestsMap.set(request.receiver.id, request.id);
+  });
+
   const sendRequestMutation = useMutation({
     mutationFn: friendService.sendFriendRequest,
     onSuccess: () => {
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
       queryClient.invalidateQueries({ queryKey: ['discoverUsers'] });
-      Alert.alert('Succès', 'Demande d\'ami envoyée !');
+      queryClient.invalidateQueries({ queryKey: ['sentFriendRequests'] });
     },
-    onError: (error: any) => {
+    onError: (error: AxiosApiError) => {
+      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
+      Alert.alert('Erreur', error.response?.data?.message || 'Une erreur est survenue');
+    },
+  });
+
+  const cancelRequestMutation = useMutation({
+    mutationFn: friendService.cancelFriendRequest,
+    onSuccess: () => {
+      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+      queryClient.invalidateQueries({ queryKey: ['discoverUsers'] });
+      queryClient.invalidateQueries({ queryKey: ['sentFriendRequests'] });
+    },
+    onError: (error: AxiosApiError) => {
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
       Alert.alert('Erreur', error.response?.data?.message || 'Une erreur est survenue');
     },
@@ -77,11 +102,19 @@ export default function DiscoverScreen() {
   }
 
   const renderUser = ({ item }: { item: User }) => {
+    const pendingRequestId = pendingRequestsMap.get(item.id);
+    const hasPendingRequest = !!pendingRequestId;
+
     return (
       <UserCard
         user={item}
-        onAddFriend={() => sendRequestMutation.mutate(item.id)}
-        isAddingFriend={sendRequestMutation.isPending && sendRequestMutation.variables === item.id}
+        onAddFriend={hasPendingRequest ? undefined : () => sendRequestMutation.mutate(item.id)}
+        onCancelRequest={hasPendingRequest ? () => cancelRequestMutation.mutate(pendingRequestId) : undefined}
+        isAddingFriend={
+          (sendRequestMutation.isPending && sendRequestMutation.variables === item.id) ||
+          (cancelRequestMutation.isPending && cancelRequestMutation.variables === pendingRequestId)
+        }
+        hasPendingRequest={hasPendingRequest}
       />
     );
   };

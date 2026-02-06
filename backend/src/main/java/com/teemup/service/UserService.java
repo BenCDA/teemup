@@ -4,6 +4,7 @@ import com.teemup.dto.user.PublicUserResponse;
 import com.teemup.dto.user.UpdateUserRequest;
 import com.teemup.dto.user.UserResponse;
 import com.teemup.entity.User;
+import com.teemup.exception.UserNotFoundException;
 import com.teemup.repository.UserRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
@@ -22,7 +23,7 @@ public class UserService {
 
     public UserResponse getUserById(UUID userId) {
         User user = userRepository.findById(userId)
-                .orElseThrow(() -> new RuntimeException("User not found"));
+                .orElseThrow(() -> new UserNotFoundException("Utilisateur non trouvé"));
         return UserResponse.fromEntity(user);
     }
 
@@ -32,20 +33,20 @@ public class UserService {
      */
     public PublicUserResponse getPublicUserById(UUID userId) {
         User user = userRepository.findById(userId)
-                .orElseThrow(() -> new RuntimeException("User not found"));
+                .orElseThrow(() -> new UserNotFoundException("Utilisateur non trouvé"));
         return PublicUserResponse.fromEntity(user);
     }
 
     public UserResponse getUserByEmail(String email) {
         User user = userRepository.findByEmail(email)
-                .orElseThrow(() -> new RuntimeException("User not found"));
+                .orElseThrow(() -> new UserNotFoundException("Utilisateur non trouvé"));
         return UserResponse.fromEntity(user);
     }
 
     @Transactional
     public UserResponse updateUser(UUID userId, UpdateUserRequest request) {
         User user = userRepository.findById(userId)
-                .orElseThrow(() -> new RuntimeException("User not found"));
+                .orElseThrow(() -> new UserNotFoundException("Utilisateur non trouvé"));
 
         if (request.getFirstName() != null) {
             user.setFirstName(request.getFirstName());
@@ -74,6 +75,8 @@ public class UserService {
         if (request.getLongitude() != null) {
             user.setLongitude(request.getLongitude());
         }
+        // Note: isPro is set via subscription flow, not direct update
+        // Removing ability for users to self-elevate to Pro status
 
         user = userRepository.save(user);
         return UserResponse.fromEntity(user);
@@ -100,7 +103,7 @@ public class UserService {
     @Transactional
     public void setUserOnlineStatus(UUID userId, boolean isOnline) {
         User user = userRepository.findById(userId)
-                .orElseThrow(() -> new RuntimeException("User not found"));
+                .orElseThrow(() -> new UserNotFoundException("Utilisateur non trouvé"));
 
         user.setIsOnline(isOnline);
         if (!isOnline) {
@@ -111,11 +114,11 @@ public class UserService {
 
     public User findById(UUID userId) {
         return userRepository.findById(userId)
-                .orElseThrow(() -> new RuntimeException("User not found"));
+                .orElseThrow(() -> new UserNotFoundException("Utilisateur non trouvé"));
     }
 
     public User findByEmail(String email) {
         return userRepository.findByEmail(email)
-                .orElseThrow(() -> new RuntimeException("User not found"));
+                .orElseThrow(() -> new UserNotFoundException("Utilisateur non trouvé"));
     }
 }

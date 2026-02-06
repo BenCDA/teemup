@@ -113,11 +113,14 @@ export function useLocation() {
         longitude: position.coords.longitude,
         address,
       };
-    } catch (error: any) {
+    } catch (error) {
+      const errorMessage = error instanceof Error
+        ? error.message
+        : 'Erreur lors de la recuperation de la position';
       setLocation(prev => ({
         ...prev,
         isLoading: false,
-        error: error.message || 'Erreur lors de la recuperation de la position',
+        error: errorMessage,
       }));
       return null;
     }

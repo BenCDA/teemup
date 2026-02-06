@@ -14,21 +14,20 @@ import {
 import { useLocalSearchParams, router } from 'expo-router';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { Ionicons } from '@expo/vector-icons';
-import Svg, { Path } from 'react-native-svg';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import * as Haptics from 'expo-haptics';
 import { userService } from '@/features/user/userService';
 import { friendService } from '@/features/friends/friendService';
 import { messagingService } from '@/features/messaging/messagingService';
 import { useAuth } from '@/features/auth/AuthContext';
-import { Avatar, SportBadge } from '@/components/ui';
+import { Avatar, SportBadge, ProBadge } from '@/components/ui';
 import { theme } from '@/features/shared/styles/theme';
-import { User, SportEvent } from '@/types';
+import { User, SportEvent, AxiosApiError } from '@/types';
 import { getSportConfig, getSportLabel, getSportKey } from '@/constants/sports';
+import { getUserCoverImage, getCoverImageForSport } from '@/constants/defaultImages';
 
 const HEADER_HEIGHT = 180;
 const AVATAR_SIZE = 100;
-const WAVE_COLOR = '#F4D03F';
 
 export default function UserProfileScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
@@ -61,6 +60,7 @@ export default function UserProfileScreen() {
   });
 
   const isFriend = myFriends?.some(f => f.id === id);
+  const isOwnProfile = currentUser?.id === id;
 
   const sendRequestMutation = useMutation({
     mutationFn: friendService.sendFriendRequest,
@@ -68,7 +68,7 @@ export default function UserProfileScreen() {
       queryClient.invalidateQueries({ queryKey: ['friends'] });
       Alert.alert('Succès', 'Demande d\'ami envoyée !');
     },
-    onError: (error: any) => {
+    onError: (error: AxiosApiError) => {
       Alert.alert('Erreur', error.response?.data?.message || 'Une erreur est survenue');
     },
   });
@@ -79,7 +79,7 @@ export default function UserProfileScreen() {
       queryClient.invalidateQueries({ queryKey: ['friends'] });
       Alert.alert('Succès', 'Ami retiré');
     },
-    onError: (error: any) => {
+    onError: (error: AxiosApiError) => {
       Alert.alert('Erreur', error.response?.data?.message || 'Une erreur est survenue');
     },
   });
@@ -115,8 +115,8 @@ export default function UserProfileScreen() {
     try {
       const conversation = await messagingService.createConversation([id!]);
       router.push(`/conversation/${conversation.id}`);
-    } catch (error) {
-      console.error('Error starting conversation:', error);
+    } catch {
+      Alert.alert('Erreur', 'Impossible de démarrer la conversation');
     }
   };
 
@@ -201,26 +201,11 @@ export default function UserProfileScreen() {
       >
         {/* Cover Header */}
         <View style={styles.headerContainer}>
-          {user.coverImage ? (
-            <Image
-              source={{ uri: user.coverImage }}
-              style={styles.coverImage}
-              resizeMode="cover"
-            />
-          ) : (
-            <Svg
-              height={HEADER_HEIGHT}
-              width="100%"
-              viewBox="0 0 400 180"
-              preserveAspectRatio="none"
-              style={styles.wave}
-            >
-              <Path
-                d="M0,0 L400,0 L400,120 Q300,180 200,140 Q100,100 0,160 L0,0 Z"
-                fill={WAVE_COLOR}
-              />
-            </Svg>
-          )}
+          <Image
+            source={{ uri: getUserCoverImage(user) }}
+            style={styles.coverImage}
+            resizeMode="cover"
+          />
 
           {/* Back Button */}
           <TouchableOpacity
@@ -243,7 +228,10 @@ export default function UserProfileScreen() {
 
         {/* User Info */}
         <View style={styles.userInfo}>
-          <Text style={styles.userName}>{user.fullName}</Text>
+          <View style={styles.userNameRow}>
+            <Text style={styles.userName}>{user.fullName}</Text>
+            {user.isPro && <ProBadge size="sm" />}
+          </View>
           {user.bio && <Text style={styles.userBio}>{user.bio}</Text>}
         </View>
 
@@ -256,29 +244,44 @@ export default function UserProfileScreen() {
           </View>
         )}
 
-        {/* Action Buttons */}
-        <View style={styles.actionButtons}>
-          <TouchableOpacity
-            style={[styles.friendButton, isFriend && styles.removeFriendButton]}
-            onPress={handleAddOrRemoveFriend}
-            disabled={sendRequestMutation.isPending || removeFriendMutation.isPending}
-          >
-            {(sendRequestMutation.isPending || removeFriendMutation.isPending) ? (
-              <ActivityIndicator size="small" color={isFriend ? theme.colors.error : theme.colors.text.primary} />
-            ) : (
-              <Text style={[styles.friendButtonText, isFriend && styles.removeFriendButtonText]}>
-                {isFriend ? 'Retirer des amis' : 'Ajouter en ami'}
-              </Text>
-            )}
-          </TouchableOpacity>
-
-          {/* Only show message button if already friends */}
-          {isFriend && (
-            <TouchableOpacity style={styles.messageButton} onPress={handleMessage}>
-              <Ionicons name="chatbubble" size={20} color="#fff" />
+        {/* Action Buttons - Hide for own profile */}
+        {!isOwnProfile && (
+          <View style={styles.actionButtons}>
+            <TouchableOpacity
+              style={[styles.friendButton, isFriend && styles.removeFriendButton]}
+              onPress={handleAddOrRemoveFriend}
+              disabled={sendRequestMutation.isPending || removeFriendMutation.isPending}
+            >
+              {(sendRequestMutation.isPending || removeFriendMutation.isPending) ? (
+                <ActivityIndicator size="small" color={isFriend ? theme.colors.error : theme.colors.text.primary} />
+              ) : (
+                <Text style={[styles.friendButtonText, isFriend && styles.removeFriendButtonText]}>
+                  {isFriend ? 'Retirer des amis' : 'Ajouter en ami'}
+                </Text>
+              )}
             </TouchableOpacity>
-          )}
-        </View>
+
+            {/* Only show message button if already friends */}
+            {isFriend && (
+              <TouchableOpacity style={styles.messageButton} onPress={handleMessage}>
+                <Ionicons name="chatbubble" size={20} color="#fff" />
+              </TouchableOpacity>
+            )}
+          </View>
+        )}
+
+        {/* Own profile - Show edit button */}
+        {isOwnProfile && (
+          <View style={styles.actionButtons}>
+            <TouchableOpacity
+              style={styles.editProfileButton}
+              onPress={() => router.push('/(tabs)/profile')}
+            >
+              <Ionicons name="create-outline" size={20} color={theme.colors.primary} />
+              <Text style={styles.editProfileButtonText}>Modifier mon profil</Text>
+            </TouchableOpacity>
+          </View>
+        )}
 
         {/* Friends Section */}
         {friends && friends.length > 0 && (
@@ -304,7 +307,7 @@ export default function UserProfileScreen() {
               <View key={sport} style={styles.sportCard}>
                 <View style={styles.sportImageContainer}>
                   <Image
-                    source={{ uri: getSportImage(sport) }}
+                    source={{ uri: getCoverImageForSport(sport) }}
                     style={styles.sportImage}
                     resizeMode="cover"
                   />
@@ -343,24 +346,6 @@ export default function UserProfileScreen() {
   );
 }
 
-// Helper function to get sport image (by sport key)
-const sportImages: Record<string, string> = {
-  'running': 'https://images.unsplash.com/photo-1552674605-db6ffd4facb5?w=400',
-  'swimming': 'https://images.unsplash.com/photo-1530549387789-4c1017266635?w=400',
-  'tennis': 'https://images.unsplash.com/photo-1554068865-24cecd4e34b8?w=400',
-  'football': 'https://images.unsplash.com/photo-1579952363873-27f3bade9f55?w=400',
-  'basketball': 'https://images.unsplash.com/photo-1546519638-68e109498ffc?w=400',
-  'cycling': 'https://images.unsplash.com/photo-1541625602330-2277a4c46182?w=400',
-  'yoga': 'https://images.unsplash.com/photo-1544367567-0f2fcb009e0b?w=400',
-  'gym': 'https://images.unsplash.com/photo-1534438327276-14e5300c3a48?w=400',
-  'boxing': 'https://images.unsplash.com/photo-1549719386-74dfcbf7dbed?w=400',
-  'hiking': 'https://images.unsplash.com/photo-1551632811-561732d1e306?w=400',
-};
-
-function getSportImage(sport: string): string {
-  const sportKey = getSportKey(sport);
-  return sportImages[sportKey] || 'https://images.unsplash.com/photo-1517649763962-0c623066013b?w=400';
-}
 
 const styles = StyleSheet.create({
   container: {
@@ -431,11 +416,16 @@ const styles = StyleSheet.create({
     paddingHorizontal: theme.spacing.lg,
     paddingTop: theme.spacing.md,
   },
+  userNameRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    marginBottom: theme.spacing.xs,
+  },
   userName: {
     fontSize: 24,
     fontWeight: theme.typography.weight.bold,
     color: theme.colors.primary,
-    marginBottom: theme.spacing.xs,
   },
   userBio: {
     fontSize: theme.typography.size.md,
@@ -485,6 +475,24 @@ const styles = StyleSheet.create({
     backgroundColor: theme.colors.primary,
     justifyContent: 'center',
     alignItems: 'center',
+  },
+  editProfileButton: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: theme.colors.surface,
+    borderWidth: 1.5,
+    borderColor: theme.colors.primary,
+    paddingVertical: theme.spacing.md,
+    paddingHorizontal: theme.spacing.lg,
+    borderRadius: theme.borderRadius.lg,
+    gap: theme.spacing.sm,
+  },
+  editProfileButtonText: {
+    fontSize: theme.typography.size.md,
+    fontWeight: theme.typography.weight.semibold,
+    color: theme.colors.primary,
   },
   section: {
     paddingHorizontal: theme.spacing.md,

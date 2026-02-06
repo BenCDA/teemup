@@ -1,56 +1,47 @@
-import { View, Text, TouchableOpacity, StyleSheet, Image, ActivityIndicator } from 'react-native';
+import { View, Text, TouchableOpacity, StyleSheet, Image, ActivityIndicator, Alert } from 'react-native';
 import { router } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { User } from '@/types';
 import { Avatar } from './Avatar';
+import { ProBadge } from './ProBadge';
 import { theme } from '@/features/shared/styles/theme';
 import * as Haptics from 'expo-haptics';
-import { getSportConfig, getSportLabel, getSportKey } from '@/constants/sports';
+import { getSportConfig, getSportLabel } from '@/constants/sports';
+import { getUserCoverImage } from '@/constants/defaultImages';
 
 interface UserCardProps {
   user: User;
   onAddFriend?: () => void;
+  onCancelRequest?: () => void;
   isAddingFriend?: boolean;
+  hasPendingRequest?: boolean;
 }
 
-// Default sport cover images by sport key
-const sportCoverImages: Record<string, string> = {
-  'running': 'https://images.unsplash.com/photo-1552674605-db6ffd4facb5?w=800&h=400&fit=crop',
-  'swimming': 'https://images.unsplash.com/photo-1530549387789-4c1017266635?w=800&h=400&fit=crop',
-  'tennis': 'https://images.unsplash.com/photo-1554068865-24cecd4e34b8?w=800&h=400&fit=crop',
-  'football': 'https://images.unsplash.com/photo-1579952363873-27f3bade9f55?w=800&h=400&fit=crop',
-  'basketball': 'https://images.unsplash.com/photo-1546519638-68e109498ffc?w=800&h=400&fit=crop',
-  'cycling': 'https://images.unsplash.com/photo-1541625602330-2277a4c46182?w=800&h=400&fit=crop',
-  'yoga': 'https://images.unsplash.com/photo-1544367567-0f2fcb009e0b?w=800&h=400&fit=crop',
-  'gym': 'https://images.unsplash.com/photo-1534438327276-14e5300c3a48?w=800&h=400&fit=crop',
-  'boxing': 'https://images.unsplash.com/photo-1549719386-74dfcbf7dbed?w=800&h=400&fit=crop',
-  'hiking': 'https://images.unsplash.com/photo-1551632811-561732d1e306?w=800&h=400&fit=crop',
-};
-
-const defaultCover = 'https://images.unsplash.com/photo-1517649763962-0c623066013b?w=800&h=400&fit=crop';
-
-function getCoverImage(user: User): string {
-  // If user has a custom cover image, use it
-  if (user.coverImage) return user.coverImage;
-
-  // Otherwise, pick based on first sport (normalize to key)
-  if (user.sports && user.sports.length > 0) {
-    const sportKey = getSportKey(user.sports[0]);
-    return sportCoverImages[sportKey] || defaultCover;
-  }
-
-  return defaultCover;
-}
-
-export function UserCard({ user, onAddFriend, isAddingFriend }: UserCardProps) {
+export function UserCard({ user, onAddFriend, onCancelRequest, isAddingFriend, hasPendingRequest }: UserCardProps) {
   const handleViewProfile = () => {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
     router.push(`/user/${user.id}`);
   };
 
-  const handleAddFriend = () => {
-    if (onAddFriend && !isAddingFriend) {
-      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+  const handleFriendAction = () => {
+    if (isAddingFriend) return;
+
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+
+    if (hasPendingRequest && onCancelRequest) {
+      Alert.alert(
+        'Annuler la demande',
+        `Voulez-vous annuler votre demande d'ami à ${user.firstName} ?`,
+        [
+          { text: 'Non', style: 'cancel' },
+          {
+            text: 'Oui, annuler',
+            style: 'destructive',
+            onPress: onCancelRequest,
+          },
+        ]
+      );
+    } else if (onAddFriend) {
       onAddFriend();
     }
   };
@@ -63,10 +54,16 @@ export function UserCard({ user, onAddFriend, isAddingFriend }: UserCardProps) {
       {/* Cover Image */}
       <View style={styles.coverContainer}>
         <Image
-          source={{ uri: getCoverImage(user) }}
+          source={{ uri: getUserCoverImage(user) }}
           style={styles.coverImage}
           resizeMode="cover"
         />
+        {/* Pro Badge on cover */}
+        {user.isPro && (
+          <View style={styles.proBadgeContainer}>
+            <ProBadge size="sm" />
+          </View>
+        )}
       </View>
 
       {/* Content area */}
@@ -77,13 +74,16 @@ export function UserCard({ user, onAddFriend, isAddingFriend }: UserCardProps) {
             <Avatar
               uri={user.profilePicture}
               name={user.fullName}
+              userId={user.id}
               size="lg"
               style={styles.avatar}
             />
           </View>
 
           <View style={styles.nameContainer}>
-            <Text style={styles.name}>{user.fullName}</Text>
+            <View style={styles.nameRow}>
+              <Text style={styles.name} numberOfLines={1}>{user.fullName}</Text>
+            </View>
             <Text style={styles.username}>{username}</Text>
           </View>
 
@@ -124,15 +124,24 @@ export function UserCard({ user, onAddFriend, isAddingFriend }: UserCardProps) {
         )}
 
         {/* Add Friend Button */}
-        {onAddFriend && (
+        {(onAddFriend || hasPendingRequest) && (
           <TouchableOpacity
-            style={[styles.addButton, isAddingFriend && styles.addButtonDisabled]}
-            onPress={handleAddFriend}
+            style={[
+              styles.addButton,
+              isAddingFriend && styles.addButtonDisabled,
+              hasPendingRequest && styles.pendingButton,
+            ]}
+            onPress={handleFriendAction}
             disabled={isAddingFriend}
             activeOpacity={0.8}
           >
             {isAddingFriend ? (
               <ActivityIndicator size="small" color={theme.colors.text.inverse} />
+            ) : hasPendingRequest ? (
+              <>
+                <Ionicons name="time-outline" size={18} color={theme.colors.text.inverse} />
+                <Text style={styles.addButtonText}>Demande envoyée</Text>
+              </>
             ) : (
               <>
                 <Ionicons name="person-add" size={18} color={theme.colors.text.inverse} />
@@ -158,10 +167,16 @@ const styles = StyleSheet.create({
   coverContainer: {
     height: 140,
     backgroundColor: theme.colors.background,
+    position: 'relative',
   },
   coverImage: {
     width: '100%',
     height: '100%',
+  },
+  proBadgeContainer: {
+    position: 'absolute',
+    top: 10,
+    right: 10,
   },
   content: {
     padding: theme.spacing.md,
@@ -182,10 +197,16 @@ const styles = StyleSheet.create({
   nameContainer: {
     flex: 1,
   },
+  nameRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+  },
   name: {
     fontSize: theme.typography.size.lg,
     fontWeight: theme.typography.weight.bold,
     color: theme.colors.text.primary,
+    flexShrink: 1,
   },
   username: {
     fontSize: theme.typography.size.sm,
@@ -229,14 +250,18 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     backgroundColor: theme.colors.primary,
-    paddingVertical: theme.spacing.sm,
+    paddingVertical: theme.spacing.md,
     paddingHorizontal: theme.spacing.lg,
     borderRadius: theme.borderRadius.md,
     marginTop: theme.spacing.md,
     gap: theme.spacing.sm,
+    minHeight: 48,
   },
   addButtonDisabled: {
     opacity: 0.7,
+  },
+  pendingButton: {
+    backgroundColor: theme.colors.error,
   },
   addButtonText: {
     color: theme.colors.text.inverse,

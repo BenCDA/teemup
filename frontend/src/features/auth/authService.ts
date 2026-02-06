@@ -12,7 +12,8 @@ export const authService = {
     password: string,
     firstName: string,
     lastName: string,
-    verificationImage: string
+    verificationImage: string,
+    isPro: boolean = false
   ): Promise<AuthResponse> => {
     // Registration includes face verification which can take up to 2 minutes on first load
     const response = await api.post<AuthResponse>('/auth/register', {
@@ -21,6 +22,7 @@ export const authService = {
       firstName,
       lastName,
       verificationImage,
+      isPro,
     }, { timeout: 120000 });
     return response.data;
   },

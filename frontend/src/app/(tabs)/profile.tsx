@@ -14,12 +14,14 @@ import {
   Dimensions,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import { router } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
 import * as ImagePicker from 'expo-image-picker';
 import * as Haptics from 'expo-haptics';
 import { useAuth } from '@/features/auth/AuthContext';
-import { Avatar, Card, SportBadge } from '@/components/ui';
+import api from '@/features/shared/api';
+import { Avatar, Card, SportBadge, ProBadge } from '@/components/ui';
 import { theme } from '@/features/shared/styles/theme';
 import { SPORTS } from '@/constants/sports';
 
@@ -95,16 +97,47 @@ export default function ProfileScreen() {
     );
   };
 
+  const uploadImageToCloudinary = async (uri: string, type: 'profile' | 'cover'): Promise<string> => {
+    const endpoint = type === 'profile' ? '/upload/profile-picture' : '/upload/cover-image';
+    const formData = new FormData();
+    const filename = uri.split('/').pop() || 'image.jpg';
+    const match = /\.(\w+)$/.exec(filename);
+    const mimeType = match ? `image/${match[1]}` : 'image/jpeg';
+
+    formData.append('file', {
+      uri,
+      name: filename,
+      type: mimeType,
+    } as unknown as Blob);
+
+    const response = await api.post<{ url: string }>(endpoint, formData, {
+      headers: { 'Content-Type': 'multipart/form-data' },
+      timeout: 60000,
+    });
+    return response.data.url;
+  };
+
   const handleSaveProfile = async () => {
     setIsSaving(true);
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
 
     try {
+      let profilePictureUrl = editProfilePicture || undefined;
+      let coverImageUrl = editCoverImage || undefined;
+
+      // Upload to Cloudinary if the image is a new local file (not already an https URL)
+      if (editProfilePicture && !editProfilePicture.startsWith('http')) {
+        profilePictureUrl = await uploadImageToCloudinary(editProfilePicture, 'profile');
+      }
+      if (editCoverImage && !editCoverImage.startsWith('http')) {
+        coverImageUrl = await uploadImageToCloudinary(editCoverImage, 'cover');
+      }
+
       if (updateUser) {
         await updateUser({
           bio: editBio,
-          profilePicture: editProfilePicture || undefined,
-          coverImage: editCoverImage || undefined,
+          profilePicture: profilePictureUrl,
+          coverImage: coverImageUrl,
           sports: editSports,
         });
       }
@@ -174,15 +207,26 @@ export default function ProfileScreen() {
 
         {/* User Info */}
         <View style={styles.userInfo}>
-          <Text style={styles.name}>{user?.fullName}</Text>
+          <View style={styles.nameRow}>
+            <Text style={styles.name}>{user?.fullName}</Text>
+            {user?.isPro && <ProBadge size="sm" style={styles.proBadgeInline} />}
+          </View>
           <Text style={styles.email}>{user?.email}</Text>
 
-          {user?.isVerified && (
-            <View style={styles.verifiedBadge}>
-              <Ionicons name="shield-checkmark" size={14} color={theme.colors.success} />
-              <Text style={styles.verifiedText}>Profil vérifié</Text>
-            </View>
-          )}
+          <View style={styles.badgesRow}>
+            {user?.isVerified && (
+              <View style={styles.verifiedBadge}>
+                <Ionicons name="shield-checkmark" size={14} color={theme.colors.success} />
+                <Text style={styles.verifiedText}>Vérifié</Text>
+              </View>
+            )}
+            {user?.isPro && (
+              <View style={styles.proBadgeSmall}>
+                <Ionicons name="star" size={14} color="#FFD700" />
+                <Text style={styles.proText}>Membre Pro</Text>
+              </View>
+            )}
+          </View>
         </View>
 
         <View style={styles.content}>
@@ -224,26 +268,56 @@ export default function ProfileScreen() {
             </Card>
           )}
 
+          {/* Pro Subscription Card */}
+          {!user?.isPro && (
+            <TouchableOpacity
+              style={styles.proCard}
+              onPress={() => router.push('/settings/subscription')}
+              activeOpacity={0.8}
+            >
+              <LinearGradient
+                colors={['#667eea', '#764ba2']}
+                start={{ x: 0, y: 0 }}
+                end={{ x: 1, y: 1 }}
+                style={styles.proCardGradient}
+              >
+                <View style={styles.proCardContent}>
+                  <View style={styles.proCardIcon}>
+                    <Ionicons name="rocket" size={24} color="#fff" />
+                  </View>
+                  <View style={styles.proCardText}>
+                    <Text style={styles.proCardTitle}>Passez Pro</Text>
+                    <Text style={styles.proCardSubtitle}>Créez des événements payants</Text>
+                  </View>
+                  <Ionicons name="chevron-forward" size={20} color="rgba(255,255,255,0.7)" />
+                </View>
+              </LinearGradient>
+            </TouchableOpacity>
+          )}
+
           <Card variant="elevated" style={styles.menuSection}>
             <MenuItem
               icon="person-outline"
               label="Modifier le profil"
               onPress={openEditModal}
             />
+            {user?.isPro ? (
+              <MenuItem
+                icon="star"
+                label="Mon abonnement Pro"
+                onPress={() => router.push('/settings/subscription')}
+                iconColor="#FFD700"
+              />
+            ) : null}
             <MenuItem
-              icon="shield-checkmark-outline"
-              label="Confidentialité"
-              onPress={() => Alert.alert('Info', 'Fonctionnalité à venir')}
-            />
-            <MenuItem
-              icon="notifications-outline"
-              label="Notifications"
-              onPress={() => Alert.alert('Info', 'Fonctionnalité à venir')}
+              icon="settings-outline"
+              label="Paramètres"
+              onPress={() => router.push('/settings/preferences')}
             />
             <MenuItem
               icon="help-circle-outline"
               label="Aide & Support"
-              onPress={() => Alert.alert('Info', 'Fonctionnalité à venir')}
+              onPress={() => router.push('/settings/help')}
               showDivider={false}
             />
           </Card>
@@ -394,14 +468,16 @@ interface MenuItemProps {
   label: string;
   onPress: () => void;
   showDivider?: boolean;
+  iconColor?: string;
 }
 
-function MenuItem({ icon, label, onPress, showDivider = true }: MenuItemProps) {
+function MenuItem({ icon, label, onPress, showDivider = true, iconColor }: MenuItemProps) {
+  const color = iconColor || theme.colors.primary;
   return (
     <>
       <TouchableOpacity style={styles.menuItem} onPress={onPress} activeOpacity={0.6}>
-        <View style={styles.menuIconContainer}>
-          <Ionicons name={icon} size={20} color={theme.colors.primary} />
+        <View style={[styles.menuIconContainer, iconColor && { backgroundColor: `${iconColor}20` }]}>
+          <Ionicons name={icon} size={20} color={color} />
         </View>
         <Text style={styles.menuText}>{label}</Text>
         <Ionicons name="chevron-forward" size={18} color={theme.colors.text.tertiary} />
@@ -469,21 +545,34 @@ const styles = StyleSheet.create({
     paddingHorizontal: theme.spacing.lg,
     paddingTop: theme.spacing.sm,
   },
+  nameRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
   name: {
     fontSize: 26,
     fontWeight: '700',
     color: theme.colors.text.primary,
-    marginBottom: 2,
+  },
+  proBadgeInline: {
+    marginTop: 2,
   },
   email: {
     fontSize: 15,
     color: theme.colors.text.secondary,
+    marginTop: 2,
+  },
+  badgesRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    marginTop: theme.spacing.sm,
   },
   verifiedBadge: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 4,
-    marginTop: theme.spacing.sm,
     backgroundColor: `${theme.colors.success}15`,
     paddingHorizontal: 12,
     paddingVertical: 6,
@@ -493,6 +582,54 @@ const styles = StyleSheet.create({
     fontSize: 13,
     color: theme.colors.success,
     fontWeight: '600',
+  },
+  proBadgeSmall: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    backgroundColor: '#FFD70020',
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 20,
+  },
+  proText: {
+    fontSize: 13,
+    color: '#B8860B',
+    fontWeight: '600',
+  },
+  proCard: {
+    marginBottom: theme.spacing.md,
+    borderRadius: 16,
+    overflow: 'hidden',
+  },
+  proCardGradient: {
+    padding: 16,
+  },
+  proCardContent: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  proCardIcon: {
+    width: 44,
+    height: 44,
+    borderRadius: 12,
+    backgroundColor: 'rgba(255,255,255,0.2)',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginRight: 14,
+  },
+  proCardText: {
+    flex: 1,
+  },
+  proCardTitle: {
+    fontSize: 17,
+    fontWeight: '700',
+    color: '#fff',
+    marginBottom: 2,
+  },
+  proCardSubtitle: {
+    fontSize: 13,
+    color: 'rgba(255,255,255,0.8)',
   },
   statsContainer: {
     flexDirection: 'row',

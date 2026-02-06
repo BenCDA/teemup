@@ -1,4 +1,4 @@
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useEffect } from 'react';
 import {
   View,
   Text,
@@ -8,15 +8,17 @@ import {
   RefreshControl,
   ActivityIndicator,
   TextInput,
-  Image,
+  Alert,
 } from 'react-native';
 import { router } from 'expo-router';
-import { useQuery } from '@tanstack/react-query';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import * as Haptics from 'expo-haptics';
 import { messagingService } from '@/features/messaging/messagingService';
 import { friendService } from '@/features/friends/friendService';
+import socketService from '@/features/shared/socket';
 import { Conversation, User } from '@/types';
 import { useAuth } from '@/features/auth/AuthContext';
 import { Avatar } from '@/components/ui';
@@ -24,9 +26,10 @@ import { theme } from '@/features/shared/styles/theme';
 
 export default function MessagesScreen() {
   const { user } = useAuth();
+  const insets = useSafeAreaInsets();
+  const queryClient = useQueryClient();
   const [refreshing, setRefreshing] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
-  const [searchFocused, setSearchFocused] = useState(false);
 
   const { data: conversations, isLoading, refetch } = useQuery({
     queryKey: ['conversations'],
@@ -37,6 +40,27 @@ export default function MessagesScreen() {
     queryKey: ['friends'],
     queryFn: friendService.getFriends,
   });
+
+  // Real-time: refresh conversations list on new messages and online/offline status changes
+  useEffect(() => {
+    const unsubMessage = socketService.on('newMessage', () => {
+      queryClient.invalidateQueries({ queryKey: ['conversations'] });
+    });
+    const unsubOnline = socketService.on('userOnline', () => {
+      queryClient.invalidateQueries({ queryKey: ['friends'] });
+      queryClient.invalidateQueries({ queryKey: ['conversations'] });
+    });
+    const unsubOffline = socketService.on('userOffline', () => {
+      queryClient.invalidateQueries({ queryKey: ['friends'] });
+      queryClient.invalidateQueries({ queryKey: ['conversations'] });
+    });
+
+    return () => {
+      unsubMessage();
+      unsubOnline();
+      unsubOffline();
+    };
+  }, [queryClient]);
 
   const onRefresh = useCallback(async () => {
     setRefreshing(true);
@@ -71,8 +95,8 @@ export default function MessagesScreen() {
     const diffDays = Math.floor(diffMs / (1000 * 60 * 60 * 24));
 
     if (diffMins < 1) return 'À l\'instant';
-    if (diffMins < 60) return `${diffMins} min`;
-    if (diffHours < 24) return `${diffHours} h`;
+    if (diffMins < 60) return `${diffMins}min`;
+    if (diffHours < 24) return `${diffHours}h`;
     if (diffDays === 1) return 'Hier';
     if (diffDays < 7) return date.toLocaleDateString('fr-FR', { weekday: 'short' });
     return date.toLocaleDateString('fr-FR', { day: '2-digit', month: 'short' });
@@ -83,8 +107,8 @@ export default function MessagesScreen() {
     try {
       const conversation = await messagingService.createConversation([friendId]);
       router.push(`/conversation/${conversation.id}`);
-    } catch (error) {
-      console.error('Error starting conversation:', error);
+    } catch {
+      Alert.alert('Erreur', 'Impossible de démarrer la conversation');
     }
   };
 
@@ -101,9 +125,9 @@ export default function MessagesScreen() {
     return 0;
   });
 
-  const renderActiveUser = ({ item, index }: { item: User; index: number }) => (
+  const renderActiveUser = ({ item }: { item: User }) => (
     <TouchableOpacity
-      style={styles.activeUserContainer}
+      style={styles.activeUserItem}
       onPress={() => startConversation(item.id)}
       activeOpacity={0.7}
     >
@@ -114,37 +138,27 @@ export default function MessagesScreen() {
             style={styles.activeUserGradient}
           >
             <View style={styles.activeUserAvatarInner}>
-              <Avatar
-                uri={item.profilePicture}
-                name={item.fullName}
-                size="lg"
-              />
+              <Avatar uri={item.profilePicture} name={item.fullName} size="lg" />
             </View>
           </LinearGradient>
         ) : (
           <View style={styles.activeUserAvatarOffline}>
-            <Avatar
-              uri={item.profilePicture}
-              name={item.fullName}
-              size="lg"
-            />
+            <Avatar uri={item.profilePicture} name={item.fullName} size="lg" />
           </View>
         )}
         {item.isOnline && (
-          <View style={styles.onlineBadge}>
-            <View style={styles.onlineBadgeInner} />
+          <View style={styles.onlineDot}>
+            <View style={styles.onlineDotInner} />
           </View>
         )}
       </View>
-      <Text style={styles.activeUserName} numberOfLines={1}>
-        {item.firstName}
-      </Text>
+      <Text style={styles.activeUserName} numberOfLines={1}>{item.firstName}</Text>
     </TouchableOpacity>
   );
 
   const renderConversation = ({ item }: { item: Conversation }) => {
     const otherUser = getOtherUser(item);
-    const hasUnread = item.unreadCount > 0;
+    const hasUnread = (item.unreadCount || 0) > 0;
     const isOnline = otherUser?.isOnline;
 
     return (
@@ -156,46 +170,36 @@ export default function MessagesScreen() {
         }}
         activeOpacity={0.6}
       >
-        <View style={styles.avatarWrapper}>
-          <Avatar
-            uri={otherUser?.profilePicture}
-            name={getConversationName(item)}
-            size="lg"
-          />
+        <View style={styles.conversationAvatar}>
+          <Avatar uri={otherUser?.profilePicture} name={getConversationName(item)} size="lg" />
           {isOnline && (
-            <View style={styles.conversationOnlineBadge}>
-              <View style={styles.conversationOnlineBadgeInner} />
+            <View style={styles.conversationOnlineDot}>
+              <View style={styles.conversationOnlineDotInner} />
             </View>
           )}
         </View>
 
         <View style={styles.conversationContent}>
-          <View style={styles.conversationHeader}>
-            <Text
-              style={[styles.conversationName, hasUnread && styles.conversationNameUnread]}
-              numberOfLines={1}
-            >
+          <View style={styles.conversationRow}>
+            <Text style={[styles.conversationName, hasUnread && styles.textBold]} numberOfLines={1}>
               {getConversationName(item)}
             </Text>
-            <Text style={[styles.conversationTime, hasUnread && styles.conversationTimeUnread]}>
+            <Text style={[styles.conversationTime, hasUnread && styles.timeUnread]}>
               {formatTime(item.lastMessageAt)}
             </Text>
           </View>
 
-          <View style={styles.conversationFooter}>
-            <Text
-              style={[styles.lastMessage, hasUnread && styles.lastMessageUnread]}
-              numberOfLines={1}
-            >
+          <View style={styles.conversationRow}>
+            <Text style={[styles.lastMessage, hasUnread && styles.lastMessageUnread]} numberOfLines={1}>
               {item.lastMessage?.sender?.id === user?.id && (
-                <Text style={styles.youPrefix}>Vous : </Text>
+                <Text style={styles.youPrefix}>Vous: </Text>
               )}
-              {item.lastMessage?.content || 'Démarrer la conversation'}
+              {item.lastMessage?.content || 'Nouvelle conversation'}
             </Text>
             {hasUnread && (
               <View style={styles.unreadBadge}>
                 <Text style={styles.unreadBadgeText}>
-                  {item.unreadCount > 9 ? '9+' : item.unreadCount}
+                  {(item.unreadCount || 0) > 9 ? '9+' : item.unreadCount}
                 </Text>
               </View>
             )}
@@ -207,45 +211,51 @@ export default function MessagesScreen() {
 
   if (isLoading) {
     return (
-      <View style={styles.loadingContainer}>
+      <View style={[styles.loadingContainer, { paddingTop: insets.top }]}>
         <ActivityIndicator size="large" color={theme.colors.primary} />
       </View>
     );
   }
 
   return (
-    <View style={styles.container}>
-      {/* Search Bar */}
+    <View style={[styles.container, { paddingTop: insets.top }]}>
+      {/* Header */}
+      <View style={styles.header}>
+        <Text style={styles.headerTitle}>Messages</Text>
+        <TouchableOpacity
+          style={styles.newMessageButton}
+          activeOpacity={0.7}
+          onPress={() => {
+            Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+            router.push('/(tabs)/friends');
+          }}
+        >
+          <Ionicons name="create-outline" size={24} color={theme.colors.primary} />
+        </TouchableOpacity>
+      </View>
+
+      {/* Search */}
       <View style={styles.searchWrapper}>
-        <View style={[styles.searchContainer, searchFocused && styles.searchContainerFocused]}>
-          <Ionicons
-            name="search"
-            size={18}
-            color={searchFocused ? theme.colors.primary : theme.colors.text.tertiary}
-          />
+        <View style={styles.searchContainer}>
+          <Ionicons name="search" size={18} color={theme.colors.text.tertiary} />
           <TextInput
             style={styles.searchInput}
             placeholder="Rechercher"
             placeholderTextColor={theme.colors.text.tertiary}
             value={searchQuery}
             onChangeText={setSearchQuery}
-            onFocus={() => setSearchFocused(true)}
-            onBlur={() => setSearchFocused(false)}
           />
           {searchQuery.length > 0 && (
-            <TouchableOpacity
-              onPress={() => setSearchQuery('')}
-              hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
-            >
+            <TouchableOpacity onPress={() => setSearchQuery('')}>
               <View style={styles.clearButton}>
-                <Ionicons name="close" size={12} color="#fff" />
+                <Ionicons name="close" size={14} color="#fff" />
               </View>
             </TouchableOpacity>
           )}
         </View>
       </View>
 
-      {/* Active Users / Stories Row */}
+      {/* Active Users */}
       {sortedFriends && sortedFriends.length > 0 && !searchQuery && (
         <View style={styles.activeUsersSection}>
           <FlatList
@@ -259,14 +269,7 @@ export default function MessagesScreen() {
         </View>
       )}
 
-      {/* Section Title */}
-      {!searchQuery && (
-        <View style={styles.sectionHeader}>
-          <Text style={styles.sectionTitle}>Messages</Text>
-        </View>
-      )}
-
-      {/* Conversations List */}
+      {/* Conversations */}
       <FlatList
         data={filteredConversations}
         renderItem={renderConversation}
@@ -281,11 +284,12 @@ export default function MessagesScreen() {
         }
         contentContainerStyle={[
           styles.listContent,
-          filteredConversations?.length === 0 && styles.emptyContainer
+          (!filteredConversations || filteredConversations.length === 0) && styles.emptyList
         ]}
+        showsVerticalScrollIndicator={false}
         ListEmptyComponent={
-          <View style={styles.emptyContent}>
-            <View style={styles.emptyIconContainer}>
+          <View style={styles.emptyContainer}>
+            <View style={styles.emptyIcon}>
               <Ionicons name="chatbubbles" size={48} color={theme.colors.primary} />
             </View>
             <Text style={styles.emptyTitle}>
@@ -294,8 +298,7 @@ export default function MessagesScreen() {
             <Text style={styles.emptySubtitle}>
               {searchQuery
                 ? 'Essayez une autre recherche'
-                : 'Commencez une conversation avec vos amis !'
-              }
+                : 'Envoyez un message à vos amis !'}
             </Text>
           </View>
         }
@@ -307,19 +310,43 @@ export default function MessagesScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: theme.colors.surface,
+    backgroundColor: theme.colors.background,
   },
   loadingContainer: {
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
+    backgroundColor: theme.colors.background,
+  },
+  // Header
+  header: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingHorizontal: 20,
+    paddingVertical: 16,
     backgroundColor: theme.colors.surface,
+  },
+  headerTitle: {
+    fontSize: 28,
+    fontWeight: '700',
+    color: theme.colors.text.primary,
+  },
+  newMessageButton: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: `${theme.colors.primary}10`,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   // Search
   searchWrapper: {
     paddingHorizontal: 16,
-    paddingVertical: 10,
+    paddingVertical: 8,
     backgroundColor: theme.colors.surface,
+    borderBottomWidth: 1,
+    borderBottomColor: theme.colors.border,
   },
   searchContainer: {
     flexDirection: 'row',
@@ -330,28 +357,24 @@ const styles = StyleSheet.create({
     height: 40,
     gap: 8,
   },
-  searchContainerFocused: {
-    backgroundColor: `${theme.colors.primary}10`,
-    borderWidth: 1,
-    borderColor: theme.colors.primary,
-  },
   searchInput: {
     flex: 1,
-    fontSize: 15,
+    fontSize: 16,
     color: theme.colors.text.primary,
     paddingVertical: 0,
   },
   clearButton: {
-    width: 18,
-    height: 18,
-    borderRadius: 9,
+    width: 20,
+    height: 20,
+    borderRadius: 10,
     backgroundColor: theme.colors.text.tertiary,
     alignItems: 'center',
     justifyContent: 'center',
   },
   // Active Users
   activeUsersSection: {
-    paddingVertical: 12,
+    paddingVertical: 16,
+    backgroundColor: theme.colors.surface,
     borderBottomWidth: 1,
     borderBottomColor: theme.colors.border,
   },
@@ -359,7 +382,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 16,
     gap: 16,
   },
-  activeUserContainer: {
+  activeUserItem: {
     alignItems: 'center',
     width: 72,
   },
@@ -380,7 +403,7 @@ const styles = StyleSheet.create({
     backgroundColor: theme.colors.surface,
     alignItems: 'center',
     justifyContent: 'center',
-    padding: 2,
+    overflow: 'hidden',
   },
   activeUserAvatarOffline: {
     width: 64,
@@ -390,8 +413,9 @@ const styles = StyleSheet.create({
     borderColor: theme.colors.border,
     alignItems: 'center',
     justifyContent: 'center',
+    overflow: 'hidden',
   },
-  onlineBadge: {
+  onlineDot: {
     position: 'absolute',
     bottom: 2,
     right: 2,
@@ -402,7 +426,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
-  onlineBadgeInner: {
+  onlineDotInner: {
     width: 12,
     height: 12,
     borderRadius: 6,
@@ -415,32 +439,25 @@ const styles = StyleSheet.create({
     textAlign: 'center',
     fontWeight: '500',
   },
-  // Section Header
-  sectionHeader: {
-    paddingHorizontal: 16,
-    paddingTop: 16,
-    paddingBottom: 8,
-  },
-  sectionTitle: {
-    fontSize: 16,
-    fontWeight: '700',
-    color: theme.colors.text.primary,
-  },
   // Conversations
   listContent: {
     paddingBottom: 20,
   },
+  emptyList: {
+    flex: 1,
+  },
   conversationItem: {
     flexDirection: 'row',
     alignItems: 'center',
-    paddingHorizontal: 16,
-    paddingVertical: 12,
-    gap: 12,
+    paddingHorizontal: 20,
+    paddingVertical: 14,
+    gap: 14,
+    backgroundColor: theme.colors.surface,
   },
-  avatarWrapper: {
+  conversationAvatar: {
     position: 'relative',
   },
-  conversationOnlineBadge: {
+  conversationOnlineDot: {
     position: 'absolute',
     bottom: 0,
     right: 0,
@@ -451,7 +468,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
-  conversationOnlineBadgeInner: {
+  conversationOnlineDotInner: {
     width: 10,
     height: 10,
     borderRadius: 5,
@@ -459,35 +476,30 @@ const styles = StyleSheet.create({
   },
   conversationContent: {
     flex: 1,
-    justifyContent: 'center',
+    gap: 4,
   },
-  conversationHeader: {
+  conversationRow: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    marginBottom: 4,
   },
   conversationName: {
-    fontSize: 15,
+    fontSize: 16,
     fontWeight: '500',
     color: theme.colors.text.primary,
     flex: 1,
     marginRight: 8,
   },
-  conversationNameUnread: {
+  textBold: {
     fontWeight: '700',
   },
   conversationTime: {
-    fontSize: 12,
+    fontSize: 13,
     color: theme.colors.text.tertiary,
   },
-  conversationTimeUnread: {
+  timeUnread: {
     color: theme.colors.primary,
     fontWeight: '600',
-  },
-  conversationFooter: {
-    flexDirection: 'row',
-    alignItems: 'center',
   },
   lastMessage: {
     fontSize: 14,
@@ -504,28 +516,26 @@ const styles = StyleSheet.create({
   },
   unreadBadge: {
     backgroundColor: theme.colors.primary,
-    borderRadius: 10,
-    minWidth: 20,
-    height: 20,
+    borderRadius: 12,
+    minWidth: 22,
+    height: 22,
     alignItems: 'center',
     justifyContent: 'center',
-    paddingHorizontal: 6,
+    paddingHorizontal: 7,
   },
   unreadBadgeText: {
     color: '#fff',
-    fontSize: 11,
+    fontSize: 12,
     fontWeight: '700',
   },
-  // Empty State
+  // Empty
   emptyContainer: {
     flex: 1,
-    justifyContent: 'center',
-  },
-  emptyContent: {
     alignItems: 'center',
+    justifyContent: 'center',
     padding: 40,
   },
-  emptyIconContainer: {
+  emptyIcon: {
     width: 100,
     height: 100,
     borderRadius: 50,

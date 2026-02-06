@@ -3,6 +3,7 @@ package com.teemup.service;
 import com.teemup.dto.event.CreateSportEventRequest;
 import com.teemup.dto.event.SportEventResponse;
 import com.teemup.entity.EventParticipant;
+import com.teemup.entity.Notification;
 import com.teemup.entity.SportEvent;
 import com.teemup.entity.User;
 import com.teemup.exception.*;
@@ -25,6 +26,7 @@ public class SportEventService {
     private final SportEventRepository sportEventRepository;
     private final EventParticipantRepository eventParticipantRepository;
     private final UserRepository userRepository;
+    private final NotificationService notificationService;
 
     @Transactional
     public SportEventResponse createEvent(UUID userId, CreateSportEventRequest request) {
@@ -244,6 +246,16 @@ public class SportEventService {
                 .build();
 
         eventParticipantRepository.save(participant);
+
+        // Notify the organizer about the new participant
+        notificationService.createNotification(
+                event.getUser(),
+                user,
+                Notification.NotificationType.EVENT_PARTICIPANT_JOINED,
+                "Nouveau participant",
+                user.getFirstName() + " " + user.getLastName() + " a rejoint votre événement \"" + event.getTitle() + "\"",
+                eventId.toString()
+        );
 
         // Refresh event to get updated participants
         event = sportEventRepository.findById(eventId).orElseThrow(() -> new EventNotFoundException(eventId));

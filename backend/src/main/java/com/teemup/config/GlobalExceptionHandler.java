@@ -145,6 +145,39 @@ public class GlobalExceptionHandler {
         return ResponseEntity.status(HttpStatus.FORBIDDEN).body(error);
     }
 
+    @ExceptionHandler(FriendRequestException.class)
+    public ResponseEntity<Map<String, Object>> handleFriendRequest(FriendRequestException ex) {
+        Map<String, Object> error = new HashMap<>();
+        error.put("timestamp", LocalDateTime.now().toString());
+        error.put("message", ex.getMessage());
+        error.put("code", ex.getCode());
+        error.put("status", HttpStatus.BAD_REQUEST.value());
+
+        return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(error);
+    }
+
+    @ExceptionHandler(ConversationException.class)
+    public ResponseEntity<Map<String, Object>> handleConversation(ConversationException ex) {
+        Map<String, Object> error = new HashMap<>();
+        error.put("timestamp", LocalDateTime.now().toString());
+        error.put("message", ex.getMessage());
+        error.put("code", ex.getCode());
+        error.put("status", HttpStatus.BAD_REQUEST.value());
+
+        return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(error);
+    }
+
+    @ExceptionHandler(NotificationException.class)
+    public ResponseEntity<Map<String, Object>> handleNotification(NotificationException ex) {
+        Map<String, Object> error = new HashMap<>();
+        error.put("timestamp", LocalDateTime.now().toString());
+        error.put("message", ex.getMessage());
+        error.put("code", ex.getCode());
+        error.put("status", HttpStatus.BAD_REQUEST.value());
+
+        return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(error);
+    }
+
     // ===================== EXISTING EXCEPTIONS =====================
 
     @ExceptionHandler(EmailAlreadyExistsException.class)

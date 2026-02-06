@@ -3,6 +3,7 @@ package com.teemup.service;
 import com.teemup.dto.notification.NotificationResponse;
 import com.teemup.entity.Notification;
 import com.teemup.entity.User;
+import com.teemup.exception.NotificationException;
 import com.teemup.repository.NotificationRepository;
 import com.teemup.repository.UserRepository;
 import lombok.RequiredArgsConstructor;
@@ -65,10 +66,10 @@ public class NotificationService {
     @Transactional
     public NotificationResponse markAsRead(UUID notificationId, UUID userId) {
         Notification notification = notificationRepository.findById(notificationId)
-                .orElseThrow(() -> new RuntimeException("Notification not found"));
+                .orElseThrow(NotificationException::notFound);
 
         if (!notification.getUser().getId().equals(userId)) {
-            throw new RuntimeException("Not authorized to update this notification");
+            throw NotificationException.unauthorized();
         }
 
         notification.setIsRead(true);
@@ -85,10 +86,10 @@ public class NotificationService {
     @Transactional
     public void deleteNotification(UUID notificationId, UUID userId) {
         Notification notification = notificationRepository.findById(notificationId)
-                .orElseThrow(() -> new RuntimeException("Notification not found"));
+                .orElseThrow(NotificationException::notFound);
 
         if (!notification.getUser().getId().equals(userId)) {
-            throw new RuntimeException("Not authorized to delete this notification");
+            throw NotificationException.unauthorized();
         }
 
         notificationRepository.delete(notification);

@@ -10,6 +10,7 @@ import {
   Alert,
   ActivityIndicator,
   Platform,
+  KeyboardAvoidingView,
 } from 'react-native';
 import { router } from 'expo-router';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
@@ -22,6 +23,7 @@ import { LocationPicker } from '@/components/ui';
 import { theme } from '@/features/shared/styles/theme';
 import { SPORTS } from '@/constants/sports';
 import { useAuth } from '@/features/auth/AuthContext';
+import { AxiosApiError } from '@/types';
 
 type RecurrenceType = 'NONE' | 'DAILY' | 'WEEKLY' | 'BIWEEKLY' | 'MONTHLY';
 
@@ -29,7 +31,6 @@ const RECURRENCE_OPTIONS: { value: RecurrenceType; label: string }[] = [
   { value: 'NONE', label: 'Aucune' },
   { value: 'DAILY', label: 'Quotidien' },
   { value: 'WEEKLY', label: 'Hebdomadaire' },
-  { value: 'BIWEEKLY', label: 'Bi-hebdomadaire' },
   { value: 'MONTHLY', label: 'Mensuel' },
 ];
 
@@ -72,7 +73,7 @@ export default function CreateEventScreen() {
         { text: 'OK', onPress: () => router.back() },
       ]);
     },
-    onError: (error: any) => {
+    onError: (error: AxiosApiError) => {
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
       Alert.alert('Erreur', error.response?.data?.message || 'Une erreur est survenue');
     },
@@ -81,6 +82,11 @@ export default function CreateEventScreen() {
   const handleSubmit = () => {
     if (!sport) {
       Alert.alert('Erreur', 'Veuillez sélectionner un sport');
+      return;
+    }
+
+    if (!title.trim()) {
+      Alert.alert('Erreur', 'Veuillez saisir un titre pour l\'événement');
       return;
     }
 
@@ -93,7 +99,7 @@ export default function CreateEventScreen() {
 
     const eventData: CreateEventRequest = {
       sport,
-      title: title.trim() || undefined,
+      title: title.trim(),
       description: description.trim() || undefined,
       location: location?.address,
       latitude: location?.latitude,
@@ -136,7 +142,11 @@ export default function CreateEventScreen() {
 
   return (
     <SafeAreaView style={styles.safeArea} edges={['top']}>
-      <View style={styles.container}>
+      <KeyboardAvoidingView
+        style={styles.container}
+        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+        keyboardVerticalOffset={Platform.OS === 'ios' ? 60 : 0}
+      >
         {/* Header */}
         <View style={styles.header}>
           <TouchableOpacity onPress={() => router.back()} style={styles.backButton}>
@@ -146,7 +156,11 @@ export default function CreateEventScreen() {
           <View style={styles.backButton} />
         </View>
 
-        <ScrollView style={styles.content} showsVerticalScrollIndicator={false}>
+        <ScrollView
+          style={styles.content}
+          showsVerticalScrollIndicator={false}
+          keyboardShouldPersistTaps="handled"
+        >
           {/* Sport Picker */}
           <View style={styles.section}>
             <Text style={styles.label}>Sport *</Text>
@@ -191,7 +205,7 @@ export default function CreateEventScreen() {
 
           {/* Title */}
           <View style={styles.section}>
-            <Text style={styles.label}>Titre (optionnel)</Text>
+            <Text style={styles.label}>Titre *</Text>
             <TextInput
               style={styles.input}
               value={title}
@@ -220,21 +234,34 @@ export default function CreateEventScreen() {
           {/* Date */}
           <View style={styles.section}>
             <Text style={styles.label}>Date *</Text>
-            <TouchableOpacity style={styles.picker} onPress={() => setShowDatePicker(true)}>
+            <TouchableOpacity style={styles.picker} onPress={() => setShowDatePicker(!showDatePicker)}>
               <Ionicons name="calendar-outline" size={20} color={theme.colors.text.secondary} />
               <Text style={styles.pickerText}>{formatDateDisplay(date)}</Text>
+              <Ionicons name="chevron-down" size={20} color={theme.colors.text.tertiary} />
             </TouchableOpacity>
             {showDatePicker && (
-              <DateTimePicker
-                value={date}
-                mode="date"
-                display={Platform.OS === 'ios' ? 'spinner' : 'default'}
-                minimumDate={new Date()}
-                onChange={(event, selectedDate) => {
-                  setShowDatePicker(Platform.OS === 'ios');
-                  if (selectedDate) setDate(selectedDate);
-                }}
-              />
+              <View style={styles.pickerContainer}>
+                <View style={styles.pickerHeader}>
+                  <Text style={styles.pickerHeaderText}>Date de l'événement</Text>
+                  <TouchableOpacity
+                    onPress={() => setShowDatePicker(false)}
+                    style={styles.pickerDoneButton}
+                  >
+                    <Text style={styles.pickerDoneText}>OK</Text>
+                  </TouchableOpacity>
+                </View>
+                <DateTimePicker
+                  value={date}
+                  mode="date"
+                  display="spinner"
+                  minimumDate={new Date()}
+                  locale="fr-FR"
+                  onChange={(event, selectedDate) => {
+                    if (selectedDate) setDate(selectedDate);
+                  }}
+                  style={styles.datePicker}
+                />
+              </View>
             )}
           </View>
 
@@ -305,6 +332,7 @@ export default function CreateEventScreen() {
                   value={startTime}
                   mode="time"
                   display="spinner"
+                  locale="fr-FR"
                   onChange={(event, selectedTime) => {
                     if (selectedTime) setStartTime(selectedTime);
                   }}
@@ -329,6 +357,7 @@ export default function CreateEventScreen() {
                   value={endTime}
                   mode="time"
                   display="spinner"
+                  locale="fr-FR"
                   onChange={(event, selectedTime) => {
                     if (selectedTime) setEndTime(selectedTime);
                   }}
@@ -490,7 +519,7 @@ export default function CreateEventScreen() {
 
           <View style={styles.bottomSpacer} />
         </ScrollView>
-      </View>
+      </KeyboardAvoidingView>
     </SafeAreaView>
   );
 }
@@ -651,7 +680,7 @@ const styles = StyleSheet.create({
     fontWeight: theme.typography.weight.semibold,
   },
   bottomSpacer: {
-    height: theme.spacing.xxl,
+    height: 100,
   },
   // Time picker styles
   timeContainer: {
@@ -734,6 +763,9 @@ const styles = StyleSheet.create({
     color: theme.colors.text.inverse,
   },
   timePicker: {
+    height: 150,
+  },
+  datePicker: {
     height: 150,
   },
   // Participants styles

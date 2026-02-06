@@ -53,6 +53,9 @@ public class Conversation {
     @Column
     private LocalDateTime lastMessageAt;
 
+    @Column(name = "private_participant_key")
+    private String privateParticipantKey;
+
     @CreationTimestamp
     @Column(updatable = false)
     private LocalDateTime createdAt;

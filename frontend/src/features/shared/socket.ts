@@ -38,13 +38,12 @@ class SocketService {
 
     const token = await getAccessToken();
     if (!token) {
-      console.warn('No token available for socket connection');
       this.setStatus('disconnected');
       return;
     }
 
     this.socket = io(SOCKET_URL, {
-      auth: { token }, // Token in auth object (secure) instead of query params
+      query: { token }, // netty-socketio reads token via getSingleUrlParam("token")
       transports: ['websocket'],
       reconnection: true,
       reconnectionAttempts: 5,
@@ -53,12 +52,10 @@ class SocketService {
     });
 
     this.socket.on('connect', () => {
-      console.log('Socket connected');
       this.setStatus('connected');
     });
 
-    this.socket.on('disconnect', (reason) => {
-      console.log('Socket disconnected:', reason);
+    this.socket.on('disconnect', () => {
       this.setStatus('disconnected');
     });
 
@@ -66,8 +63,7 @@ class SocketService {
       this.setStatus('connecting');
     });
 
-    this.socket.on('connect_error', (error) => {
-      console.error('Socket connection error:', error.message);
+    this.socket.on('connect_error', () => {
       this.setStatus('error');
     });
 
@@ -88,12 +84,11 @@ class SocketService {
     this.listeners.clear();
   }
 
-  emit(event: string, data?: any): void {
+  emit(event: string, data?: unknown): void {
     if (this.socket?.connected) {
       this.socket.emit(event, data);
-    } else {
-      console.warn('Socket not connected, cannot emit:', event);
     }
+    // Silently ignore if not connected - will reconnect automatically
   }
 
   on(event: string, callback: Function): () => void {

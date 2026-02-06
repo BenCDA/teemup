@@ -2,6 +2,19 @@ import axios, { AxiosError, InternalAxiosRequestConfig } from 'axios';
 import * as SecureStore from 'expo-secure-store';
 import Constants from 'expo-constants';
 
+// Session expiration event listeners
+type SessionExpiredCallback = () => void;
+const sessionExpiredListeners = new Set<SessionExpiredCallback>();
+
+export const onSessionExpired = (callback: SessionExpiredCallback): (() => void) => {
+  sessionExpiredListeners.add(callback);
+  return () => sessionExpiredListeners.delete(callback);
+};
+
+const notifySessionExpired = (): void => {
+  sessionExpiredListeners.forEach(callback => callback());
+};
+
 // Auto-detect API URL from Expo's dev server (no cache issues)
 const getApiUrl = (): string => {
   if (__DEV__) {
@@ -9,7 +22,6 @@ const getApiUrl = (): string => {
     const debuggerHost = Constants.expoConfig?.hostUri ?? Constants.manifest?.debuggerHost;
     if (debuggerHost) {
       const ip = debuggerHost.split(':')[0];
-      console.log('[API] Auto-detected IP:', ip);
       return `http://${ip}:8000`;
     }
   }
@@ -18,7 +30,6 @@ const getApiUrl = (): string => {
 };
 
 const API_URL = getApiUrl();
-console.log('[API] Using:', API_URL);
 
 export const api = axios.create({
   baseURL: `${API_URL}/api`,
@@ -85,7 +96,8 @@ api.interceptors.response.use(
         }
       } catch (refreshError) {
         await clearTokens();
-        // Redirect to login handled by auth context
+        // Notify listeners that session has expired
+        notifySessionExpired();
       }
     }
 

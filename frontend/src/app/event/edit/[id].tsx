@@ -10,6 +10,7 @@ import {
   Alert,
   ActivityIndicator,
   Platform,
+  KeyboardAvoidingView,
 } from 'react-native';
 import { router, useLocalSearchParams } from 'expo-router';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
@@ -22,6 +23,7 @@ import { LocationPicker } from '@/components/ui';
 import { theme } from '@/features/shared/styles/theme';
 import { SPORTS } from '@/constants/sports';
 import { useAuth } from '@/features/auth/AuthContext';
+import { AxiosApiError } from '@/types';
 
 type RecurrenceType = 'NONE' | 'DAILY' | 'WEEKLY' | 'BIWEEKLY' | 'MONTHLY';
 
@@ -29,7 +31,6 @@ const RECURRENCE_OPTIONS: { value: RecurrenceType; label: string }[] = [
   { value: 'NONE', label: 'Aucune' },
   { value: 'DAILY', label: 'Quotidien' },
   { value: 'WEEKLY', label: 'Hebdomadaire' },
-  { value: 'BIWEEKLY', label: 'Bi-hebdomadaire' },
   { value: 'MONTHLY', label: 'Mensuel' },
 ];
 
@@ -114,7 +115,7 @@ export default function EditEventScreen() {
         { text: 'OK', onPress: () => router.back() },
       ]);
     },
-    onError: (error: any) => {
+    onError: (error: AxiosApiError) => {
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
       Alert.alert('Erreur', error.response?.data?.message || 'Une erreur est survenue');
     },
@@ -123,6 +124,11 @@ export default function EditEventScreen() {
   const handleSubmit = () => {
     if (!sport) {
       Alert.alert('Erreur', 'Veuillez sélectionner un sport');
+      return;
+    }
+
+    if (!title.trim()) {
+      Alert.alert('Erreur', 'Veuillez saisir un titre pour l\'événement');
       return;
     }
 
@@ -135,7 +141,7 @@ export default function EditEventScreen() {
 
     const eventData: Partial<CreateEventRequest> = {
       sport,
-      title: title.trim() || undefined,
+      title: title.trim(),
       description: description.trim() || undefined,
       location: location?.address,
       latitude: location?.latitude,
@@ -189,7 +195,11 @@ export default function EditEventScreen() {
 
   return (
     <SafeAreaView style={styles.safeArea} edges={['top']}>
-      <View style={styles.container}>
+      <KeyboardAvoidingView
+        style={styles.container}
+        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+        keyboardVerticalOffset={Platform.OS === 'ios' ? 60 : 0}
+      >
         {/* Header */}
         <View style={styles.header}>
           <TouchableOpacity onPress={() => router.back()} style={styles.backButton}>
@@ -199,7 +209,11 @@ export default function EditEventScreen() {
           <View style={styles.backButton} />
         </View>
 
-        <ScrollView style={styles.content} showsVerticalScrollIndicator={false}>
+        <ScrollView
+          style={styles.content}
+          showsVerticalScrollIndicator={false}
+          keyboardShouldPersistTaps="handled"
+        >
           {/* Sport Picker */}
           <View style={styles.section}>
             <Text style={styles.label}>Sport *</Text>
@@ -242,7 +256,7 @@ export default function EditEventScreen() {
 
           {/* Title */}
           <View style={styles.section}>
-            <Text style={styles.label}>Titre (optionnel)</Text>
+            <Text style={styles.label}>Titre *</Text>
             <TextInput
               style={styles.input}
               value={title}
@@ -281,6 +295,7 @@ export default function EditEventScreen() {
                 mode="date"
                 display={Platform.OS === 'ios' ? 'spinner' : 'default'}
                 minimumDate={new Date()}
+                locale="fr-FR"
                 onChange={(event, selectedDate) => {
                   setShowDatePicker(Platform.OS === 'ios');
                   if (selectedDate) setDate(selectedDate);
@@ -349,6 +364,7 @@ export default function EditEventScreen() {
                   value={startTime}
                   mode="time"
                   display="spinner"
+                  locale="fr-FR"
                   onChange={(event, selectedTime) => {
                     if (selectedTime) setStartTime(selectedTime);
                   }}
@@ -372,6 +388,7 @@ export default function EditEventScreen() {
                   value={endTime}
                   mode="time"
                   display="spinner"
+                  locale="fr-FR"
                   onChange={(event, selectedTime) => {
                     if (selectedTime) setEndTime(selectedTime);
                   }}
@@ -533,7 +550,7 @@ export default function EditEventScreen() {
 
           <View style={styles.bottomSpacer} />
         </ScrollView>
-      </View>
+      </KeyboardAvoidingView>
     </SafeAreaView>
   );
 }
@@ -643,7 +660,7 @@ const styles = StyleSheet.create({
     fontSize: theme.typography.size.md,
     fontWeight: theme.typography.weight.semibold,
   },
-  bottomSpacer: { height: theme.spacing.xxl },
+  bottomSpacer: { height: 100 },
   timeContainer: {
     backgroundColor: theme.colors.surface,
     borderRadius: theme.borderRadius.md,

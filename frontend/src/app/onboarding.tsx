@@ -28,6 +28,7 @@ export default function OnboardingScreen() {
   const [selectedSports, setSelectedSports] = useState<string[]>([]);
   const [profilePicture, setProfilePicture] = useState<string | null>(null);
   const [coverImage, setCoverImage] = useState<string | null>(null);
+  const [bio, setBio] = useState('');
   const [isSaving, setIsSaving] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
   const [showAllSports, setShowAllSports] = useState(false);
@@ -114,11 +115,12 @@ export default function OnboardingScreen() {
         sports: selectedSports,
         profilePicture: profilePicture || undefined,
         coverImage: coverImage || undefined,
+        bio: bio.trim() || undefined,
         onboardingCompleted: true,
       });
 
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-      router.replace('/(tabs)');
+      router.replace('/(tabs)/discover');
     } catch (error) {
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
       Alert.alert('Erreur', 'Une erreur est survenue. Veuillez réessayer.');
@@ -154,8 +156,8 @@ export default function OnboardingScreen() {
           : 'Sélectionnez les sports que vous pratiquez pour trouver des partenaires.';
       case 'profile-photo':
         return isPro
-          ? 'Une photo professionnelle aide à établir la confiance avec vos clients.'
-          : 'Une photo de profil aide les autres sportifs à vous reconnaître.';
+          ? 'Ajoutez une photo et présentez-vous à vos futurs clients.'
+          : 'Ajoutez une photo et présentez-vous aux autres sportifs.';
       case 'cover-photo':
         return 'Personnalisez votre profil avec une belle photo de couverture.';
     }
@@ -310,6 +312,22 @@ export default function OnboardingScreen() {
                 {profilePicture ? 'Changer la photo' : 'Choisir une photo'}
               </Text>
             </TouchableOpacity>
+
+            {/* Bio Section */}
+            <View style={styles.bioSection}>
+              <Text style={styles.bioLabel}>Présentez-vous (optionnel)</Text>
+              <TextInput
+                style={styles.bioInput}
+                value={bio}
+                onChangeText={setBio}
+                placeholder="Ex: Passionné de running, je cherche des partenaires pour mes sorties..."
+                placeholderTextColor={theme.colors.text.tertiary}
+                multiline
+                numberOfLines={3}
+                maxLength={200}
+              />
+              <Text style={styles.bioCharCount}>{bio.length}/200</Text>
+            </View>
           </View>
         )}
 
@@ -605,6 +623,33 @@ const styles = StyleSheet.create({
     fontSize: theme.typography.size.md,
     fontWeight: theme.typography.weight.semibold,
     color: theme.colors.primary,
+  },
+  bioSection: {
+    width: '100%',
+    marginTop: theme.spacing.xl,
+  },
+  bioLabel: {
+    fontSize: theme.typography.size.sm,
+    fontWeight: theme.typography.weight.semibold,
+    color: theme.colors.text.secondary,
+    marginBottom: theme.spacing.sm,
+  },
+  bioInput: {
+    backgroundColor: theme.colors.background,
+    borderRadius: theme.borderRadius.md,
+    borderWidth: 1,
+    borderColor: theme.colors.border,
+    padding: theme.spacing.md,
+    fontSize: theme.typography.size.md,
+    color: theme.colors.text.primary,
+    minHeight: 100,
+    textAlignVertical: 'top',
+  },
+  bioCharCount: {
+    textAlign: 'right',
+    color: theme.colors.text.tertiary,
+    fontSize: theme.typography.size.xs,
+    marginTop: theme.spacing.xs,
   },
   footer: {
     flexDirection: 'row',

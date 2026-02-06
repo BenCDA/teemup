@@ -4,6 +4,8 @@ import com.teemup.dto.friend.FriendRequestResponse;
 import com.teemup.entity.FriendRequest;
 import com.teemup.entity.Notification;
 import com.teemup.entity.User;
+import com.teemup.exception.FriendRequestException;
+import com.teemup.exception.UserNotFoundException;
 import com.teemup.repository.FriendRequestRepository;
 import com.teemup.repository.UserRepository;
 import org.junit.jupiter.api.BeforeEach;
@@ -114,8 +116,8 @@ class FriendServiceTest {
         void shouldThrowExceptionWhenSendingToSelf() {
             // When/Then
             assertThatThrownBy(() -> friendService.sendFriendRequest(senderId, senderId))
-                    .isInstanceOf(RuntimeException.class)
-                    .hasMessage("Cannot send friend request to yourself");
+                    .isInstanceOf(FriendRequestException.class)
+                    .hasMessage("Impossible d'envoyer une demande à vous-même");
 
             verify(userRepository, never()).findById(any());
         }
@@ -130,8 +132,8 @@ class FriendServiceTest {
 
             // When/Then
             assertThatThrownBy(() -> friendService.sendFriendRequest(senderId, receiverId))
-                    .isInstanceOf(RuntimeException.class)
-                    .hasMessage("Already friends with this user");
+                    .isInstanceOf(FriendRequestException.class)
+                    .hasMessage("Vous êtes déjà amis avec cet utilisateur");
 
             verify(friendRequestRepository, never()).save(any());
         }
@@ -147,8 +149,8 @@ class FriendServiceTest {
 
             // When/Then
             assertThatThrownBy(() -> friendService.sendFriendRequest(senderId, receiverId))
-                    .isInstanceOf(RuntimeException.class)
-                    .hasMessage("Friend request already sent");
+                    .isInstanceOf(FriendRequestException.class)
+                    .hasMessage("Demande d'ami déjà envoyée");
 
             verify(friendRequestRepository, never()).save(any());
         }
@@ -166,8 +168,8 @@ class FriendServiceTest {
 
             // When/Then
             assertThatThrownBy(() -> friendService.sendFriendRequest(senderId, receiverId))
-                    .isInstanceOf(RuntimeException.class)
-                    .hasMessage("This user has already sent you a friend request");
+                    .isInstanceOf(FriendRequestException.class)
+                    .hasMessage("Cet utilisateur vous a déjà envoyé une demande");
         }
 
         @Test
@@ -178,8 +180,7 @@ class FriendServiceTest {
 
             // When/Then
             assertThatThrownBy(() -> friendService.sendFriendRequest(senderId, receiverId))
-                    .isInstanceOf(RuntimeException.class)
-                    .hasMessage("Sender not found");
+                    .isInstanceOf(UserNotFoundException.class);
         }
 
         @Test
@@ -191,8 +192,7 @@ class FriendServiceTest {
 
             // When/Then
             assertThatThrownBy(() -> friendService.sendFriendRequest(senderId, receiverId))
-                    .isInstanceOf(RuntimeException.class)
-                    .hasMessage("Receiver not found");
+                    .isInstanceOf(UserNotFoundException.class);
         }
     }
 
@@ -245,8 +245,8 @@ class FriendServiceTest {
 
             // When/Then
             assertThatThrownBy(() -> friendService.acceptFriendRequest(requestId, unauthorizedUserId))
-                    .isInstanceOf(RuntimeException.class)
-                    .hasMessage("Not authorized to accept this request");
+                    .isInstanceOf(FriendRequestException.class)
+                    .hasMessage("Non autorisé à effectuer cette action");
 
             verify(userRepository, never()).save(any());
         }
@@ -261,8 +261,8 @@ class FriendServiceTest {
 
             // When/Then
             assertThatThrownBy(() -> friendService.acceptFriendRequest(requestId, receiverId))
-                    .isInstanceOf(RuntimeException.class)
-                    .hasMessage("Friend request is not pending");
+                    .isInstanceOf(FriendRequestException.class)
+                    .hasMessage("Cette demande n'est plus en attente");
         }
 
         @Test
@@ -274,8 +274,8 @@ class FriendServiceTest {
 
             // When/Then
             assertThatThrownBy(() -> friendService.acceptFriendRequest(unknownRequestId, receiverId))
-                    .isInstanceOf(RuntimeException.class)
-                    .hasMessage("Friend request not found");
+                    .isInstanceOf(FriendRequestException.class)
+                    .hasMessage("Demande d'ami non trouvée");
         }
     }
 
@@ -316,8 +316,8 @@ class FriendServiceTest {
 
             // When/Then
             assertThatThrownBy(() -> friendService.rejectFriendRequest(requestId, unauthorizedUserId))
-                    .isInstanceOf(RuntimeException.class)
-                    .hasMessage("Not authorized to reject this request");
+                    .isInstanceOf(FriendRequestException.class)
+                    .hasMessage("Non autorisé à effectuer cette action");
         }
     }
 
@@ -351,8 +351,8 @@ class FriendServiceTest {
 
             // When/Then - Receiver tries to cancel (only sender can cancel)
             assertThatThrownBy(() -> friendService.cancelFriendRequest(requestId, receiverId))
-                    .isInstanceOf(RuntimeException.class)
-                    .hasMessage("Not authorized to cancel this request");
+                    .isInstanceOf(FriendRequestException.class)
+                    .hasMessage("Non autorisé à effectuer cette action");
         }
     }
 
@@ -438,8 +438,7 @@ class FriendServiceTest {
 
             // When/Then
             assertThatThrownBy(() -> friendService.removeFriend(senderId, receiverId))
-                    .isInstanceOf(RuntimeException.class)
-                    .hasMessage("User not found");
+                    .isInstanceOf(UserNotFoundException.class);
         }
 
         @Test
@@ -451,8 +450,7 @@ class FriendServiceTest {
 
             // When/Then
             assertThatThrownBy(() -> friendService.removeFriend(senderId, receiverId))
-                    .isInstanceOf(RuntimeException.class)
-                    .hasMessage("Friend not found");
+                    .isInstanceOf(UserNotFoundException.class);
         }
     }
 }

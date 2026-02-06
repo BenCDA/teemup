@@ -101,7 +101,7 @@ export interface FriendRequest {
 export interface Notification {
   id: string;
   fromUser?: User;
-  type: 'FRIEND_REQUEST' | 'FRIEND_REQUEST_ACCEPTED' | 'NEW_MESSAGE' | 'GROUP_INVITATION' | 'FOLLOW' | 'SYSTEM';
+  type: 'FRIEND_REQUEST' | 'FRIEND_REQUEST_ACCEPTED' | 'NEW_MESSAGE' | 'GROUP_INVITATION' | 'FOLLOW' | 'SYSTEM' | 'EVENT_PARTICIPANT_JOINED';
   title: string;
   content?: string;
   referenceId?: string;
@@ -113,6 +113,19 @@ export interface ApiError {
   message: string;
   status: number;
   errors?: Record<string, string>;
+}
+
+// Type for Axios error responses
+export interface AxiosApiError {
+  response?: {
+    data?: {
+      message?: string;
+      code?: string;
+      errors?: Record<string, string>;
+    };
+    status?: number;
+  };
+  message?: string;
 }
 
 export interface FaceVerificationResponse {

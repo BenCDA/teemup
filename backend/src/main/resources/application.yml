@@ -19,7 +19,7 @@ spring:
 
   jpa:
     hibernate:
-      ddl-auto: update
+      ddl-auto: validate
     show-sql: false
     properties:
       hibernate:
@@ -33,9 +33,11 @@ spring:
     locations: classpath:db/migration
 
 # JWT Configuration
+# IMPORTANT: JWT_SECRET and JWT_REFRESH_SECRET must be set via environment variables
+# Generate with: openssl rand -base64 64
 jwt:
-  secret: ${JWT_SECRET:your-256-bit-secret-key-change-in-production-minimum-32-chars}
-  refresh-secret: ${JWT_REFRESH_SECRET:your-refresh-256-bit-secret-key-change-in-production}
+  secret: ${JWT_SECRET}
+  refresh-secret: ${JWT_REFRESH_SECRET}
   expiration: 900000 # 15 minutes
   refresh-expiration: 604800000 # 7 days
 
@@ -59,5 +61,5 @@ cloudinary:
 logging:
   level:
     root: INFO
-    com.teemup: DEBUG
-    org.springframework.security: DEBUG
+    com.teemup: INFO
+    org.springframework.security: WARN

@@ -7,6 +7,8 @@ import com.teemup.dto.messaging.MessageResponse;
 import com.teemup.entity.Conversation;
 import com.teemup.entity.Message;
 import com.teemup.entity.User;
+import com.teemup.exception.ConversationException;
+import com.teemup.exception.UserNotFoundException;
 import com.teemup.repository.ConversationRepository;
 import com.teemup.repository.MessageRepository;
 import com.teemup.repository.UserRepository;
@@ -177,8 +179,8 @@ class MessagingServiceTest {
 
             // When/Then
             assertThatThrownBy(() -> messagingService.createConversation(user1Id, request))
-                    .isInstanceOf(RuntimeException.class)
-                    .hasMessageContaining("only message friends");
+                    .isInstanceOf(ConversationException.class)
+                    .hasMessageContaining("Vous devez être amis");
 
             verify(conversationRepository, never()).save(any());
         }
@@ -194,8 +196,7 @@ class MessagingServiceTest {
 
             // When/Then
             assertThatThrownBy(() -> messagingService.createConversation(user1Id, request))
-                    .isInstanceOf(RuntimeException.class)
-                    .hasMessage("User not found");
+                    .isInstanceOf(UserNotFoundException.class);
         }
     }
 
@@ -270,8 +271,8 @@ class MessagingServiceTest {
 
             // When/Then - user3 is not a participant
             assertThatThrownBy(() -> messagingService.getConversation(conversationId, user3Id))
-                    .isInstanceOf(RuntimeException.class)
-                    .hasMessage("User is not a participant of this conversation");
+                    .isInstanceOf(ConversationException.class)
+                    .hasMessage("Vous n'êtes pas participant de cette conversation");
         }
 
         @Test
@@ -284,8 +285,8 @@ class MessagingServiceTest {
 
             // When/Then
             assertThatThrownBy(() -> messagingService.getConversation(unknownId, user1Id))
-                    .isInstanceOf(RuntimeException.class)
-                    .hasMessage("Conversation not found");
+                    .isInstanceOf(ConversationException.class)
+                    .hasMessage("Conversation non trouvée");
         }
     }
 
@@ -336,8 +337,7 @@ class MessagingServiceTest {
 
             // When/Then
             assertThatThrownBy(() -> messagingService.sendMessage(user1Id, request))
-                    .isInstanceOf(RuntimeException.class)
-                    .hasMessage("Sender not found");
+                    .isInstanceOf(UserNotFoundException.class);
         }
 
         @Test
@@ -354,8 +354,8 @@ class MessagingServiceTest {
 
             // When/Then
             assertThatThrownBy(() -> messagingService.sendMessage(user3Id, request))
-                    .isInstanceOf(RuntimeException.class)
-                    .hasMessage("User is not a participant of this conversation");
+                    .isInstanceOf(ConversationException.class)
+                    .hasMessage("Vous n'êtes pas participant de cette conversation");
         }
     }
 
@@ -393,8 +393,8 @@ class MessagingServiceTest {
 
             // When/Then
             assertThatThrownBy(() -> messagingService.getMessages(conversationId, user3Id, 0, 20))
-                    .isInstanceOf(RuntimeException.class)
-                    .hasMessage("User is not a participant of this conversation");
+                    .isInstanceOf(ConversationException.class)
+                    .hasMessage("Vous n'êtes pas participant de cette conversation");
         }
     }
 
@@ -427,8 +427,8 @@ class MessagingServiceTest {
 
             // When/Then - user2 is not the sender
             assertThatThrownBy(() -> messagingService.editMessage(messageId, user2Id, "Updated"))
-                    .isInstanceOf(RuntimeException.class)
-                    .hasMessage("Only the sender can edit the message");
+                    .isInstanceOf(ConversationException.class)
+                    .hasMessage("Seul l'expéditeur peut modifier ce message");
         }
 
         @Test
@@ -440,8 +440,8 @@ class MessagingServiceTest {
 
             // When/Then
             assertThatThrownBy(() -> messagingService.editMessage(unknownId, user1Id, "Updated"))
-                    .isInstanceOf(RuntimeException.class)
-                    .hasMessage("Message not found");
+                    .isInstanceOf(ConversationException.class)
+                    .hasMessage("Message non trouvé");
         }
     }
 
@@ -475,8 +475,8 @@ class MessagingServiceTest {
 
             // When/Then
             assertThatThrownBy(() -> messagingService.deleteMessage(messageId, user2Id))
-                    .isInstanceOf(RuntimeException.class)
-                    .hasMessage("Only the sender can delete the message");
+                    .isInstanceOf(ConversationException.class)
+                    .hasMessage("Seul l'expéditeur peut modifier ce message");
         }
     }
 
@@ -489,25 +489,15 @@ class MessagingServiceTest {
         void shouldMarkMessagesAsReadSuccessfully() {
             // Given
             UUID conversationId = privateConversation.getId();
-            Message unreadMessage = Message.builder()
-                    .id(UUID.randomUUID())
-                    .content("Unread message")
-                    .sender(user2)
-                    .conversation(privateConversation)
-                    .readBy(new HashSet<>(Set.of(user2Id)))
-                    .build();
 
             when(conversationRepository.findByIdWithParticipants(conversationId))
                     .thenReturn(Optional.of(privateConversation));
-            when(messageRepository.findUnreadMessages(conversationId, user1Id))
-                    .thenReturn(List.of(unreadMessage));
-            when(messageRepository.saveAll(anyList())).thenAnswer(invocation -> invocation.getArgument(0));
 
             // When
             messagingService.markMessagesAsRead(conversationId, user1Id);
 
-            // Then
-            verify(messageRepository).saveAll(anyList());
+            // Then - verify batch update was called
+            verify(messageRepository).markAllAsReadBatch(conversationId, user1Id);
         }
 
         @Test
@@ -520,8 +510,8 @@ class MessagingServiceTest {
 
             // When/Then
             assertThatThrownBy(() -> messagingService.markMessagesAsRead(conversationId, user3Id))
-                    .isInstanceOf(RuntimeException.class)
-                    .hasMessage("User is not a participant of this conversation");
+                    .isInstanceOf(ConversationException.class)
+                    .hasMessage("Vous n'êtes pas participant de cette conversation");
         }
     }
 }

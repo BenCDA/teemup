@@ -1,6 +1,7 @@
-import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
+import React, { createContext, useContext, useState, useEffect, useCallback, ReactNode } from 'react';
+import { Alert } from 'react-native';
 import { User, AuthResponse } from '@/types';
-import api, { setTokens, clearTokens, getAccessToken } from '@/features/shared/api';
+import api, { setTokens, clearTokens, getAccessToken, onSessionExpired } from '@/features/shared/api';
 import socketService from '@/features/shared/socket';
 import { router } from 'expo-router';
 
@@ -21,9 +22,28 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
   const [isLoading, setIsLoading] = useState(true);
 
+  const handleSessionExpired = useCallback(() => {
+    // Only show alert if user was logged in
+    if (user) {
+      setUser(null);
+      socketService.disconnect();
+      Alert.alert(
+        'Session expiree',
+        'Votre session a expire. Veuillez vous reconnecter.',
+        [{ text: 'OK', onPress: () => router.replace('/(auth)/login') }]
+      );
+    }
+  }, [user]);
+
   useEffect(() => {
     checkAuth();
   }, []);
+
+  // Listen for session expiration events
+  useEffect(() => {
+    const unsubscribe = onSessionExpired(handleSessionExpired);
+    return unsubscribe;
+  }, [handleSessionExpired]);
 
   const checkAuth = async () => {
     try {
@@ -65,9 +85,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const logout = async () => {
     try {
       await api.post('/auth/logout');
-    } catch (error) {
-      // Log error but continue with local logout
-      console.warn('Logout API call failed, proceeding with local cleanup:', error);
+    } catch {
+      // API logout failed, continue with local cleanup
     } finally {
       await clearTokens();
       socketService.disconnect();

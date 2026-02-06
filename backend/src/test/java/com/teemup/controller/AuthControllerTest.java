@@ -6,7 +6,9 @@ import com.teemup.dto.auth.LoginRequest;
 import com.teemup.dto.auth.RefreshTokenRequest;
 import com.teemup.dto.auth.RegisterRequest;
 import com.teemup.dto.user.UserResponse;
+import com.teemup.exception.EmailAlreadyExistsException;
 import com.teemup.exception.FaceVerificationException;
+import com.teemup.exception.InvalidTokenException;
 import com.teemup.service.AuthService;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
@@ -86,7 +88,7 @@ class AuthControllerTest {
             mockMvc.perform(post("/api/auth/register")
                             .contentType(MediaType.APPLICATION_JSON)
                             .content(objectMapper.writeValueAsString(request)))
-                    .andExpect(status().isOk())
+                    .andExpect(status().isCreated())
                     .andExpect(jsonPath("$.accessToken").value("accessToken123"))
                     .andExpect(jsonPath("$.refreshToken").value("refreshToken123"))
                     .andExpect(jsonPath("$.user.email").value("test@example.com"));
@@ -95,8 +97,8 @@ class AuthControllerTest {
         }
 
         @Test
-        @DisplayName("Should return 400 when email already exists")
-        void shouldReturn400WhenEmailExists() throws Exception {
+        @DisplayName("Should return 409 when email already exists")
+        void shouldReturn409WhenEmailExists() throws Exception {
             // Given
             RegisterRequest request = new RegisterRequest();
             request.setEmail("existing@example.com");
@@ -106,13 +108,13 @@ class AuthControllerTest {
             request.setVerificationImage("base64imagedata");
 
             when(authService.register(any(RegisterRequest.class)))
-                    .thenThrow(new RuntimeException("Email already exists"));
+                    .thenThrow(new EmailAlreadyExistsException("existing@example.com"));
 
             // When/Then
             mockMvc.perform(post("/api/auth/register")
                             .contentType(MediaType.APPLICATION_JSON)
                             .content(objectMapper.writeValueAsString(request)))
-                    .andExpect(status().isBadRequest());
+                    .andExpect(status().isConflict());
         }
 
         @Test
@@ -242,13 +244,13 @@ class AuthControllerTest {
             request.setRefreshToken("invalidRefreshToken");
 
             when(authService.refreshToken(any(RefreshTokenRequest.class)))
-                    .thenThrow(new RuntimeException("Invalid refresh token"));
+                    .thenThrow(new InvalidTokenException("Token de rafraîchissement invalide"));
 
             // When/Then
             mockMvc.perform(post("/api/auth/refresh")
                             .contentType(MediaType.APPLICATION_JSON)
                             .content(objectMapper.writeValueAsString(request)))
-                    .andExpect(status().isBadRequest());
+                    .andExpect(status().isUnauthorized());
         }
     }
 }

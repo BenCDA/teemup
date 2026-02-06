@@ -2,7 +2,7 @@ import { Stack } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { AuthProvider } from '@/features/auth/AuthContext';
-import { ToastProvider } from '@/components/ui';
+import { ToastProvider, ErrorBoundary } from '@/components/ui';
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -15,26 +15,28 @@ const queryClient = new QueryClient({
 
 export default function RootLayout() {
   return (
-    <QueryClientProvider client={queryClient}>
-      <AuthProvider>
-        <ToastProvider>
-          <StatusBar style="auto" />
-          <Stack screenOptions={{ headerShown: false }}>
-            <Stack.Screen name="(auth)" options={{ headerShown: false }} />
-            <Stack.Screen name="onboarding" options={{ headerShown: false }} />
-            <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
-            <Stack.Screen
-              name="conversation/[id]"
-              options={{
-                headerShown: true,
-                title: 'Conversation',
-                presentation: 'card',
-              }}
-            />
-            <Stack.Screen name="event" options={{ headerShown: false }} />
-          </Stack>
-        </ToastProvider>
-      </AuthProvider>
-    </QueryClientProvider>
+    <ErrorBoundary>
+      <QueryClientProvider client={queryClient}>
+        <AuthProvider>
+          <ToastProvider>
+            <StatusBar style="auto" />
+            <Stack screenOptions={{ headerShown: false }}>
+              <Stack.Screen name="(auth)" options={{ headerShown: false }} />
+              <Stack.Screen name="onboarding" options={{ headerShown: false }} />
+              <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
+              <Stack.Screen
+                name="conversation/[id]"
+                options={{
+                  headerShown: true,
+                  title: 'Conversation',
+                  presentation: 'card',
+                }}
+              />
+              <Stack.Screen name="event" options={{ headerShown: false }} />
+            </Stack>
+          </ToastProvider>
+        </AuthProvider>
+      </QueryClientProvider>
+    </ErrorBoundary>
   );
 }

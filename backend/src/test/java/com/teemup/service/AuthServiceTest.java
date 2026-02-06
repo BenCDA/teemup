@@ -6,10 +6,13 @@ import com.teemup.dto.auth.RefreshTokenRequest;
 import com.teemup.dto.auth.RegisterRequest;
 import com.teemup.dto.verification.FaceVerificationResponse;
 import com.teemup.entity.User;
+import com.teemup.exception.EmailAlreadyExistsException;
 import com.teemup.exception.FaceVerificationException;
+import com.teemup.exception.InvalidTokenException;
 import com.teemup.repository.UserRepository;
 import com.teemup.security.JwtService;
 import com.teemup.security.UserDetailsImpl;
+import jakarta.persistence.EntityNotFoundException;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
@@ -135,8 +138,7 @@ class AuthServiceTest {
 
             // When/Then
             assertThatThrownBy(() -> authService.register(request))
-                    .isInstanceOf(RuntimeException.class)
-                    .hasMessage("Email already exists");
+                    .isInstanceOf(EmailAlreadyExistsException.class);
 
             verify(userRepository).existsByEmail("existing@example.com");
             verify(faceVerificationService, never()).verifyFace(anyString());
@@ -293,8 +295,8 @@ class AuthServiceTest {
 
             // When/Then
             assertThatThrownBy(() -> authService.refreshToken(request))
-                    .isInstanceOf(RuntimeException.class)
-                    .hasMessage("Invalid refresh token");
+                    .isInstanceOf(InvalidTokenException.class)
+                    .hasMessage("Token de rafraîchissement invalide");
 
             verify(userRepository, never()).save(any(User.class));
         }
@@ -329,8 +331,8 @@ class AuthServiceTest {
 
             // When/Then
             assertThatThrownBy(() -> authService.logout("unknown@example.com"))
-                    .isInstanceOf(RuntimeException.class)
-                    .hasMessage("User not found");
+                    .isInstanceOf(EntityNotFoundException.class)
+                    .hasMessage("Utilisateur non trouvé");
 
             verify(userRepository, never()).save(any(User.class));
         }
@@ -364,8 +366,8 @@ class AuthServiceTest {
 
             // When/Then
             assertThatThrownBy(() -> authService.getCurrentUser("unknown@example.com"))
-                    .isInstanceOf(RuntimeException.class)
-                    .hasMessage("User not found");
+                    .isInstanceOf(EntityNotFoundException.class)
+                    .hasMessage("Utilisateur non trouvé");
         }
     }
 }

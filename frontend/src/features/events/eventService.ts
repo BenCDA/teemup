@@ -1,6 +1,23 @@
 import { api } from '@/features/shared/api';
 import { SportEvent } from '@/types';
 
+// GPS coordinate validation
+const isValidLatitude = (lat: number): boolean => lat >= -90 && lat <= 90;
+const isValidLongitude = (lng: number): boolean => lng >= -180 && lng <= 180;
+
+const validateCoordinates = (latitude?: number, longitude?: number): void => {
+  if (latitude !== undefined && !isValidLatitude(latitude)) {
+    throw new Error(`Latitude invalide: ${latitude}. Doit etre entre -90 et 90.`);
+  }
+  if (longitude !== undefined && !isValidLongitude(longitude)) {
+    throw new Error(`Longitude invalide: ${longitude}. Doit etre entre -180 et 180.`);
+  }
+  // Both must be provided or neither
+  if ((latitude !== undefined) !== (longitude !== undefined)) {
+    throw new Error('Latitude et longitude doivent etre fournies ensemble.');
+  }
+};
+
 export interface CreateEventRequest {
   sport: string;
   title?: string;
@@ -32,6 +49,7 @@ export const eventService = {
   },
 
   getNearbyEvents: async (params: NearbyEventsParams): Promise<SportEvent[]> => {
+    validateCoordinates(params.latitude, params.longitude);
     const response = await api.get<SportEvent[]>('/events/nearby', { params });
     return response.data;
   },
@@ -57,11 +75,13 @@ export const eventService = {
   },
 
   createEvent: async (data: CreateEventRequest): Promise<SportEvent> => {
+    validateCoordinates(data.latitude, data.longitude);
     const response = await api.post<SportEvent>('/events', data);
     return response.data;
   },
 
   updateEvent: async (eventId: string, data: Partial<CreateEventRequest>): Promise<SportEvent> => {
+    validateCoordinates(data.latitude, data.longitude);
     const response = await api.put<SportEvent>(`/events/${eventId}`, data);
     return response.data;
   },

@@ -55,6 +55,7 @@ public class Notification {
         NEW_MESSAGE,
         GROUP_INVITATION,
         FOLLOW,
-        SYSTEM
+        SYSTEM,
+        EVENT_PARTICIPANT_JOINED
     }
 }

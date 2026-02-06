@@ -4,6 +4,8 @@ import com.teemup.dto.friend.FriendRequestResponse;
 import com.teemup.entity.FriendRequest;
 import com.teemup.entity.Notification;
 import com.teemup.entity.User;
+import com.teemup.exception.FriendRequestException;
+import com.teemup.exception.UserNotFoundException;
 import com.teemup.repository.FriendRequestRepository;
 import com.teemup.repository.UserRepository;
 import lombok.RequiredArgsConstructor;
@@ -25,30 +27,30 @@ public class FriendService {
     @Transactional
     public FriendRequestResponse sendFriendRequest(UUID senderId, UUID receiverId) {
         if (senderId.equals(receiverId)) {
-            throw new RuntimeException("Cannot send friend request to yourself");
+            throw FriendRequestException.cannotSendToSelf();
         }
 
         User sender = userRepository.findById(senderId)
-                .orElseThrow(() -> new RuntimeException("Sender not found"));
+                .orElseThrow(() -> new UserNotFoundException(senderId));
 
         User receiver = userRepository.findById(receiverId)
-                .orElseThrow(() -> new RuntimeException("Receiver not found"));
+                .orElseThrow(() -> new UserNotFoundException(receiverId));
 
         // Check if already friends
         if (sender.getFriends().contains(receiver)) {
-            throw new RuntimeException("Already friends with this user");
+            throw FriendRequestException.alreadyFriends();
         }
 
         // Check for existing pending request
         if (friendRequestRepository.existsBySenderIdAndReceiverIdAndStatus(
                 senderId, receiverId, FriendRequest.FriendRequestStatus.PENDING)) {
-            throw new RuntimeException("Friend request already sent");
+            throw FriendRequestException.alreadySent();
         }
 
         // Check for existing pending request in reverse
         if (friendRequestRepository.existsBySenderIdAndReceiverIdAndStatus(
                 receiverId, senderId, FriendRequest.FriendRequestStatus.PENDING)) {
-            throw new RuntimeException("This user has already sent you a friend request");
+            throw FriendRequestException.alreadyReceived();
         }
 
         FriendRequest friendRequest = FriendRequest.builder()
@@ -75,14 +77,14 @@ public class FriendService {
     @Transactional
     public FriendRequestResponse acceptFriendRequest(UUID requestId, UUID userId) {
         FriendRequest friendRequest = friendRequestRepository.findById(requestId)
-                .orElseThrow(() -> new RuntimeException("Friend request not found"));
+                .orElseThrow(FriendRequestException::notFound);
 
         if (!friendRequest.getReceiver().getId().equals(userId)) {
-            throw new RuntimeException("Not authorized to accept this request");
+            throw FriendRequestException.unauthorized();
         }
 
         if (friendRequest.getStatus() != FriendRequest.FriendRequestStatus.PENDING) {
-            throw new RuntimeException("Friend request is not pending");
+            throw FriendRequestException.notPending();
         }
 
         User sender = friendRequest.getSender();
@@ -114,14 +116,14 @@ public class FriendService {
     @Transactional
     public FriendRequestResponse rejectFriendRequest(UUID requestId, UUID userId) {
         FriendRequest friendRequest = friendRequestRepository.findById(requestId)
-                .orElseThrow(() -> new RuntimeException("Friend request not found"));
+                .orElseThrow(FriendRequestException::notFound);
 
         if (!friendRequest.getReceiver().getId().equals(userId)) {
-            throw new RuntimeException("Not authorized to reject this request");
+            throw FriendRequestException.unauthorized();
         }
 
         if (friendRequest.getStatus() != FriendRequest.FriendRequestStatus.PENDING) {
-            throw new RuntimeException("Friend request is not pending");
+            throw FriendRequestException.notPending();
         }
 
         friendRequest.setStatus(FriendRequest.FriendRequestStatus.REJECTED);
@@ -133,14 +135,14 @@ public class FriendService {
     @Transactional
     public void cancelFriendRequest(UUID requestId, UUID userId) {
         FriendRequest friendRequest = friendRequestRepository.findById(requestId)
-                .orElseThrow(() -> new RuntimeException("Friend request not found"));
+                .orElseThrow(FriendRequestException::notFound);
 
         if (!friendRequest.getSender().getId().equals(userId)) {
-            throw new RuntimeException("Not authorized to cancel this request");
+            throw FriendRequestException.unauthorized();
         }
 
         if (friendRequest.getStatus() != FriendRequest.FriendRequestStatus.PENDING) {
-            throw new RuntimeException("Friend request is not pending");
+            throw FriendRequestException.notPending();
         }
 
         friendRequest.setStatus(FriendRequest.FriendRequestStatus.CANCELLED);
@@ -162,10 +164,10 @@ public class FriendService {
     @Transactional
     public void removeFriend(UUID userId, UUID friendId) {
         User user = userRepository.findById(userId)
-                .orElseThrow(() -> new RuntimeException("User not found"));
+                .orElseThrow(() -> new UserNotFoundException(userId));
 
         User friend = userRepository.findById(friendId)
-                .orElseThrow(() -> new RuntimeException("Friend not found"));
+                .orElseThrow(() -> new UserNotFoundException(friendId));
 
         user.getFriends().remove(friend);
         friend.getFriends().remove(user);

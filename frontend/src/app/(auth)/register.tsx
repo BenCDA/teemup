@@ -1,12 +1,20 @@
 import { useState } from 'react';
-import { View, Text, TouchableOpacity, StyleSheet, Alert, Image, ActivityIndicator, Switch } from 'react-native';
+import { View, Text, TouchableOpacity, StyleSheet, Alert, Image, ActivityIndicator, Animated } from 'react-native';
 import { Link, router } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
+import { LinearGradient } from 'expo-linear-gradient';
 import { useAuth } from '@/features/auth/AuthContext';
 import { authService } from '@/features/auth/authService';
 import { Button, Input, AuthLayout, FaceVerificationCamera, LoadingOverlay, useToast } from '@/components/ui';
 import { theme } from '@/features/shared/styles/theme';
-import { FaceVerificationResponse } from '@/types';
+import { FaceVerificationResponse, AxiosApiError } from '@/types';
+
+const PRO_BENEFITS = [
+  { icon: 'cash-outline' as const, text: 'Créer des événements payants' },
+  { icon: 'trophy-outline' as const, text: 'Badge Pro sur votre profil' },
+  { icon: 'stats-chart-outline' as const, text: 'Statistiques avancées' },
+  { icon: 'star-outline' as const, text: 'Priorité dans les recherches' },
+];
 
 export default function RegisterScreen() {
   const [firstName, setFirstName] = useState('');
@@ -58,8 +66,7 @@ export default function RegisterScreen() {
         setVerificationImage(null);
         setVerificationResult(null);
       }
-    } catch (error) {
-      console.error('Verification error:', error);
+    } catch {
       Alert.alert('Erreur', 'Erreur lors de la vérification. Veuillez réessayer.');
       setVerificationImage(null);
     } finally {
@@ -98,9 +105,10 @@ export default function RegisterScreen() {
       await register(email, password, firstName, lastName, verificationImage, isPro);
       toast.show({ message: 'Compte créé avec succès !', type: 'success' });
       router.replace('/onboarding');
-    } catch (error: any) {
-      const errorCode = error.response?.data?.code;
-      const errorMessage = error.response?.data?.message || 'Une erreur est survenue';
+    } catch (error) {
+      const axiosError = error as AxiosApiError;
+      const errorCode = axiosError.response?.data?.code;
+      const errorMessage = axiosError.response?.data?.message || 'Une erreur est survenue';
 
       // Handle specific error codes
       if (errorCode === 'EMAIL_EXISTS') {
@@ -192,23 +200,71 @@ export default function RegisterScreen() {
 
       {/* Pro Account Section */}
       <View style={styles.proSection}>
-        <View style={styles.proRow}>
-          <View style={styles.proInfo}>
-            <View style={styles.proLabelRow}>
-              <Ionicons name="star" size={18} color={theme.colors.warning} />
-              <Text style={styles.proLabel}>Compte Pro</Text>
+        <Text style={styles.proSectionTitle}>Type de compte</Text>
+
+        {/* Free Account Option */}
+        <TouchableOpacity
+          style={[styles.accountOption, !isPro && styles.accountOptionSelected]}
+          onPress={() => setIsPro(false)}
+          activeOpacity={0.7}
+        >
+          <View style={styles.accountOptionHeader}>
+            <View style={[styles.radioCircle, !isPro && styles.radioCircleSelected]}>
+              {!isPro && <View style={styles.radioInner} />}
             </View>
-            <Text style={styles.proHint}>
-              Les comptes Pro peuvent créer des événements payants
-            </Text>
+            <View style={styles.accountOptionInfo}>
+              <Text style={styles.accountOptionTitle}>Gratuit</Text>
+              <Text style={styles.accountOptionPrice}>0€</Text>
+            </View>
           </View>
-          <Switch
-            value={isPro}
-            onValueChange={setIsPro}
-            trackColor={{ false: theme.colors.border, true: `${theme.colors.warning}50` }}
-            thumbColor={isPro ? theme.colors.warning : theme.colors.text.tertiary}
-          />
-        </View>
+          <Text style={styles.accountOptionDesc}>
+            Rejoignez des événements et connectez-vous avec d'autres sportifs
+          </Text>
+        </TouchableOpacity>
+
+        {/* Pro Account Option */}
+        <TouchableOpacity
+          style={[styles.accountOption, styles.proOption, isPro && styles.accountOptionSelected, isPro && styles.proOptionSelected]}
+          onPress={() => setIsPro(true)}
+          activeOpacity={0.7}
+        >
+          <LinearGradient
+            colors={isPro ? ['#FFD700', '#FFA500'] : ['transparent', 'transparent']}
+            start={{ x: 0, y: 0 }}
+            end={{ x: 1, y: 0 }}
+            style={styles.proBadgeGradient}
+          >
+            <Ionicons name="star" size={12} color={isPro ? '#fff' : '#FFD700'} />
+            <Text style={[styles.proBadgeText, isPro && styles.proBadgeTextSelected]}>PRO</Text>
+          </LinearGradient>
+
+          <View style={styles.accountOptionHeader}>
+            <View style={[styles.radioCircle, isPro && styles.radioCircleSelectedPro]}>
+              {isPro && <View style={[styles.radioInner, styles.radioInnerPro]} />}
+            </View>
+            <View style={styles.accountOptionInfo}>
+              <Text style={styles.accountOptionTitle}>Professionnel</Text>
+              <View style={styles.proPriceRow}>
+                <Text style={styles.proPrice}>9,99€</Text>
+                <Text style={styles.proPricePeriod}>/mois</Text>
+              </View>
+            </View>
+          </View>
+
+          {isPro && (
+            <View style={styles.proBenefitsList}>
+              {PRO_BENEFITS.map((benefit, index) => (
+                <View key={index} style={styles.proBenefitItem}>
+                  <Ionicons name={benefit.icon} size={16} color="#FFD700" />
+                  <Text style={styles.proBenefitText}>{benefit.text}</Text>
+                </View>
+              ))}
+              <Text style={styles.proNote}>
+                Sans engagement • Annulable à tout moment
+              </Text>
+            </View>
+          )}
+        </TouchableOpacity>
       </View>
 
       {/* Face Verification Section */}
@@ -493,36 +549,138 @@ const styles = StyleSheet.create({
     fontWeight: theme.typography.weight.semibold,
   },
   proSection: {
-    marginTop: theme.spacing.md,
+    marginTop: theme.spacing.lg,
     marginBottom: theme.spacing.md,
   },
-  proRow: {
+  proSectionTitle: {
+    fontSize: theme.typography.size.sm,
+    fontWeight: theme.typography.weight.semibold,
+    color: theme.colors.text.primary,
+    marginBottom: theme.spacing.sm,
+  },
+  accountOption: {
+    backgroundColor: theme.colors.surface,
+    borderWidth: 2,
+    borderColor: theme.colors.border,
+    borderRadius: theme.borderRadius.lg,
+    padding: theme.spacing.md,
+    marginBottom: theme.spacing.sm,
+  },
+  accountOptionSelected: {
+    borderColor: theme.colors.primary,
+    backgroundColor: `${theme.colors.primary}08`,
+  },
+  proOption: {
+    position: 'relative',
+    overflow: 'hidden',
+  },
+  proOptionSelected: {
+    borderColor: '#FFD700',
+    backgroundColor: `#FFD70008`,
+  },
+  proBadgeGradient: {
+    position: 'absolute',
+    top: 0,
+    right: 0,
     flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'space-between',
-    backgroundColor: `${theme.colors.warning}10`,
-    borderWidth: 1,
-    borderColor: `${theme.colors.warning}30`,
-    borderRadius: theme.borderRadius.md,
-    padding: theme.spacing.md,
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+    borderBottomLeftRadius: theme.borderRadius.md,
+    gap: 4,
   },
-  proInfo: {
-    flex: 1,
+  proBadgeText: {
+    fontSize: 10,
+    fontWeight: '700',
+    color: '#FFD700',
+  },
+  proBadgeTextSelected: {
+    color: '#fff',
+  },
+  accountOptionHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  radioCircle: {
+    width: 22,
+    height: 22,
+    borderRadius: 11,
+    borderWidth: 2,
+    borderColor: theme.colors.border,
+    alignItems: 'center',
+    justifyContent: 'center',
     marginRight: theme.spacing.md,
   },
-  proLabelRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: theme.spacing.xs,
+  radioCircleSelected: {
+    borderColor: theme.colors.primary,
   },
-  proLabel: {
+  radioCircleSelectedPro: {
+    borderColor: '#FFD700',
+  },
+  radioInner: {
+    width: 12,
+    height: 12,
+    borderRadius: 6,
+    backgroundColor: theme.colors.primary,
+  },
+  radioInnerPro: {
+    backgroundColor: '#FFD700',
+  },
+  accountOptionInfo: {
+    flex: 1,
+  },
+  accountOptionTitle: {
     fontSize: theme.typography.size.md,
     fontWeight: theme.typography.weight.semibold,
     color: theme.colors.text.primary,
   },
-  proHint: {
+  accountOptionPrice: {
+    fontSize: theme.typography.size.sm,
+    color: theme.colors.text.secondary,
+    marginTop: 2,
+  },
+  accountOptionDesc: {
     fontSize: theme.typography.size.xs,
     color: theme.colors.text.tertiary,
     marginTop: theme.spacing.xs,
+    marginLeft: 38,
+  },
+  proPriceRow: {
+    flexDirection: 'row',
+    alignItems: 'baseline',
+    marginTop: 2,
+  },
+  proPrice: {
+    fontSize: theme.typography.size.lg,
+    fontWeight: theme.typography.weight.bold,
+    color: '#FFD700',
+  },
+  proPricePeriod: {
+    fontSize: theme.typography.size.sm,
+    color: theme.colors.text.secondary,
+    marginLeft: 2,
+  },
+  proBenefitsList: {
+    marginTop: theme.spacing.md,
+    marginLeft: 38,
+    paddingTop: theme.spacing.sm,
+    borderTopWidth: 1,
+    borderTopColor: `#FFD70030`,
+  },
+  proBenefitItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: theme.spacing.sm,
+    marginBottom: theme.spacing.xs,
+  },
+  proBenefitText: {
+    fontSize: theme.typography.size.sm,
+    color: theme.colors.text.secondary,
+  },
+  proNote: {
+    fontSize: theme.typography.size.xs,
+    color: theme.colors.text.tertiary,
+    marginTop: theme.spacing.sm,
+    fontStyle: 'italic',
   },
 });

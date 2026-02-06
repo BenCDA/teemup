@@ -15,12 +15,11 @@ import { Ionicons } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
 import { friendService } from '@/features/friends/friendService';
 import { messagingService } from '@/features/messaging/messagingService';
-import { notificationService } from '@/features/notifications/notificationService';
-import { User, FriendRequest, Notification } from '@/types';
+import { User, FriendRequest } from '@/types';
 import { Avatar, EmptyState } from '@/components/ui';
 import { theme } from '@/features/shared/styles/theme';
 
-type TabType = 'friends' | 'requests' | 'notifications';
+type TabType = 'friends' | 'requests';
 
 export default function FriendsScreen() {
   const [activeTab, setActiveTab] = useState<TabType>('friends');
@@ -35,11 +34,6 @@ export default function FriendsScreen() {
   const { data: requests, isLoading: requestsLoading, refetch: refetchRequests } = useQuery({
     queryKey: ['friendRequests'],
     queryFn: friendService.getPendingReceivedRequests,
-  });
-
-  const { data: notifications, isLoading: notificationsLoading, refetch: refetchNotifications } = useQuery({
-    queryKey: ['notifications'],
-    queryFn: () => notificationService.getNotifications(0, 50),
   });
 
   const acceptMutation = useMutation({
@@ -60,20 +54,12 @@ export default function FriendsScreen() {
     },
   });
 
-  const markAsReadMutation = useMutation({
-    mutationFn: notificationService.markAsRead,
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['notifications'] });
-      queryClient.invalidateQueries({ queryKey: ['unreadNotifications'] });
-    },
-  });
-
   const onRefresh = useCallback(async () => {
     setRefreshing(true);
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-    await Promise.all([refetchFriends(), refetchRequests(), refetchNotifications()]);
+    await Promise.all([refetchFriends(), refetchRequests()]);
     setRefreshing(false);
-  }, [refetchFriends, refetchRequests, refetchNotifications]);
+  }, [refetchFriends, refetchRequests]);
 
   const viewProfile = (userId: string) => {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
@@ -87,24 +73,6 @@ export default function FriendsScreen() {
       router.push(`/conversation/${conversation.id}`);
     } catch (error) {
       Alert.alert('Erreur', 'Impossible de démarrer la conversation');
-    }
-  };
-
-  const handleNotificationPress = (notification: Notification) => {
-    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-
-    // Mark as read
-    if (!notification.isRead) {
-      markAsReadMutation.mutate(notification.id);
-    }
-
-    // Navigate based on type
-    if (notification.type === 'FRIEND_REQUEST' || notification.type === 'FRIEND_REQUEST_ACCEPTED') {
-      if (notification.fromUser) {
-        router.push(`/user/${notification.fromUser.id}`);
-      }
-    } else if (notification.type === 'NEW_MESSAGE' && notification.referenceId) {
-      router.push(`/conversation/${notification.referenceId}`);
     }
   };
 
@@ -160,69 +128,7 @@ export default function FriendsScreen() {
     </View>
   );
 
-  const renderNotification = ({ item }: { item: Notification }) => {
-    const getNotificationIcon = (type: string) => {
-      switch (type) {
-        case 'FRIEND_REQUEST': return 'person-add';
-        case 'FRIEND_REQUEST_ACCEPTED': return 'people';
-        case 'NEW_MESSAGE': return 'chatbubble';
-        case 'FOLLOW': return 'heart';
-        default: return 'notifications';
-      }
-    };
-
-    const getNotificationColor = (type: string) => {
-      switch (type) {
-        case 'FRIEND_REQUEST': return theme.colors.primary;
-        case 'FRIEND_REQUEST_ACCEPTED': return theme.colors.success;
-        case 'NEW_MESSAGE': return theme.colors.primary;
-        case 'FOLLOW': return '#E91E63';
-        default: return theme.colors.text.secondary;
-      }
-    };
-
-    return (
-      <TouchableOpacity
-        style={[styles.notificationItem, !item.isRead && styles.notificationUnread]}
-        onPress={() => handleNotificationPress(item)}
-        activeOpacity={0.7}
-      >
-        <View style={[styles.notificationIcon, { backgroundColor: `${getNotificationColor(item.type)}15` }]}>
-          <Ionicons name={getNotificationIcon(item.type) as any} size={20} color={getNotificationColor(item.type)} />
-        </View>
-
-        {item.fromUser && (
-          <Avatar uri={item.fromUser.profilePicture} name={item.fromUser.fullName} size="sm" style={styles.notificationAvatar} />
-        )}
-
-        <View style={styles.notificationContent}>
-          <Text style={styles.notificationTitle}>{item.title}</Text>
-          {item.content && (
-            <Text style={styles.notificationText} numberOfLines={1}>{item.content}</Text>
-          )}
-          <Text style={styles.notificationTime}>
-            {new Date(item.createdAt).toLocaleDateString('fr-FR', {
-              day: 'numeric',
-              month: 'short',
-              hour: '2-digit',
-              minute: '2-digit'
-            })}
-          </Text>
-        </View>
-
-        {!item.isRead && <View style={styles.unreadDot} />}
-      </TouchableOpacity>
-    );
-  };
-
-  const isLoading = activeTab === 'friends'
-    ? friendsLoading
-    : activeTab === 'requests'
-      ? requestsLoading
-      : notificationsLoading;
-
-  const notificationsList = notifications?.content || [];
-  const unreadCount = notificationsList.filter(n => !n.isRead).length;
+  const isLoading = activeTab === 'friends' ? friendsLoading : requestsLoading;
 
   return (
     <View style={styles.container}>
@@ -247,20 +153,6 @@ export default function FriendsScreen() {
           {requests && requests.length > 0 && (
             <View style={styles.badge}>
               <Text style={styles.badgeText}>{requests.length}</Text>
-            </View>
-          )}
-        </TouchableOpacity>
-
-        <TouchableOpacity
-          style={[styles.tab, activeTab === 'notifications' && styles.activeTab]}
-          onPress={() => setActiveTab('notifications')}
-        >
-          <Text style={[styles.tabText, activeTab === 'notifications' && styles.activeTabText]}>
-            Notifications
-          </Text>
-          {unreadCount > 0 && (
-            <View style={styles.badge}>
-              <Text style={styles.badgeText}>{unreadCount > 9 ? '9+' : unreadCount}</Text>
             </View>
           )}
         </TouchableOpacity>
@@ -296,7 +188,7 @@ export default function FriendsScreen() {
           }
           ItemSeparatorComponent={() => <View style={styles.separator} />}
         />
-      ) : activeTab === 'requests' ? (
+      ) : (
         <FlatList<FriendRequest>
           data={requests || []}
           renderItem={renderRequest}
@@ -315,29 +207,6 @@ export default function FriendsScreen() {
               icon="mail-outline"
               title="Aucune demande en attente"
               description="Les nouvelles demandes d'amis apparaîtront ici"
-            />
-          }
-          ItemSeparatorComponent={() => <View style={styles.separator} />}
-        />
-      ) : (
-        <FlatList<Notification>
-          data={notificationsList}
-          renderItem={renderNotification}
-          keyExtractor={(item) => item.id}
-          refreshControl={
-            <RefreshControl
-              refreshing={refreshing}
-              onRefresh={onRefresh}
-              colors={[theme.colors.primary]}
-              tintColor={theme.colors.primary}
-            />
-          }
-          contentContainerStyle={!notificationsList.length ? styles.emptyContainer : styles.listContent}
-          ListEmptyComponent={
-            <EmptyState
-              icon="notifications-outline"
-              title="Aucune notification"
-              description="Vos notifications apparaîtront ici"
             />
           }
           ItemSeparatorComponent={() => <View style={styles.separator} />}
@@ -475,50 +344,5 @@ const styles = StyleSheet.create({
     height: 1,
     backgroundColor: theme.colors.border,
     marginLeft: theme.spacing.md + 48 + theme.spacing.md,
-  },
-  // Notification styles
-  notificationItem: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    padding: theme.spacing.md,
-    backgroundColor: theme.colors.surface,
-    gap: theme.spacing.sm,
-  },
-  notificationUnread: {
-    backgroundColor: `${theme.colors.primary}08`,
-  },
-  notificationIcon: {
-    width: 36,
-    height: 36,
-    borderRadius: 18,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  notificationAvatar: {
-    marginLeft: -8,
-  },
-  notificationContent: {
-    flex: 1,
-  },
-  notificationTitle: {
-    fontSize: theme.typography.size.md,
-    fontWeight: theme.typography.weight.semibold,
-    color: theme.colors.text.primary,
-  },
-  notificationText: {
-    fontSize: theme.typography.size.sm,
-    color: theme.colors.text.secondary,
-    marginTop: 2,
-  },
-  notificationTime: {
-    fontSize: theme.typography.size.xs,
-    color: theme.colors.text.tertiary,
-    marginTop: 4,
-  },
-  unreadDot: {
-    width: 8,
-    height: 8,
-    borderRadius: 4,
-    backgroundColor: theme.colors.primary,
   },
 });

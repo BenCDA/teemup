@@ -76,8 +76,7 @@ export function LocationPicker({
         const data: NominatimResult[] = await response.json();
         setSuggestions(data);
         setShowSuggestions(data.length > 0);
-      } catch (error) {
-        console.error('Autocomplete error:', error);
+      } catch {
         setSuggestions([]);
         setShowSuggestions(false);
       }
@@ -228,12 +227,6 @@ export function LocationPicker({
         )}
       </View>
 
-      {hasLocation && (
-        <View style={styles.confirmedLocation}>
-          <Ionicons name="checkmark-circle" size={16} color={theme.colors.success} />
-          <Text style={styles.confirmedText}>Localisation confirmee</Text>
-        </View>
-      )}
     </View>
   );
 }
@@ -277,15 +270,6 @@ const styles = StyleSheet.create({
     fontSize: theme.typography.size.sm,
     color: theme.colors.primary,
     fontWeight: theme.typography.weight.medium,
-  },
-  confirmedLocation: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: theme.spacing.xs,
-  },
-  confirmedText: {
-    fontSize: theme.typography.size.sm,
-    color: theme.colors.success,
   },
   suggestionsContainer: {
     backgroundColor: theme.colors.surface,

@@ -4,6 +4,7 @@ import com.teemup.dto.user.PublicUserResponse;
 import com.teemup.dto.user.UpdateUserRequest;
 import com.teemup.dto.user.UserResponse;
 import com.teemup.entity.User;
+import com.teemup.exception.UserNotFoundException;
 import com.teemup.repository.UserRepository;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
@@ -85,8 +86,8 @@ class UserServiceTest {
 
             // When/Then
             assertThatThrownBy(() -> userService.getUserById(unknownId))
-                    .isInstanceOf(RuntimeException.class)
-                    .hasMessage("User not found");
+                    .isInstanceOf(UserNotFoundException.class)
+                    .hasMessage("Utilisateur non trouvé");
         }
     }
 
@@ -142,8 +143,8 @@ class UserServiceTest {
 
             // When/Then
             assertThatThrownBy(() -> userService.getUserByEmail("unknown@example.com"))
-                    .isInstanceOf(RuntimeException.class)
-                    .hasMessage("User not found");
+                    .isInstanceOf(UserNotFoundException.class)
+                    .hasMessage("Utilisateur non trouvé");
         }
     }
 
@@ -274,8 +275,8 @@ class UserServiceTest {
 
             // When/Then
             assertThatThrownBy(() -> userService.updateUser(unknownId, request))
-                    .isInstanceOf(RuntimeException.class)
-                    .hasMessage("User not found");
+                    .isInstanceOf(UserNotFoundException.class)
+                    .hasMessage("Utilisateur non trouvé");
 
             verify(userRepository, never()).save(any(User.class));
         }
@@ -383,8 +384,8 @@ class UserServiceTest {
 
             // When/Then
             assertThatThrownBy(() -> userService.setUserOnlineStatus(unknownId, true))
-                    .isInstanceOf(RuntimeException.class)
-                    .hasMessage("User not found");
+                    .isInstanceOf(UserNotFoundException.class)
+                    .hasMessage("Utilisateur non trouvé");
         }
     }
 

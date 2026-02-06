@@ -50,9 +50,8 @@ export function FaceVerificationCamera({
           Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
           setCapturedImage(`data:image/jpeg;base64,${photo.base64}`);
         }
-      } catch (error) {
+      } catch {
         Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
-        console.error('Error taking picture:', error);
       } finally {
         setIsCapturing(false);
       }

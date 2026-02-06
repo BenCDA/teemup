@@ -15,3 +15,5 @@ export { DistanceSlider } from './DistanceSlider';
 export { Skeleton, SkeletonText, SkeletonAvatar, SkeletonCard } from './Skeleton';
 export { ToastProvider, useToast } from './Toast';
 export { LoadingOverlay } from './LoadingOverlay';
+export { ProBadge } from './ProBadge';
+export { ErrorBoundary } from './ErrorBoundary';

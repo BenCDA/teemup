@@ -4,59 +4,12 @@ import { Ionicons } from '@expo/vector-icons';
 import { SportEvent } from '@/types';
 import { theme } from '@/features/shared/styles/theme';
 import * as Haptics from 'expo-haptics';
-import { getSportConfig, getSportLabel, getSportKey } from '@/constants/sports';
+import { getSportConfig, getSportLabel } from '@/constants/sports';
+import { getCoverImageForSport } from '@/constants/defaultImages';
 
 interface EventCardProps {
   event: SportEvent;
   showDistance?: boolean;
-}
-
-// Cover images par sport (HTTPS uniquement pour iOS)
-const sportCoverImages: Record<string, string> = {
-  // Sports collectifs
-  football: 'https://images.unsplash.com/photo-1579952363873-27f3bade9f55?w=800&h=300&fit=crop',
-  basketball: 'https://images.unsplash.com/photo-1546519638-68e109498ffc?w=800&h=300&fit=crop',
-  volleyball: 'https://images.unsplash.com/photo-1612872087720-bb876e2e67d1?w=800&h=300&fit=crop',
-  handball: 'https://images.unsplash.com/photo-1558618666-fcd25c85cd64?w=800&h=300&fit=crop',
-  rugby: 'https://images.unsplash.com/photo-1529900748604-07564a03e7a6?w=800&h=300&fit=crop',
-  // Sports de raquette
-  tennis: 'https://images.unsplash.com/photo-1554068865-24cecd4e34b8?w=800&h=300&fit=crop',
-  padel: 'https://images.unsplash.com/photo-1554068865-24cecd4e34b8?w=800&h=300&fit=crop',
-  badminton: 'https://images.unsplash.com/photo-1626224583764-f87db24ac4ea?w=800&h=300&fit=crop',
-  squash: 'https://images.unsplash.com/photo-1554068865-24cecd4e34b8?w=800&h=300&fit=crop',
-  pingpong: 'https://images.unsplash.com/photo-1609710228159-0fa9bd7c0827?w=800&h=300&fit=crop',
-  // Sports individuels / Fitness
-  running: 'https://images.unsplash.com/photo-1552674605-db6ffd4facb5?w=800&h=300&fit=crop',
-  cycling: 'https://images.unsplash.com/photo-1541625602330-2277a4c46182?w=800&h=300&fit=crop',
-  swimming: 'https://images.unsplash.com/photo-1530549387789-4c1017266635?w=800&h=300&fit=crop',
-  gym: 'https://images.unsplash.com/photo-1534438327276-14e5300c3a48?w=800&h=300&fit=crop',
-  crossfit: 'https://images.unsplash.com/photo-1541534741688-6078c6bfb5c5?w=800&h=300&fit=crop',
-  yoga: 'https://images.unsplash.com/photo-1544367567-0f2fcb009e0b?w=800&h=300&fit=crop',
-  boxing: 'https://images.unsplash.com/photo-1549719386-74dfcbf7dbed?w=800&h=300&fit=crop',
-  martial_arts: 'https://images.unsplash.com/photo-1555597673-b21d5c935865?w=800&h=300&fit=crop',
-  // Sports outdoor / Aventure
-  hiking: 'https://images.unsplash.com/photo-1551632811-561732d1e306?w=800&h=300&fit=crop',
-  climbing: 'https://images.unsplash.com/photo-1522163182402-834f871fd851?w=800&h=300&fit=crop',
-  skiing: 'https://images.unsplash.com/photo-1551524559-8af4e6624178?w=800&h=300&fit=crop',
-  surf: 'https://images.unsplash.com/photo-1502680390469-be75c86b636f?w=800&h=300&fit=crop',
-  // Sports de précision
-  golf: 'https://images.unsplash.com/photo-1535131749006-b7f58c99034b?w=800&h=300&fit=crop',
-  petanque: 'https://images.unsplash.com/photo-1595435742656-5272d0b3fa82?w=800&h=300&fit=crop',
-  // Sports aquatiques
-  rowing: 'https://images.unsplash.com/photo-1541534401786-2077eed87a74?w=800&h=300&fit=crop',
-  // Danse / Fitness fun
-  dance: 'https://images.unsplash.com/photo-1504609813442-a8924e83f76e?w=800&h=300&fit=crop',
-  // Autres
-  skateboard: 'https://images.unsplash.com/photo-1547447134-cd3f5c716030?w=800&h=300&fit=crop',
-  equitation: 'https://images.unsplash.com/photo-1553284965-83fd3e82fa5a?w=800&h=300&fit=crop',
-  other: 'https://images.unsplash.com/photo-1517649763962-0c623066013b?w=800&h=300&fit=crop',
-};
-
-const defaultCover = 'https://images.unsplash.com/photo-1517649763962-0c623066013b?w=800&h=300&fit=crop';
-
-function getCoverImage(sport: string): string {
-  const sportKey = getSportKey(sport);
-  return sportCoverImages[sportKey] || defaultCover;
 }
 
 function formatDate(dateStr: string): string {
@@ -104,7 +57,7 @@ export function EventCard({ event, showDistance = true }: EventCardProps) {
       {/* Cover Image */}
       <View style={styles.coverContainer}>
         <Image
-          source={{ uri: getCoverImage(event.sport) }}
+          source={{ uri: getCoverImageForSport(event.sport) }}
           style={styles.coverImage}
           resizeMode="cover"
         />
