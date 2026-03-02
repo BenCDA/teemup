@@ -1,6 +1,16 @@
 // Jest setup file
 // Note: @testing-library/jest-native matchers are included in @testing-library/react-native v12+
 
+// Mock ThemeContext globally (all components use useTheme() after dark mode migration)
+jest.mock('@/features/shared/styles/ThemeContext', () => {
+  const actualTheme = jest.requireActual('@/features/shared/styles/theme');
+  return {
+    ThemeProvider: ({ children }) => children,
+    useTheme: () => actualTheme.lightTheme,
+    useIsDark: () => false,
+  };
+});
+
 // Mock expo-secure-store
 jest.mock('expo-secure-store', () => ({
   setItemAsync: jest.fn(() => Promise.resolve()),
@@ -33,7 +43,7 @@ jest.mock('expo-constants', () => ({
 }));
 
 // Suppress console logs during tests (optional)
-global.console = {
+globalThis.console = {
   ...console,
   log: jest.fn(),
   debug: jest.fn(),

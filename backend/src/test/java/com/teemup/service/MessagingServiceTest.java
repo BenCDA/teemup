@@ -210,8 +210,8 @@ class MessagingServiceTest {
             // Given
             when(conversationRepository.findByParticipantId(user1Id))
                     .thenReturn(List.of(privateConversation));
-            when(messageRepository.findByConversationId(any(UUID.class), any(PageRequest.class)))
-                    .thenReturn(new PageImpl<>(List.of(testMessage)));
+            when(messageRepository.findLastMessagesByConversationIds(any()))
+                    .thenReturn(List.of(testMessage));
             when(messageRepository.countUnreadMessages(any(UUID.class), eq(user1Id)))
                     .thenReturn(0L);
 

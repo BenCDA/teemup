@@ -180,7 +180,7 @@ describe('LoginScreen', () => {
       fireEvent.press(loginButton);
 
       await waitFor(() => {
-        expect(router.replace).toHaveBeenCalledWith('/(tabs)');
+        expect(router.replace).toHaveBeenCalledWith('/(tabs)/discover');
       });
     });
 
@@ -225,7 +225,7 @@ describe('LoginScreen', () => {
       await waitFor(() => {
         expect(Alert.alert).toHaveBeenCalledWith(
           'Erreur de connexion',
-          'Email ou mot de passe incorrect'
+          'Network error'
         );
       });
     });

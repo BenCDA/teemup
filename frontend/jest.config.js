@@ -2,7 +2,7 @@ module.exports = {
   preset: 'react-native',
   setupFilesAfterEnv: ['<rootDir>/jest.setup.js'],
   transformIgnorePatterns: [
-    'node_modules/(?!(react-native|@react-native|expo|@expo|expo-.*|@unimodules|unimodules|@tanstack|socket.io-client|engine.io-client)/)',
+    'node_modules/(?!(react-native|@react-native|expo|@expo|expo-.*|@unimodules|unimodules|@tanstack|socket.io-client|engine.io-client|react-native-safe-area-context|react-native-screens|react-native-svg)/)',
   ],
   moduleNameMapper: {
     '^@/(.*)$': '<rootDir>/src/$1',
@@ -19,7 +19,6 @@ module.exports = {
     '!src/app/**/*',
     '!src/**/index.ts',
   ],
-  testEnvironment: 'node',
   moduleFileExtensions: ['ts', 'tsx', 'js', 'jsx', 'json', 'node'],
   transform: {
     '^.+\\.(js|jsx|ts|tsx)$': 'babel-jest',

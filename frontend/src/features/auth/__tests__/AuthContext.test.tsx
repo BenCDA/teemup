@@ -15,13 +15,14 @@ jest.mock('@/features/shared/api', () => ({
   setTokens: jest.fn(),
   clearTokens: jest.fn(),
   getAccessToken: jest.fn(),
+  onSessionExpired: jest.fn(() => jest.fn()),
 }));
 
 // Mock socket service
 jest.mock('@/features/shared/socket', () => ({
   __esModule: true,
   default: {
-    connect: jest.fn(),
+    connect: jest.fn(() => Promise.resolve()),
     disconnect: jest.fn(),
   },
 }));
@@ -183,6 +184,7 @@ describe('AuthContext', () => {
         firstName: 'John',
         lastName: 'Doe',
         verificationImage: 'base64-image-data',
+        isPro: false,
       });
       expect(setTokens).toHaveBeenCalledWith('access-token', 'refresh-token');
       expect(result.current.user).toEqual(mockUser);
