@@ -1,6 +1,7 @@
-import React from 'react';
+import React, { useMemo } from 'react';
 import { View, Text, TextInput, StyleSheet, TextInputProps, ViewStyle } from 'react-native';
-import { theme } from '@/features/shared/styles/theme';
+import { useTheme } from '@/features/shared/styles/ThemeContext';
+import { Theme } from '@/features/shared/styles/theme';
 
 interface InputProps extends TextInputProps {
   label?: string;
@@ -20,6 +21,9 @@ export const Input: React.FC<InputProps> = ({
   style,
   ...textInputProps
 }) => {
+  const theme = useTheme();
+  const styles = useMemo(() => createStyles(theme), [theme]);
+
   return (
     <View style={[styles.container, containerStyle]}>
       {label && <Text style={styles.label}>{label}</Text>}
@@ -30,6 +34,8 @@ export const Input: React.FC<InputProps> = ({
           style,
         ]}
         placeholderTextColor={theme.colors.input.placeholder}
+        accessibilityLabel={label || textInputProps.placeholder}
+        accessibilityState={{ disabled: textInputProps.editable === false }}
         {...textInputProps}
       />
       {error && <Text style={styles.errorText}>{error}</Text>}
@@ -37,7 +43,7 @@ export const Input: React.FC<InputProps> = ({
   );
 };
 
-const styles = StyleSheet.create({
+const createStyles = (theme: Theme) => StyleSheet.create({
   container: {
     marginBottom: theme.spacing.sm,
   },

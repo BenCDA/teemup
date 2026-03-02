@@ -20,6 +20,11 @@ import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.nio.charset.StandardCharsets;
+import java.security.MessageDigest;
+import java.security.NoSuchAlgorithmException;
+import java.util.HexFormat;
+
 @Service
 @RequiredArgsConstructor
 @Slf4j
@@ -30,6 +35,20 @@ public class AuthService {
     private final JwtService jwtService;
     private final AuthenticationManager authenticationManager;
     private final FaceVerificationService faceVerificationService;
+
+    /**
+     * Hash a refresh token with SHA-256 before storing in DB.
+     * This prevents token theft from a compromised database.
+     */
+    private String hashToken(String token) {
+        try {
+            MessageDigest digest = MessageDigest.getInstance("SHA-256");
+            byte[] hash = digest.digest(token.getBytes(StandardCharsets.UTF_8));
+            return HexFormat.of().formatHex(hash);
+        } catch (NoSuchAlgorithmException e) {
+            throw new RuntimeException("SHA-256 not available", e);
+        }
+    }
 
     @Transactional
     public AuthResponse register(RegisterRequest request) {
@@ -57,7 +76,7 @@ public class AuthService {
                 .firstName(request.getFirstName())
                 .lastName(request.getLastName())
                 .provider(User.AuthProvider.LOCAL)
-                .isPro(request.getIsPro() != null && request.getIsPro())
+                .isPro(false)
                 .build();
 
         // Apply verification data to user
@@ -69,7 +88,7 @@ public class AuthService {
         String accessToken = jwtService.generateToken(userDetails, user.getId());
         String refreshToken = jwtService.generateRefreshToken(userDetails, user.getId());
 
-        user.setRefreshToken(refreshToken);
+        user.setRefreshToken(hashToken(refreshToken));
         userRepository.save(user);
 
         return AuthResponse.of(
@@ -96,7 +115,7 @@ public class AuthService {
         String accessToken = jwtService.generateToken(userDetails, user.getId());
         String refreshToken = jwtService.generateRefreshToken(userDetails, user.getId());
 
-        user.setRefreshToken(refreshToken);
+        user.setRefreshToken(hashToken(refreshToken));
         user.setIsOnline(true);
         userRepository.save(user);
 
@@ -122,10 +141,16 @@ public class AuthService {
             throw new InvalidTokenException("Token de rafraîchissement invalide");
         }
 
+        // Verify the token matches the stored hash (prevents reuse of old tokens)
+        String tokenHash = hashToken(refreshToken);
+        if (user.getRefreshToken() == null || !tokenHash.equals(user.getRefreshToken())) {
+            throw new InvalidTokenException("Token de rafraîchissement révoqué");
+        }
+
         String newAccessToken = jwtService.generateToken(userDetails, user.getId());
         String newRefreshToken = jwtService.generateRefreshToken(userDetails, user.getId());
 
-        user.setRefreshToken(newRefreshToken);
+        user.setRefreshToken(hashToken(newRefreshToken));
         userRepository.save(user);
 
         return AuthResponse.of(

@@ -39,6 +39,4 @@ public class UpdateUserRequest {
     @DecimalMax(value = "180.0", message = "Longitude invalide")
     private Double longitude;
 
-    // Pro subscription
-    private Boolean isPro;
 }

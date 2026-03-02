@@ -1,5 +1,7 @@
-import React from 'react';
+import React, { useMemo } from 'react';
 import { View, Image, StyleSheet } from 'react-native';
+import { useTheme } from '@/features/shared/styles/ThemeContext';
+import { Theme } from '@/features/shared/styles/theme';
 
 /**
  * Authentication Header Image Component
@@ -7,6 +9,9 @@ import { View, Image, StyleSheet } from 'react-native';
  * Larger header specifically for Login and Register screens
  */
 export const AuthHeader: React.FC = () => {
+  const theme = useTheme();
+  const styles = useMemo(() => createStyles(theme), [theme]);
+
   return (
     <View style={styles.headerContainer}>
       <Image
@@ -18,9 +23,9 @@ export const AuthHeader: React.FC = () => {
   );
 };
 
-const styles = StyleSheet.create({
+const createStyles = (theme: Theme) => StyleSheet.create({
   headerContainer: {
-    backgroundColor: 'white',
+    backgroundColor: theme.colors.surface,
     width: '100%',
   },
   headerImage: {

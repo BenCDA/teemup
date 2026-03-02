@@ -15,6 +15,9 @@ public class SocketIOConfig {
     @Value("${socketio.port}")
     private Integer port;
 
+    @Value("${app.cors.allowed-origins:http://localhost:8081,http://localhost:19006}")
+    private String allowedOrigins;
+
     private SocketIOServer server;
 
     @Bean
@@ -22,8 +25,7 @@ public class SocketIOConfig {
         Configuration config = new Configuration();
         config.setHostname(host);
         config.setPort(port);
-        // In development, allow all origins. In production, restrict to specific domains
-        config.setOrigin(null); // null allows all origins for dev, configure via SecurityConfig for prod
+        config.setOrigin(allowedOrigins);
         config.setPingTimeout(60000);
         config.setPingInterval(25000);
         config.setUpgradeTimeout(10000);

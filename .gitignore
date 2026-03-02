@@ -30,6 +30,9 @@ ehthumbs.db
 *.log
 logs/
 
+# Documentation (local only)
+docs/
+
 # Docker volumes (local development)
 postgres_data/
 redis_data/

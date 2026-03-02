@@ -9,10 +9,20 @@ import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
 
+import java.util.List;
 import java.util.UUID;
 
 @Repository
 public interface MessageRepository extends JpaRepository<Message, UUID> {
+
+    /**
+     * Fetch last message for multiple conversations in a single query.
+     * Returns the most recent non-deleted message per conversation.
+     */
+    @Query("SELECT m FROM Message m WHERE m.isDeleted = false AND m.createdAt = " +
+           "(SELECT MAX(m2.createdAt) FROM Message m2 WHERE m2.conversation.id = m.conversation.id AND m2.isDeleted = false) " +
+           "AND m.conversation.id IN :conversationIds")
+    List<Message> findLastMessagesByConversationIds(@Param("conversationIds") List<UUID> conversationIds);
 
     @Query("SELECT m FROM Message m WHERE m.conversation.id = :conversationId AND m.isDeleted = false ORDER BY m.createdAt DESC")
     Page<Message> findByConversationId(@Param("conversationId") UUID conversationId, Pageable pageable);

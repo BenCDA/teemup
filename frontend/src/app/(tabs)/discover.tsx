@@ -1,4 +1,4 @@
-import { useState, useCallback, useRef } from 'react';
+import { useState, useCallback, useRef, useMemo } from 'react';
 import {
   View,
   Text,
@@ -14,11 +14,11 @@ import {
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { Ionicons } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
-import { BlurView } from 'expo-blur';
 import { friendService } from '@/features/friends/friendService';
 import { User, AxiosApiError } from '@/types';
 import { UserCard, EmptyState } from '@/components/ui';
-import { theme } from '@/features/shared/styles/theme';
+import { useTheme } from '@/features/shared/styles/ThemeContext';
+import { Theme } from '@/features/shared/styles/theme';
 import { SPORTS, sportMatchesFilter } from '@/constants/sports';
 
 export default function DiscoverScreen() {
@@ -26,6 +26,8 @@ export default function DiscoverScreen() {
   const [selectedSports, setSelectedSports] = useState<string[]>([]);
   const scrollY = useRef(new Animated.Value(0)).current;
   const queryClient = useQueryClient();
+  const theme = useTheme();
+  const styles = useMemo(() => createStyles(theme), [theme]);
 
   const { data: users, isLoading, refetch } = useQuery({
     queryKey: ['discoverUsers'],
@@ -266,7 +268,7 @@ export default function DiscoverScreen() {
   );
 }
 
-const styles = StyleSheet.create({
+const createStyles = (theme: Theme) => StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: theme.colors.background,

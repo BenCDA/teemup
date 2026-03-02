@@ -1,49 +1,37 @@
-import { useEffect, useState } from 'react';
+import { useMemo } from 'react';
 import { Tabs } from 'expo-router';
 import { StyleSheet, View, StatusBar, Text } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons, MaterialCommunityIcons, FontAwesome5 } from '@expo/vector-icons';
 import { useQuery } from '@tanstack/react-query';
-import { theme } from '@/features/shared/styles/theme';
-import { notificationService } from '@/features/notifications/notificationService';
+import { useTheme, useIsDark } from '@/features/shared/styles/ThemeContext';
+import { Theme } from '@/features/shared/styles/theme';
 import { friendService } from '@/features/friends/friendService';
 
 /**
  * Tab Layout - 5 tabs in logical order like modern apps
- * 1. Discover (Home) - Find new people
- * 2. Events - Sports events
- * 3. Messages - Conversations
- * 4. Friends - Social connections (with notification badge)
- * 5. Profile - User settings
  */
 export default function TabsLayout() {
+  const theme = useTheme();
+  const isDark = useIsDark();
+  const styles = useMemo(() => createStyles(theme), [theme]);
+
   const activeColor = theme.colors.primary;
-  const inactiveColor = '#666';
+  const inactiveColor = theme.colors.text.secondary;
 
-  // Fetch unread counts for badges
-  const { data: unreadCount } = useQuery({
-    queryKey: ['unreadNotifications'],
-    queryFn: notificationService.getUnreadCount,
-    refetchInterval: 30000, // Refresh every 30s
-  });
-
+  // Fetch pending friend requests for badge
   const { data: friendRequests } = useQuery({
     queryKey: ['friendRequests'],
     queryFn: friendService.getPendingReceivedRequests,
     refetchInterval: 30000,
   });
 
-  const friendBadgeCount = (friendRequests?.length || 0) + (unreadCount || 0);
+  const friendBadgeCount = friendRequests?.length || 0;
 
   return (
     <View style={styles.outerContainer}>
-      {/* Status Bar */}
-      <StatusBar barStyle="dark-content" backgroundColor="white" />
-
-      {/* Top Safe Area */}
+      <StatusBar barStyle={isDark ? 'light-content' : 'dark-content'} backgroundColor={theme.colors.surface} />
       <SafeAreaView style={styles.safeAreaTop} edges={['top']} />
-
-      {/* Main Content with Bottom Safe Area */}
       <SafeAreaView style={styles.container} edges={['bottom']}>
         <Tabs
           screenOptions={{
@@ -54,7 +42,6 @@ export default function TabsLayout() {
             tabBarLabelStyle: styles.tabLabel,
           }}
         >
-          {/* 1. Discover - Home/Feed */}
           <Tabs.Screen
             name="discover"
             options={{
@@ -67,8 +54,6 @@ export default function TabsLayout() {
               ),
             }}
           />
-
-          {/* 2. Events */}
           <Tabs.Screen
             name="events"
             options={{
@@ -81,8 +66,6 @@ export default function TabsLayout() {
               ),
             }}
           />
-
-          {/* 3. Messages */}
           <Tabs.Screen
             name="index"
             options={{
@@ -95,8 +78,6 @@ export default function TabsLayout() {
               ),
             }}
           />
-
-          {/* 4. Friends (with badge for requests + notifications) */}
           <Tabs.Screen
             name="friends"
             options={{
@@ -118,8 +99,6 @@ export default function TabsLayout() {
               ),
             }}
           />
-
-          {/* 5. Profile */}
           <Tabs.Screen
             name="profile"
             options={{
@@ -133,12 +112,10 @@ export default function TabsLayout() {
               ),
             }}
           />
-
-          {/* Hidden - Notifications (accessible from Friends tab) */}
           <Tabs.Screen
             name="notifications"
             options={{
-              href: null, // Hide from tab bar
+              href: null,
             }}
           />
         </Tabs>
@@ -147,22 +124,22 @@ export default function TabsLayout() {
   );
 }
 
-const styles = StyleSheet.create({
+const createStyles = (theme: Theme) => StyleSheet.create({
   outerContainer: {
     flex: 1,
-    backgroundColor: 'white',
+    backgroundColor: theme.colors.surface,
   },
   safeAreaTop: {
-    backgroundColor: 'white',
+    backgroundColor: theme.colors.surface,
   },
   container: {
     flex: 1,
-    backgroundColor: 'white',
+    backgroundColor: theme.colors.surface,
   },
   tabBar: {
-    backgroundColor: 'white',
+    backgroundColor: theme.colors.surface,
     borderTopWidth: 1,
-    borderTopColor: '#e0e0e0',
+    borderTopColor: theme.colors.border,
     paddingTop: 8,
     paddingBottom: 8,
     height: 65,
@@ -188,7 +165,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 4,
   },
   badgeText: {
-    color: '#fff',
+    color: theme.colors.text.inverse,
     fontSize: 10,
     fontWeight: '700',
   },

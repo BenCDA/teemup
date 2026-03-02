@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useMemo } from 'react';
 import {
   TouchableOpacity,
   Text,
@@ -10,7 +10,8 @@ import {
 } from 'react-native';
 import * as Haptics from 'expo-haptics';
 import { Ionicons } from '@expo/vector-icons';
-import { theme } from '@/features/shared/styles/theme';
+import { useTheme } from '@/features/shared/styles/ThemeContext';
+import { Theme } from '@/features/shared/styles/theme';
 
 interface ButtonProps {
   title: string;
@@ -46,6 +47,9 @@ export const Button: React.FC<ButtonProps> = ({
   textStyle,
   accessibilityHint,
 }) => {
+  const theme = useTheme();
+  const styles = useMemo(() => createStyles(theme), [theme]);
+
   const isDisabled = disabled || loading;
 
   const buttonStyles = [
@@ -140,7 +144,7 @@ export const Button: React.FC<ButtonProps> = ({
 
 const capitalize = (s: string): string => s.charAt(0).toUpperCase() + s.slice(1);
 
-const styles = StyleSheet.create({
+const createStyles = (theme: Theme) => StyleSheet.create({
   button: {
     borderRadius: theme.borderRadius.sm,
     padding: 15,

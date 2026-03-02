@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useMemo } from 'react';
 import {
   View,
   Text,
@@ -14,7 +14,8 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import * as Haptics from 'expo-haptics';
 import { useAuth } from '@/features/auth/AuthContext';
-import { theme } from '@/features/shared/styles/theme';
+import { useTheme } from '@/features/shared/styles/ThemeContext';
+import { Theme } from '@/features/shared/styles/theme';
 
 const PRO_FEATURES = [
   {
@@ -51,6 +52,8 @@ const PRO_FEATURES = [
 
 export default function SubscriptionScreen() {
   const { user, updateUser } = useAuth();
+  const theme = useTheme();
+  const styles = useMemo(() => createStyles(theme), [theme]);
   const insets = useSafeAreaInsets();
   const [isUpgrading, setIsUpgrading] = useState(false);
   const isPro = user?.isPro || false;
@@ -276,7 +279,7 @@ export default function SubscriptionScreen() {
   );
 }
 
-const styles = StyleSheet.create({
+const createStyles = (theme: Theme) => StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: theme.colors.background,

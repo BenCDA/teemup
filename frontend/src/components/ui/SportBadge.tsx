@@ -1,6 +1,8 @@
+import { useMemo } from 'react';
 import { View, Text, StyleSheet } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import { theme } from '@/features/shared/styles/theme';
+import { useTheme } from '@/features/shared/styles/ThemeContext';
+import { Theme } from '@/features/shared/styles/theme';
 import { getSportConfig } from '@/constants/sports';
 
 interface SportBadgeProps {
@@ -9,13 +11,17 @@ interface SportBadgeProps {
   showLabel?: boolean;
 }
 
-const sizes = {
+const getSizes = (theme: Theme) => ({
   sm: { badge: 32, icon: 16, font: theme.typography.size.xs },
   md: { badge: 48, icon: 24, font: theme.typography.size.sm },
   lg: { badge: 64, icon: 32, font: theme.typography.size.md },
-};
+});
 
 export function SportBadge({ sport, size = 'md', showLabel = false }: SportBadgeProps) {
+  const theme = useTheme();
+  const styles = useMemo(() => createStyles(theme), [theme]);
+  const sizes = useMemo(() => getSizes(theme), [theme]);
+
   const sportConfig = getSportConfig(sport);
   const config = sportConfig
     ? { icon: sportConfig.icon, color: sportConfig.color, label: sportConfig.label }
@@ -44,7 +50,7 @@ export function SportBadge({ sport, size = 'md', showLabel = false }: SportBadge
   );
 }
 
-const styles = StyleSheet.create({
+const createStyles = (theme: Theme) => StyleSheet.create({
   container: {
     alignItems: 'center',
     gap: theme.spacing.xs,

@@ -27,21 +27,26 @@ import { useSocketStatus } from '@/features/shared/useSocketStatus';
 import { Message, User } from '@/types';
 import { useAuth } from '@/features/auth/AuthContext';
 import { Avatar } from '@/components/ui';
-import { theme } from '@/features/shared/styles/theme';
+import { useTheme } from '@/features/shared/styles/ThemeContext';
+import { Theme } from '@/features/shared/styles/theme';
 
 // ==============================================================================
 // 1. COMPOSANT MESSAGE (Optimisé & Sans Miroir)
 // ==============================================================================
-const MessageItem = React.memo(({ 
-  item, 
-  prevItem, 
-  nextItem, 
-  userId 
-}: { 
-  item: Message; 
-  prevItem?: Message; 
-  nextItem?: Message; 
-  userId?: string 
+const MessageItem = React.memo(({
+  item,
+  prevItem,
+  nextItem,
+  userId,
+  theme,
+  styles,
+}: {
+  item: Message;
+  prevItem?: Message;
+  nextItem?: Message;
+  userId?: string;
+  theme: Theme;
+  styles: ReturnType<typeof createStyles>;
 }) => {
   const isOwnMessage = item.sender.id === userId;
   const isOptimistic = item.id.startsWith('temp-');
@@ -147,6 +152,8 @@ export default function ConversationScreen() {
   const socketStatus = useSocketStatus();
   const queryClient = useQueryClient();
   const insets = useSafeAreaInsets();
+  const theme = useTheme();
+  const styles = useMemo(() => createStyles(theme), [theme]);
 
   // États
   const [message, setMessage] = useState('');
@@ -154,7 +161,7 @@ export default function ConversationScreen() {
   const [typingUsers, setTypingUsers] = useState<string[]>([]);
   const [keyboardVisible, setKeyboardVisible] = useState(false);
   const [otherUserOnline, setOtherUserOnline] = useState<boolean | null>(null);
-  
+
   // Refs
   const flatListRef = useRef<FlatList>(null);
   const typingTimeoutRef = useRef<NodeJS.Timeout | null>(null);
@@ -166,6 +173,7 @@ export default function ConversationScreen() {
     queryKey: ['conversation', conversationId],
     queryFn: () => messagingService.getConversation(conversationId!),
     enabled: !!conversationId,
+    staleTime: 0,
   });
 
   // Chargement Messages
@@ -173,6 +181,7 @@ export default function ConversationScreen() {
     queryKey: ['messages', conversationId],
     queryFn: () => messagingService.getMessages(conversationId!),
     enabled: !!conversationId,
+    staleTime: 0,
   });
 
   // INITIALISATION : L'API renvoie déjà [Récent -> Vieux] (ORDER BY createdAt DESC)
@@ -189,13 +198,13 @@ export default function ConversationScreen() {
     onSuccess: (savedMessage) => {
       setMessages(prev => {
         // Remplacer le message temporaire par le réel
-        return prev.map(m => 
-          (m.id.startsWith('temp-') && m.content === savedMessage.content) 
-            ? savedMessage 
+        return prev.map(m =>
+          (m.id.startsWith('temp-') && m.content === savedMessage.content)
+            ? savedMessage
             : m
         );
       });
-      queryClient.invalidateQueries({ queryKey: ['conversations'] }); 
+      queryClient.invalidateQueries({ queryKey: ['conversations'] });
     },
     onError: (_, content) => {
       // Supprimer le message temporaire en cas d'erreur
@@ -214,34 +223,38 @@ export default function ConversationScreen() {
     const handleNewMessage = (newMessage: Message) => {
       if (newMessage.conversationId !== conversationId) return;
 
+      // Sender ignores socket broadcast — already has optimistic + REST response
+      if (newMessage.sender.id === user.id) {
+        // Just replace any remaining temp message with the real one
+        setMessages(prev => {
+          const optimisticIndex = prev.findIndex(m =>
+            m.id.startsWith('temp-') &&
+            m.content === newMessage.content
+          );
+          if (optimisticIndex !== -1) {
+            const newArr = [...prev];
+            newArr[optimisticIndex] = newMessage;
+            return newArr;
+          }
+          return prev;
+        });
+        return;
+      }
+
       setMessages(prev => {
-        // 1. Anti-doublon
+        // Anti-doublon
         if (prev.some(m => m.id === newMessage.id)) return prev;
-
-        // 2. Gestion Optimistic Update (collision avec socket)
-        const optimisticIndex = prev.findIndex(m => 
-          m.id.startsWith('temp-') && 
-          m.content === newMessage.content && 
-          m.sender.id === newMessage.sender.id
-        );
-
-        if (optimisticIndex !== -1) {
-          const newArr = [...prev];
-          newArr[optimisticIndex] = newMessage;
-          return newArr;
-        }
-
-        // 3. AJOUT EN TÊTE (Index 0 = Bas de l'écran)
+        // AJOUT EN TÊTE (Index 0 = Bas de l'écran)
         return [newMessage, ...prev];
       });
-      
+
       socketService.markAsRead(conversationId);
       Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
     };
 
     const handleUserTyping = ({ userId, conversationId: convId }: { userId: string; conversationId: string }) => {
       if (convId !== conversationId || userId === user.id) return;
-      
+
       setTypingUsers(prev => {
         if (prev.includes(userId)) return prev;
         return [...prev, userId];
@@ -257,7 +270,7 @@ export default function ConversationScreen() {
         setTypingUsers(prev => prev.filter(id => id !== userId));
         typingTimeoutsRef.current.delete(userId);
       }, 5000);
-      
+
       typingTimeoutsRef.current.set(userId, timeout);
     };
 
@@ -270,35 +283,45 @@ export default function ConversationScreen() {
       }
     };
 
-    const handleUserOnline = ({ userId: onlineUserId }: { userId: string }) => {
-      if (otherUser && onlineUserId === otherUser.id) {
-        setOtherUserOnline(true);
-      }
-    };
-
-    const handleUserOffline = ({ userId: offlineUserId }: { userId: string }) => {
-      if (otherUser && offlineUserId === otherUser.id) {
-        setOtherUserOnline(false);
-      }
-    };
-
     const unsubNewMessage = socketService.on('newMessage', handleNewMessage);
     const unsubTyping = socketService.on('userTyping', handleUserTyping);
     const unsubStopTyping = socketService.on('userStoppedTyping', handleUserStoppedTyping);
-    const unsubOnline = socketService.on('userOnline', handleUserOnline);
-    const unsubOffline = socketService.on('userOffline', handleUserOffline);
 
     return () => {
       socketService.leaveConversation(conversationId);
       unsubNewMessage();
       unsubTyping();
       unsubStopTyping();
-      unsubOnline();
-      unsubOffline();
       typingTimeoutsRef.current.forEach(clearTimeout);
       typingTimeoutsRef.current.clear();
     };
   }, [conversationId, user]);
+
+  // Online/offline status - separate effect because it depends on conversation (otherUser)
+  useEffect(() => {
+    const other = conversation?.type === 'PRIVATE'
+      ? conversation.participants.find(p => p.id !== user?.id)
+      : undefined;
+    if (!other) return;
+
+    // Initialize from API data
+    setOtherUserOnline(other.isOnline);
+
+    const handleUserOnline = ({ userId: uid }: { userId: string }) => {
+      if (uid === other.id) setOtherUserOnline(true);
+    };
+    const handleUserOffline = ({ userId: uid }: { userId: string }) => {
+      if (uid === other.id) setOtherUserOnline(false);
+    };
+
+    const unsubOnline = socketService.on('userOnline', handleUserOnline);
+    const unsubOffline = socketService.on('userOffline', handleUserOffline);
+
+    return () => {
+      unsubOnline();
+      unsubOffline();
+    };
+  }, [conversation, user]);
 
   // Keyboard listener
   useEffect(() => {
@@ -339,6 +362,7 @@ export default function ConversationScreen() {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
     const content = message.trim();
     setMessage('');
+    Keyboard.dismiss();
 
     const optimisticMessage: Message = {
       id: `temp-${Date.now()}`,
@@ -378,19 +402,21 @@ export default function ConversationScreen() {
   // Render Item Helper
   const renderItem: ListRenderItem<Message> = useCallback(({ item, index }) => {
     // nextItem = le message suivant dans le tableau (donc chronologiquement plus vieux)
-    const nextItem = messages[index + 1]; 
+    const nextItem = messages[index + 1];
     // prevItem = le message précédent dans le tableau (donc chronologiquement plus récent)
-    const prevItem = messages[index - 1]; 
-    
+    const prevItem = messages[index - 1];
+
     return (
-      <MessageItem 
-        item={item} 
-        prevItem={prevItem} 
-        nextItem={nextItem} 
-        userId={user?.id} 
+      <MessageItem
+        item={item}
+        prevItem={prevItem}
+        nextItem={nextItem}
+        userId={user?.id}
+        theme={theme}
+        styles={styles}
       />
     );
-  }, [messages, user?.id]);
+  }, [messages, user?.id, theme, styles]);
 
   // Header Info
   const getOtherUser = () => {
@@ -448,7 +474,7 @@ export default function ConversationScreen() {
             color="#fff"
           />
           <Text style={styles.statusText}>
-            {socketStatus === 'connecting' ? 'Connexion...' : 'Hors ligne'}
+            {socketStatus === 'connecting' ? 'Connexion en cours...' : 'Pas de connexion'}
           </Text>
         </View>
       )}
@@ -457,7 +483,7 @@ export default function ConversationScreen() {
       <KeyboardAvoidingView
         style={styles.chatArea}
         behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-        keyboardVerticalOffset={Platform.OS === 'ios' ? insets.top + 56 : 0}
+        keyboardVerticalOffset={Platform.OS === 'ios' ? insets.top : 0}
       >
         {messagesLoading ? (
           <View style={styles.loadingContainer}>
@@ -548,7 +574,7 @@ export default function ConversationScreen() {
 // ==============================================================================
 // 3. STYLES
 // ==============================================================================
-const styles = StyleSheet.create({
+const createStyles = (theme: Theme) => StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: theme.colors.background,

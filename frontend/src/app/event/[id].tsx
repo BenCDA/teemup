@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useMemo } from 'react';
 import {
   View,
   Text,
@@ -21,7 +21,8 @@ import { eventService } from '@/features/events/eventService';
 import { messagingService } from '@/features/messaging/messagingService';
 import { useAuth } from '@/features/auth/AuthContext';
 import { Avatar } from '@/components/ui';
-import { theme } from '@/features/shared/styles/theme';
+import { useTheme } from '@/features/shared/styles/ThemeContext';
+import { Theme } from '@/features/shared/styles/theme';
 import { getSportConfig, getSportLabel } from '@/constants/sports';
 import { getCoverImageForSport } from '@/constants/defaultImages';
 import { EventParticipant, AxiosApiError } from '@/types';
@@ -54,6 +55,8 @@ export default function EventDetailScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const { user: currentUser } = useAuth();
   const queryClient = useQueryClient();
+  const theme = useTheme();
+  const styles = useMemo(() => createStyles(theme), [theme]);
 
   const {
     data: event,
@@ -434,7 +437,7 @@ export default function EventDetailScreen() {
   );
 }
 
-const styles = StyleSheet.create({
+const createStyles = (theme: Theme) => StyleSheet.create({
   safeArea: { flex: 1, backgroundColor: theme.colors.surface },
   container: { flex: 1, backgroundColor: theme.colors.background },
   loadingContainer: { flex: 1, justifyContent: 'center', alignItems: 'center' },

@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useMemo } from 'react';
 import {
   View,
   Text,
@@ -7,7 +7,8 @@ import {
   Modal,
 } from 'react-native';
 import { BlurView } from 'expo-blur';
-import { theme } from '@/features/shared/styles/theme';
+import { useTheme } from '@/features/shared/styles/ThemeContext';
+import { Theme } from '@/features/shared/styles/theme';
 
 interface LoadingOverlayProps {
   visible: boolean;
@@ -26,6 +27,9 @@ export const LoadingOverlay: React.FC<LoadingOverlayProps> = ({
   message = 'Chargement...',
   subMessage,
 }) => {
+  const theme = useTheme();
+  const styles = useMemo(() => createStyles(theme), [theme]);
+
   if (!visible) return null;
 
   return (
@@ -50,7 +54,7 @@ export const LoadingOverlay: React.FC<LoadingOverlayProps> = ({
   );
 };
 
-const styles = StyleSheet.create({
+const createStyles = (theme: Theme) => StyleSheet.create({
   overlay: {
     flex: 1,
     justifyContent: 'center',

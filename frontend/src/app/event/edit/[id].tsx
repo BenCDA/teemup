@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import {
   View,
   Text,
@@ -20,7 +20,8 @@ import DateTimePicker from '@react-native-community/datetimepicker';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { eventService, CreateEventRequest } from '@/features/events/eventService';
 import { LocationPicker } from '@/components/ui';
-import { theme } from '@/features/shared/styles/theme';
+import { useTheme } from '@/features/shared/styles/ThemeContext';
+import { Theme } from '@/features/shared/styles/theme';
 import { SPORTS } from '@/constants/sports';
 import { useAuth } from '@/features/auth/AuthContext';
 import { AxiosApiError } from '@/types';
@@ -38,6 +39,8 @@ export default function EditEventScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const queryClient = useQueryClient();
   const { user } = useAuth();
+  const theme = useTheme();
+  const styles = useMemo(() => createStyles(theme), [theme]);
 
   // Fetch existing event
   const { data: event, isLoading: isLoadingEvent } = useQuery({
@@ -71,9 +74,10 @@ export default function EditEventScreen() {
   const [showSportPicker, setShowSportPicker] = useState(false);
   const [showRecurrencePicker, setShowRecurrencePicker] = useState(false);
 
-  // Populate form with existing event data
+  // Populate form with existing event data (only once)
+  const [initialized, setInitialized] = useState(false);
   useEffect(() => {
-    if (event) {
+    if (event && !initialized) {
       setSport(event.sport);
       setTitle(event.title || '');
       setDescription(event.description || '');
@@ -101,8 +105,9 @@ export default function EditEventScreen() {
       setMaxParticipants(event.maxParticipants?.toString() || '');
       setIsPaid(event.isPaid || false);
       setPrice(event.price?.toString() || '');
+      setInitialized(true);
     }
-  }, [event]);
+  }, [event, initialized]);
 
   const updateMutation = useMutation({
     mutationFn: (data: Partial<CreateEventRequest>) => eventService.updateEvent(id!, data),
@@ -519,7 +524,7 @@ export default function EditEventScreen() {
                   <TextInput
                     style={styles.priceInput}
                     value={price}
-                    onChangeText={(text) => setPrice(text.replace(/[^0-9.,]/g, ''))}
+                    onChangeText={(text) => setPrice(text.replaceAll(',', '.').replaceAll(/[^0-9.]/g, ''))}
                     placeholder="0.00"
                     placeholderTextColor={theme.colors.text.tertiary}
                     keyboardType="decimal-pad"
@@ -555,7 +560,7 @@ export default function EditEventScreen() {
   );
 }
 
-const styles = StyleSheet.create({
+const createStyles = (theme: Theme) => StyleSheet.create({
   safeArea: { flex: 1, backgroundColor: theme.colors.surface },
   container: { flex: 1, backgroundColor: theme.colors.background },
   loadingContainer: { flex: 1, justifyContent: 'center', alignItems: 'center', gap: 12 },

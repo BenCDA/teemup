@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useMemo } from 'react';
 import {
   View,
   Text,
@@ -20,7 +20,8 @@ import DateTimePicker from '@react-native-community/datetimepicker';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { eventService, CreateEventRequest } from '@/features/events/eventService';
 import { LocationPicker } from '@/components/ui';
-import { theme } from '@/features/shared/styles/theme';
+import { useTheme } from '@/features/shared/styles/ThemeContext';
+import { Theme } from '@/features/shared/styles/theme';
 import { SPORTS } from '@/constants/sports';
 import { useAuth } from '@/features/auth/AuthContext';
 import { AxiosApiError } from '@/types';
@@ -37,6 +38,8 @@ const RECURRENCE_OPTIONS: { value: RecurrenceType; label: string }[] = [
 export default function CreateEventScreen() {
   const queryClient = useQueryClient();
   const { user } = useAuth();
+  const theme = useTheme();
+  const styles = useMemo(() => createStyles(theme), [theme]);
 
   // Form state
   const [sport, setSport] = useState<string>('');
@@ -488,7 +491,7 @@ export default function CreateEventScreen() {
                   <TextInput
                     style={styles.priceInput}
                     value={price}
-                    onChangeText={(text) => setPrice(text.replace(/[^0-9.,]/g, ''))}
+                    onChangeText={(text) => setPrice(text.replaceAll(',', '.').replaceAll(/[^0-9.]/g, ''))}
                     placeholder="0.00"
                     placeholderTextColor={theme.colors.text.tertiary}
                     keyboardType="decimal-pad"
@@ -524,7 +527,7 @@ export default function CreateEventScreen() {
   );
 }
 
-const styles = StyleSheet.create({
+const createStyles = (theme: Theme) => StyleSheet.create({
   safeArea: {
     flex: 1,
     backgroundColor: theme.colors.surface,

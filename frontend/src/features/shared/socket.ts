@@ -23,6 +23,8 @@ class SocketService {
   private listeners: Map<string, Set<Function>> = new Map();
   private connectionStatus: ConnectionStatus = 'disconnected';
   private statusListeners: Set<(status: ConnectionStatus) => void> = new Set();
+  private joinedRooms: Set<string> = new Set(); // Track joined rooms for auto-rejoin
+  private pendingEmits: Array<{ event: string; data?: unknown }> = []; // Queue for events when disconnected
 
   private setStatus(status: ConnectionStatus): void {
     this.connectionStatus = status;
@@ -42,37 +44,57 @@ class SocketService {
       return;
     }
 
-    this.socket = io(SOCKET_URL, {
-      query: { token }, // netty-socketio reads token via getSingleUrlParam("token")
-      transports: ['websocket'],
-      reconnection: true,
-      reconnectionAttempts: 5,
-      reconnectionDelay: 1000,
-      reconnectionDelayMax: 5000,
-    });
+    return new Promise<void>((resolve) => {
+      this.socket = io(SOCKET_URL, {
+        query: { token }, // netty-socketio reads token via getSingleUrlParam("token")
+        transports: ['websocket'],
+        reconnection: true,
+        reconnectionAttempts: 5,
+        reconnectionDelay: 1000,
+        reconnectionDelayMax: 5000,
+      });
 
-    this.socket.on('connect', () => {
-      this.setStatus('connected');
-    });
+      const timeout = setTimeout(() => {
+        // Resolve anyway after 5s to not block auth flow
+        resolve();
+      }, 5000);
 
-    this.socket.on('disconnect', () => {
-      this.setStatus('disconnected');
-    });
+      this.socket.on('connect', () => {
+        clearTimeout(timeout);
+        this.setStatus('connected');
+        // Flush pending events queued while disconnected
+        this.pendingEmits.forEach(({ event, data }) => this.socket?.emit(event, data));
+        this.pendingEmits = [];
+        // Auto-rejoin rooms after reconnection
+        this.joinedRooms.forEach(room => this.socket?.emit('joinConversation', room));
+        resolve();
+      });
 
-    this.socket.on('reconnecting', () => {
-      this.setStatus('connecting');
-    });
+      this.socket.on('disconnect', () => {
+        this.setStatus('disconnected');
+      });
 
-    this.socket.on('connect_error', () => {
-      this.setStatus('error');
-    });
+      this.socket.on('reconnecting', () => {
+        this.setStatus('connecting');
+      });
 
-    // Re-emit events to registered listeners
-    this.socket.onAny((event, ...args) => {
-      const eventListeners = this.listeners.get(event);
-      if (eventListeners) {
-        eventListeners.forEach((listener) => listener(...args));
-      }
+      this.socket.on('reconnect_failed', () => {
+        this.setStatus('error');
+      });
+
+      this.socket.on('connect_error', () => {
+        clearTimeout(timeout);
+        this.setStatus('error');
+        resolve(); // Resolve (not reject) to not break auth flow
+      });
+
+      // Re-emit events to registered listeners
+      this.socket.onAny((event, ...args) => {
+        const eventListeners = this.listeners.get(event);
+        if (eventListeners) {
+          eventListeners.forEach((listener) => listener(...args));
+        }
+      });
     });
   }
 
@@ -82,13 +104,17 @@ class SocketService {
       this.socket = null;
     }
     this.listeners.clear();
+    this.joinedRooms.clear();
+    this.pendingEmits = [];
   }
 
   emit(event: string, data?: unknown): void {
     if (this.socket?.connected) {
       this.socket.emit(event, data);
+    } else {
+      // Queue for flush on connect
+      this.pendingEmits.push({ event, data });
     }
-    // Silently ignore if not connected - will reconnect automatically
   }
 
   on(event: string, callback: Function): () => void {
@@ -108,10 +134,12 @@ class SocketService {
   }
 
   joinConversation(conversationId: string): void {
+    this.joinedRooms.add(conversationId);
     this.emit('joinConversation', conversationId);
   }
 
   leaveConversation(conversationId: string): void {
+    this.joinedRooms.delete(conversationId);
     this.emit('leaveConversation', conversationId);
   }
 

@@ -17,13 +17,16 @@ import * as ImagePicker from 'expo-image-picker';
 import * as Haptics from 'expo-haptics';
 import { useAuth } from '@/features/auth/AuthContext';
 import { Avatar, Button } from '@/components/ui';
-import { theme } from '@/features/shared/styles/theme';
+import { useTheme } from '@/features/shared/styles/ThemeContext';
+import { Theme } from '@/features/shared/styles/theme';
 import { SPORTS, getPopularSports, searchSports, SportConfig } from '@/constants/sports';
 
 type Step = 'sports' | 'profile-photo' | 'cover-photo';
 
 export default function OnboardingScreen() {
   const { user, updateUser } = useAuth();
+  const theme = useTheme();
+  const styles = useMemo(() => createStyles(theme), [theme]);
   const [step, setStep] = useState<Step>('sports');
   const [selectedSports, setSelectedSports] = useState<string[]>([]);
   const [profilePicture, setProfilePicture] = useState<string | null>(null);
@@ -383,7 +386,7 @@ export default function OnboardingScreen() {
   );
 }
 
-const styles = StyleSheet.create({
+const createStyles = (theme: Theme) => StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: theme.colors.surface,

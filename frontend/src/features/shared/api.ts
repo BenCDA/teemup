@@ -72,7 +72,20 @@ api.interceptors.request.use(
   }
 );
 
-// Response interceptor with token refresh
+// Token refresh mutex to prevent race conditions
+let isRefreshing = false;
+let refreshSubscribers: Array<(token: string) => void> = [];
+
+const onTokenRefreshed = (token: string) => {
+  refreshSubscribers.forEach(callback => callback(token));
+  refreshSubscribers = [];
+};
+
+const addRefreshSubscriber = (callback: (token: string) => void) => {
+  refreshSubscribers.push(callback);
+};
+
+// Response interceptor with token refresh (mutex pattern)
 api.interceptors.response.use(
   (response) => response,
   async (error: AxiosError) => {
@@ -80,6 +93,18 @@ api.interceptors.response.use(
 
     if (error.response?.status === 401 && !originalRequest._retry) {
       originalRequest._retry = true;
+
+      if (isRefreshing) {
+        // Another refresh is in progress — wait for it
+        return new Promise((resolve) => {
+          addRefreshSubscriber((newToken: string) => {
+            originalRequest.headers.Authorization = `Bearer ${newToken}`;
+            resolve(api(originalRequest));
+          });
+        });
+      }
+
+      isRefreshing = true;
 
       try {
         const refreshToken = await getRefreshToken();
@@ -91,12 +116,16 @@ api.interceptors.response.use(
           const { accessToken, refreshToken: newRefreshToken } = response.data;
           await setTokens(accessToken, newRefreshToken);
 
+          isRefreshing = false;
+          onTokenRefreshed(accessToken);
+
           originalRequest.headers.Authorization = `Bearer ${accessToken}`;
           return api(originalRequest);
         }
       } catch (refreshError) {
+        isRefreshing = false;
+        refreshSubscribers = [];
         await clearTokens();
-        // Notify listeners that session has expired
         notifySessionExpired();
       }
     }

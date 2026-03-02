@@ -1,10 +1,12 @@
+import { useMemo } from 'react';
 import { View, Text, TouchableOpacity, StyleSheet, Image, ActivityIndicator, Alert } from 'react-native';
 import { router } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { User } from '@/types';
 import { Avatar } from './Avatar';
 import { ProBadge } from './ProBadge';
-import { theme } from '@/features/shared/styles/theme';
+import { useTheme } from '@/features/shared/styles/ThemeContext';
+import { Theme } from '@/features/shared/styles/theme';
 import * as Haptics from 'expo-haptics';
 import { getSportConfig, getSportLabel } from '@/constants/sports';
 import { getUserCoverImage } from '@/constants/defaultImages';
@@ -18,6 +20,9 @@ interface UserCardProps {
 }
 
 export function UserCard({ user, onAddFriend, onCancelRequest, isAddingFriend, hasPendingRequest }: UserCardProps) {
+  const theme = useTheme();
+  const styles = useMemo(() => createStyles(theme), [theme]);
+
   const handleViewProfile = () => {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
     router.push(`/user/${user.id}`);
@@ -50,7 +55,7 @@ export function UserCard({ user, onAddFriend, onCancelRequest, isAddingFriend, h
   const username = `@${user.firstName?.toLowerCase() || 'user'}`;
 
   return (
-    <View style={styles.card}>
+    <View style={styles.card} accessibilityRole="button" accessibilityLabel={`Profil de ${user.firstName} ${user.lastName}`}>
       {/* Cover Image */}
       <View style={styles.coverContainer}>
         <Image
@@ -157,7 +162,7 @@ export function UserCard({ user, onAddFriend, onCancelRequest, isAddingFriend, h
 
 const AVATAR_SIZE = 56;
 
-const styles = StyleSheet.create({
+const createStyles = (theme: Theme) => StyleSheet.create({
   card: {
     backgroundColor: theme.colors.surface,
     borderRadius: theme.borderRadius.lg,

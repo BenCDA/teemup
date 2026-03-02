@@ -1,7 +1,8 @@
-import { useState } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { View, Image, Text, StyleSheet, ViewStyle } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
-import { theme } from '@/features/shared/styles/theme';
+import { useTheme } from '@/features/shared/styles/ThemeContext';
+import { Theme } from '@/features/shared/styles/theme';
 
 interface AvatarProps {
   uri?: string | null;
@@ -37,8 +38,8 @@ const AVATAR_GRADIENTS: [string, string][] = [
 ];
 
 /**
- * Génère un index de couleur stable basé sur le nom ou l'ID
- * Le même utilisateur aura toujours la même couleur
+ * Genere un index de couleur stable base sur le nom ou l'ID
+ * Le meme utilisateur aura toujours la meme couleur
  */
 function getGradientIndex(identifier: string): number {
   let hash = 0;
@@ -59,12 +60,20 @@ export function Avatar({
   isOnline = false,
   style,
 }: AvatarProps) {
+  const theme = useTheme();
+  const styles = useMemo(() => createStyles(theme), [theme]);
+
   const [imageError, setImageError] = useState(false);
   const dimension = sizes[size];
 
+  // Reset error state when URI changes (FlatList recycling can keep stale state)
+  useEffect(() => {
+    setImageError(false);
+  }, [uri]);
+
   const hasValidImage = !!uri && !imageError;
 
-  // Extraire les initiales (max 2 caractères)
+  // Extraire les initiales (max 2 caracteres)
   const initials = name
     .split(' ')
     .filter(n => n.length > 0)
@@ -73,7 +82,7 @@ export function Avatar({
     .toUpperCase()
     .slice(0, 2) || '?';
 
-  // Sélectionner le gradient basé sur l'ID utilisateur ou le nom
+  // Selectionner le gradient base sur l'ID utilisateur ou le nom
   const identifier = userId || name || 'default';
   const gradientIndex = getGradientIndex(identifier);
   const gradientColors = AVATAR_GRADIENTS[gradientIndex];
@@ -82,7 +91,11 @@ export function Avatar({
   const fontSize = dimension * (initials.length === 1 ? 0.45 : 0.38);
 
   return (
-    <View style={[styles.container, { width: dimension, height: dimension }, style]}>
+    <View
+      style={[styles.container, { width: dimension, height: dimension }, style]}
+      accessibilityRole="image"
+      accessibilityLabel={`Photo de profil de ${name}`}
+    >
       {hasValidImage ? (
         <Image
           source={{ uri }}
@@ -144,7 +157,7 @@ export function Avatar({
   );
 }
 
-const styles = StyleSheet.create({
+const createStyles = (theme: Theme) => StyleSheet.create({
   container: {
     position: 'relative',
   },

@@ -103,18 +103,29 @@ public class MessagingService {
     public List<ConversationResponse> getUserConversations(UUID userId) {
         List<Conversation> conversations = conversationRepository.findByParticipantId(userId);
 
+        if (conversations.isEmpty()) {
+            return List.of();
+        }
+
+        // Batch fetch last messages for all conversations (1 query instead of N)
+        List<UUID> conversationIds = conversations.stream()
+                .map(Conversation::getId)
+                .collect(Collectors.toList());
+
+        Map<UUID, MessageResponse> lastMessageMap = messageRepository
+                .findLastMessagesByConversationIds(conversationIds).stream()
+                .collect(Collectors.toMap(
+                        m -> m.getConversation().getId(),
+                        MessageResponse::fromEntity,
+                        (a, b) -> a // in case of duplicates, keep first
+                ));
+
+        // Unread counts still require per-conversation queries due to user-specific read tracking
+        // but we avoid the N+1 for last messages
         return conversations.stream()
                 .map(conv -> {
-                    Page<Message> lastMessages = messageRepository.findByConversationId(
-                            conv.getId(),
-                            PageRequest.of(0, 1)
-                    );
-                    MessageResponse lastMessage = lastMessages.hasContent()
-                            ? MessageResponse.fromEntity(lastMessages.getContent().get(0))
-                            : null;
-
+                    MessageResponse lastMessage = lastMessageMap.get(conv.getId());
                     Long unreadCount = messageRepository.countUnreadMessages(conv.getId(), userId);
-
                     return ConversationResponse.fromEntityWithDetails(conv, lastMessage, unreadCount);
                 })
                 .collect(Collectors.toList());

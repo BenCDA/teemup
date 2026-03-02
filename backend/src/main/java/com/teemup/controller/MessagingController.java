@@ -3,6 +3,7 @@ package com.teemup.controller;
 import com.teemup.dto.messaging.*;
 import com.teemup.security.UserDetailsImpl;
 import com.teemup.service.MessagingService;
+import com.teemup.websocket.SocketIOService;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
@@ -20,6 +21,7 @@ import java.util.UUID;
 public class MessagingController {
 
     private final MessagingService messagingService;
+    private final SocketIOService socketIOService;
 
     @PostMapping("/conversations")
     public ResponseEntity<ConversationResponse> createConversation(
@@ -49,7 +51,16 @@ public class MessagingController {
             @AuthenticationPrincipal UserDetailsImpl userDetails,
             @Valid @RequestBody MessageRequest request
     ) {
-        return ResponseEntity.ok(messagingService.sendMessage(userDetails.getId(), request));
+        MessageResponse message = messagingService.sendMessage(userDetails.getId(), request);
+
+        // Broadcast to socket room so other participants receive it in real-time
+        socketIOService.broadcastToConversation(
+                request.getConversationId().toString(),
+                "newMessage",
+                message
+        );
+
+        return ResponseEntity.ok(message);
     }
 
     @GetMapping("/conversations/{conversationId}/messages")

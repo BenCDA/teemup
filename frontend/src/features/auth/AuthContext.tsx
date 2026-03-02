@@ -51,7 +51,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       if (token) {
         const response = await api.get<User>('/auth/me');
         setUser(response.data);
-        await socketService.connect();
+        // Socket connect is non-blocking — auth succeeds even if socket fails
+        socketService.connect().catch(() => {});
       }
     } catch (error) {
       await clearTokens();
@@ -65,7 +66,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     const response = await api.post<AuthResponse>('/auth/login', { email, password });
     await setTokens(response.data.accessToken, response.data.refreshToken);
     setUser(response.data.user);
-    await socketService.connect();
+    // Socket connect is non-blocking — auth succeeds even if socket fails
+    socketService.connect().catch(() => {});
   };
 
   const register = async (email: string, password: string, firstName: string, lastName: string, verificationImage: string, isPro: boolean = false) => {
@@ -79,7 +81,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     });
     await setTokens(response.data.accessToken, response.data.refreshToken);
     setUser(response.data.user);
-    await socketService.connect();
+    // Socket connect is non-blocking — auth succeeds even if socket fails
+    socketService.connect().catch(() => {});
   };
 
   const logout = async () => {

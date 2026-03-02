@@ -1,4 +1,4 @@
-import { useState, useCallback, useEffect } from 'react';
+import { useState, useCallback, useEffect, useMemo } from 'react';
 import {
   View,
   Text,
@@ -14,7 +14,6 @@ import { router } from 'expo-router';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
-import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import * as Haptics from 'expo-haptics';
 import { messagingService } from '@/features/messaging/messagingService';
 import { friendService } from '@/features/friends/friendService';
@@ -22,18 +21,21 @@ import socketService from '@/features/shared/socket';
 import { Conversation, User } from '@/types';
 import { useAuth } from '@/features/auth/AuthContext';
 import { Avatar } from '@/components/ui';
-import { theme } from '@/features/shared/styles/theme';
+import { useTheme } from '@/features/shared/styles/ThemeContext';
+import { Theme } from '@/features/shared/styles/theme';
 
 export default function MessagesScreen() {
   const { user } = useAuth();
-  const insets = useSafeAreaInsets();
   const queryClient = useQueryClient();
   const [refreshing, setRefreshing] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
+  const theme = useTheme();
+  const styles = useMemo(() => createStyles(theme), [theme]);
 
   const { data: conversations, isLoading, refetch } = useQuery({
     queryKey: ['conversations'],
     queryFn: messagingService.getConversations,
+    staleTime: 0,
   });
 
   const { data: friends } = useQuery({
@@ -211,14 +213,14 @@ export default function MessagesScreen() {
 
   if (isLoading) {
     return (
-      <View style={[styles.loadingContainer, { paddingTop: insets.top }]}>
+      <View style={styles.loadingContainer}>
         <ActivityIndicator size="large" color={theme.colors.primary} />
       </View>
     );
   }
 
   return (
-    <View style={[styles.container, { paddingTop: insets.top }]}>
+    <View style={styles.container}>
       {/* Header */}
       <View style={styles.header}>
         <Text style={styles.headerTitle}>Messages</Text>
@@ -307,7 +309,7 @@ export default function MessagesScreen() {
   );
 }
 
-const styles = StyleSheet.create({
+const createStyles = (theme: Theme) => StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: theme.colors.background,

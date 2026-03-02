@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, useMemo } from 'react';
 import {
   View,
   Text,
@@ -10,7 +10,8 @@ import {
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
-import { theme } from '@/features/shared/styles/theme';
+import { useTheme } from '@/features/shared/styles/ThemeContext';
+import { Theme } from '@/features/shared/styles/theme';
 import { useLocation } from '@/hooks/useLocation';
 
 interface NominatimResult {
@@ -39,6 +40,9 @@ export function LocationPicker({
   onChange,
   placeholder = 'Ajouter une localisation',
 }: LocationPickerProps) {
+  const theme = useTheme();
+  const styles = useMemo(() => createStyles(theme), [theme]);
+
   const [isSearching, setIsSearching] = useState(false);
   const [searchText, setSearchText] = useState(value?.address || '');
   const [suggestions, setSuggestions] = useState<NominatimResult[]>([]);
@@ -231,7 +235,7 @@ export function LocationPicker({
   );
 }
 
-const styles = StyleSheet.create({
+const createStyles = (theme: Theme) => StyleSheet.create({
   container: {
     gap: theme.spacing.sm,
   },

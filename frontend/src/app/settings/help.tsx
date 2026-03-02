@@ -1,9 +1,11 @@
+import { useMemo } from 'react';
 import { View, Text, StyleSheet, ScrollView, Linking } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { TouchableOpacity } from 'react-native';
 import { router } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
-import { theme } from '@/features/shared/styles/theme';
+import { useTheme } from '@/features/shared/styles/ThemeContext';
+import { Theme } from '@/features/shared/styles/theme';
 
 const FAQ_ITEMS = [
   {
@@ -25,6 +27,9 @@ const FAQ_ITEMS = [
 ];
 
 export default function HelpScreen() {
+  const theme = useTheme();
+  const styles = useMemo(() => createStyles(theme), [theme]);
+
   const handleContact = () => {
     Linking.openURL('mailto:support@teemup.app');
   };
@@ -68,6 +73,8 @@ export default function HelpScreen() {
               question={item.question}
               answer={item.answer}
               isLast={index === FAQ_ITEMS.length - 1}
+              theme={theme}
+              styles={styles}
             />
           ))}
         </View>
@@ -80,12 +87,16 @@ export default function HelpScreen() {
             icon="document-text-outline"
             title="Conditions d'utilisation"
             onPress={() => {}}
+            theme={theme}
+            styles={styles}
           />
           <View style={styles.divider} />
           <LinkItem
             icon="shield-outline"
             title="Politique de confidentialité"
             onPress={() => {}}
+            theme={theme}
+            styles={styles}
           />
           <View style={styles.divider} />
           <LinkItem
@@ -93,6 +104,8 @@ export default function HelpScreen() {
             title="À propos de TeemUp"
             onPress={() => {}}
             isLast
+            theme={theme}
+            styles={styles}
           />
         </View>
 
@@ -110,9 +123,11 @@ interface FAQItemProps {
   question: string;
   answer: string;
   isLast?: boolean;
+  theme: Theme;
+  styles: ReturnType<typeof createStyles>;
 }
 
-function FAQItem({ question, answer, isLast }: FAQItemProps) {
+function FAQItem({ question, answer, isLast, theme, styles }: FAQItemProps) {
   return (
     <View style={[styles.faqItem, !isLast && styles.faqItemBorder]}>
       <View style={styles.faqQuestion}>
@@ -129,9 +144,11 @@ interface LinkItemProps {
   title: string;
   onPress: () => void;
   isLast?: boolean;
+  theme: Theme;
+  styles: ReturnType<typeof createStyles>;
 }
 
-function LinkItem({ icon, title, onPress }: LinkItemProps) {
+function LinkItem({ icon, title, onPress, theme, styles }: LinkItemProps) {
   return (
     <TouchableOpacity style={styles.linkItem} onPress={onPress} activeOpacity={0.6}>
       <Ionicons name={icon} size={20} color={theme.colors.text.secondary} />
@@ -141,7 +158,7 @@ function LinkItem({ icon, title, onPress }: LinkItemProps) {
   );
 }
 
-const styles = StyleSheet.create({
+const createStyles = (theme: Theme) => StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: theme.colors.background,

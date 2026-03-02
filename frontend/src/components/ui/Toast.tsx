@@ -1,4 +1,4 @@
-import React, { useEffect, useRef, createContext, useContext, useState, useCallback } from 'react';
+import React, { useEffect, useRef, createContext, useContext, useState, useCallback, useMemo } from 'react';
 import {
   View,
   Text,
@@ -8,7 +8,8 @@ import {
   SafeAreaView,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import { theme } from '@/features/shared/styles/theme';
+import { useTheme } from '@/features/shared/styles/ThemeContext';
+import { Theme } from '@/features/shared/styles/theme';
 
 type ToastType = 'success' | 'error' | 'warning' | 'info';
 
@@ -36,12 +37,12 @@ const iconMap: Record<ToastType, keyof typeof Ionicons.glyphMap> = {
   info: 'information-circle',
 };
 
-const colorMap: Record<ToastType, string> = {
+const getColorMap = (theme: Theme): Record<ToastType, string> => ({
   success: theme.colors.success,
   error: theme.colors.error,
   warning: theme.colors.warning,
   info: theme.colors.info,
-};
+});
 
 interface ToastProps extends ToastConfig {
   visible: boolean;
@@ -56,6 +57,9 @@ const Toast: React.FC<ToastProps> = ({
   visible,
   onHide,
 }) => {
+  const theme = useTheme();
+  const styles = useMemo(() => createStyles(theme), [theme]);
+  const colorMap = useMemo(() => getColorMap(theme), [theme]);
   const translateY = useRef(new Animated.Value(-100)).current;
   const opacity = useRef(new Animated.Value(0)).current;
 
@@ -189,7 +193,7 @@ export const useToast = (): ToastContextType => {
   return context;
 };
 
-const styles = StyleSheet.create({
+const createStyles = (theme: Theme) => StyleSheet.create({
   container: {
     position: 'absolute',
     top: 0,

@@ -260,6 +260,9 @@ class AuthServiceTest {
             RefreshTokenRequest request = new RefreshTokenRequest();
             request.setRefreshToken("validRefreshToken");
 
+            // Set stored hash to match "validRefreshToken" (SHA-256)
+            testUser.setRefreshToken("37358d092508668e00565187c0d9870f46d5c1ae843e6f8afe2b1182b99d2541");
+
             UserDetailsImpl userDetails = UserDetailsImpl.build(testUser);
 
             when(jwtService.extractUsernameFromRefreshToken("validRefreshToken")).thenReturn("test@example.com");

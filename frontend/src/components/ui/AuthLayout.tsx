@@ -1,7 +1,8 @@
-import React from 'react';
+import React, { useMemo } from 'react';
 import { View, StyleSheet, ScrollView, KeyboardAvoidingView, Platform } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { theme } from '@/features/shared/styles/theme';
+import { useTheme } from '@/features/shared/styles/ThemeContext';
+import { Theme } from '@/features/shared/styles/theme';
 import { AuthHeader } from './AuthHeader';
 
 interface AuthLayoutProps {
@@ -11,16 +12,19 @@ interface AuthLayoutProps {
 /**
  * Composant de mise en page d'authentification
  *
- * Fournit une mise en page cohérente avec en-tête fixe pour les écrans de connexion et d'inscription
- * L'en-tête reste en place tandis que le contenu s'anime
+ * Fournit une mise en page coherente avec en-tete fixe pour les ecrans de connexion et d'inscription
+ * L'en-tete reste en place tandis que le contenu s'anime
  */
 export const AuthLayout: React.FC<AuthLayoutProps> = ({ children }) => {
+  const theme = useTheme();
+  const styles = useMemo(() => createStyles(theme), [theme]);
+
   return (
     <SafeAreaView style={styles.safeArea} edges={['top']}>
-      {/* En-tête fixe - ne s'anime pas */}
+      {/* En-tete fixe - ne s'anime pas */}
       <AuthHeader />
 
-      {/* Zone de contenu animée */}
+      {/* Zone de contenu animee */}
       <KeyboardAvoidingView
         style={styles.container}
         behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
@@ -41,7 +45,7 @@ export const AuthLayout: React.FC<AuthLayoutProps> = ({ children }) => {
   );
 };
 
-const styles = StyleSheet.create({
+const createStyles = (theme: Theme) => StyleSheet.create({
   safeArea: {
     flex: 1,
     backgroundColor: theme.colors.background,

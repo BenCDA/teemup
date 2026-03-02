@@ -31,5 +31,5 @@ public class RegisterRequest {
     @NotBlank(message = "La photo de vérification est requise")
     private String verificationImage; // Base64 encoded selfie
 
-    private Boolean isPro = false; // Pro user status (can create paid events)
+    // isPro is managed server-side via subscription flow only
 }

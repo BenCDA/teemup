@@ -11,13 +11,13 @@ import {
 import { router } from 'expo-router';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { Ionicons } from '@expo/vector-icons';
-import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import * as Haptics from 'expo-haptics';
 import { notificationService } from '@/features/notifications/notificationService';
 import { friendService } from '@/features/friends/friendService';
 import { Notification } from '@/types';
 import { Avatar, EmptyState } from '@/components/ui';
-import { theme } from '@/features/shared/styles/theme';
+import { useTheme } from '@/features/shared/styles/ThemeContext';
+import { Theme } from '@/features/shared/styles/theme';
 
 // Icon and color config for each notification type
 const NOTIFICATION_CONFIG: Record<string, { icon: keyof typeof Ionicons.glyphMap; color: string; bgColor: string }> = {
@@ -32,8 +32,11 @@ const NOTIFICATION_CONFIG: Record<string, { icon: keyof typeof Ionicons.glyphMap
 
 export default function NotificationsScreen() {
   const [refreshing, setRefreshing] = useState(false);
+  const [pendingAcceptId, setPendingAcceptId] = useState<string | null>(null);
+  const [pendingRejectId, setPendingRejectId] = useState<string | null>(null);
   const queryClient = useQueryClient();
-  const insets = useSafeAreaInsets();
+  const theme = useTheme();
+  const styles = useMemo(() => createStyles(theme), [theme]);
 
   const { data, isLoading, refetch } = useQuery({
     queryKey: ['notifications'],
@@ -57,21 +60,31 @@ export default function NotificationsScreen() {
   });
 
   const acceptFriendMutation = useMutation({
-    mutationFn: friendService.acceptFriendRequest,
+    mutationFn: (referenceId: string) => {
+      setPendingAcceptId(referenceId);
+      return friendService.acceptFriendRequest(referenceId);
+    },
     onSuccess: () => {
+      setPendingAcceptId(null);
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
       queryClient.invalidateQueries({ queryKey: ['notifications'] });
       queryClient.invalidateQueries({ queryKey: ['friendRequests'] });
       queryClient.invalidateQueries({ queryKey: ['friends'] });
     },
+    onError: () => setPendingAcceptId(null),
   });
 
   const rejectFriendMutation = useMutation({
-    mutationFn: friendService.rejectFriendRequest,
+    mutationFn: (referenceId: string) => {
+      setPendingRejectId(referenceId);
+      return friendService.rejectFriendRequest(referenceId);
+    },
     onSuccess: () => {
+      setPendingRejectId(null);
       queryClient.invalidateQueries({ queryKey: ['notifications'] });
       queryClient.invalidateQueries({ queryKey: ['friendRequests'] });
     },
+    onError: () => setPendingRejectId(null),
   });
 
   const onRefresh = useCallback(async () => {
@@ -206,9 +219,9 @@ export default function NotificationsScreen() {
                   Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
                   acceptFriendMutation.mutate(item.referenceId!);
                 }}
-                disabled={acceptFriendMutation.isPending}
+                disabled={pendingAcceptId === item.referenceId || pendingRejectId === item.referenceId}
               >
-                {acceptFriendMutation.isPending ? (
+                {pendingAcceptId === item.referenceId ? (
                   <ActivityIndicator size="small" color="#fff" />
                 ) : (
                   <Text style={styles.acceptButtonText}>Accepter</Text>
@@ -220,7 +233,7 @@ export default function NotificationsScreen() {
                   Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
                   rejectFriendMutation.mutate(item.referenceId!);
                 }}
-                disabled={rejectFriendMutation.isPending}
+                disabled={pendingAcceptId === item.referenceId || pendingRejectId === item.referenceId}
               >
                 <Text style={styles.rejectButtonText}>Refuser</Text>
               </TouchableOpacity>
@@ -249,14 +262,14 @@ export default function NotificationsScreen() {
 
   if (isLoading) {
     return (
-      <View style={[styles.loadingContainer, { paddingTop: insets.top }]}>
+      <View style={styles.loadingContainer}>
         <ActivityIndicator size="large" color={theme.colors.primary} />
       </View>
     );
   }
 
   return (
-    <View style={[styles.container, { paddingTop: insets.top }]}>
+    <View style={styles.container}>
       {/* Header */}
       <View style={styles.header}>
         <Text style={styles.headerTitle}>Notifications</Text>
@@ -305,7 +318,7 @@ export default function NotificationsScreen() {
   );
 }
 
-const styles = StyleSheet.create({
+const createStyles = (theme: Theme) => StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: theme.colors.background,

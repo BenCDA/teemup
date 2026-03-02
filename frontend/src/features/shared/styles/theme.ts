@@ -1,53 +1,64 @@
 /**
- * Theme Configuration - Screaming Architecture
+ * Theme Configuration
  *
- * Centralized design tokens for consistent styling across the app
- * Usage: import { theme } from '@/shared/styles/theme'
+ * Centralized design tokens with light and dark mode support.
+ * Usage: import { useTheme } from '@/features/shared/styles/ThemeContext'
  */
 
-export const theme = {
-  colors: {
-    // Primary colors
-    primary: '#42A5F5',
-    primaryDark: '#2196F3',
-    primaryLight: '#64B5F6',
+const sharedColors = {
+  primary: '#42A5F5',
+  primaryDark: '#2196F3',
+  primaryLight: '#64B5F6',
+  sport: '#E67E22',
+  gold: '#F4D03F',
+  success: '#4CAF50',
+  warning: '#FF9800',
+  error: '#F44336',
+  info: '#2196F3',
+  google: '#DB4437',
+  facebook: '#4267B2',
+};
 
-    // Accent colors
-    sport: '#E67E22',        // Orange for sport tags
-    gold: '#F4D03F',         // Yellow/gold for profile wave
-
-    // Neutral colors
-    background: '#f5f5f5',
-    surface: '#ffffff',
-    border: '#e0e0e0',
-
-    // Text colors
-    text: {
-      primary: '#333333',
-      secondary: '#666666',
-      tertiary: '#999999',
-      inverse: '#ffffff',
-    },
-
-    // State colors
-    success: '#4CAF50',
-    warning: '#FF9800',
-    error: '#F44336',
-    info: '#2196F3',
-
-    // Input colors
-    input: {
-      background: '#e0e0e0',
-      border: '#ddd',
-      placeholder: '#999',
-    },
-
-    // Social colors
-    google: '#DB4437',
-    facebook: '#4267B2',
-    apple: '#000000',
+const lightColors = {
+  ...sharedColors,
+  background: '#f5f5f5',
+  surface: '#ffffff',
+  border: '#e0e0e0',
+  text: {
+    primary: '#333333',
+    secondary: '#666666',
+    tertiary: '#999999',
+    inverse: '#ffffff',
   },
+  input: {
+    background: '#e0e0e0',
+    border: '#ddd',
+    placeholder: '#999',
+  },
+  apple: '#000000',
+};
 
+const darkColors = {
+  ...sharedColors,
+  background: '#121212',
+  surface: '#1E1E1E',
+  border: '#333333',
+  text: {
+    primary: '#E0E0E0',
+    secondary: '#A0A0A0',
+    tertiary: '#666666',
+    inverse: '#121212',
+  },
+  input: {
+    background: '#2A2A2A',
+    border: '#444444',
+    placeholder: '#666666',
+  },
+  apple: '#FFFFFF',
+};
+
+const createTheme = (colors: typeof lightColors) => ({
+  colors,
   spacing: {
     xs: 4,
     sm: 8,
@@ -56,14 +67,12 @@ export const theme = {
     xl: 32,
     xxl: 48,
   },
-
   borderRadius: {
     sm: 8,
     md: 12,
     lg: 16,
     round: 50,
   },
-
   typography: {
     size: {
       xs: 12,
@@ -85,7 +94,6 @@ export const theme = {
       wide: 0.5,
     },
   },
-
   shadows: {
     sm: {
       shadowColor: '#000',
@@ -109,11 +117,13 @@ export const theme = {
       elevation: 8,
     },
   },
-
   layout: {
     containerPadding: 16,
     screenPadding: 28,
   },
-} as const;
+} as const);
 
-export type Theme = typeof theme;
+export const lightTheme = createTheme(lightColors);
+export const darkTheme = createTheme(darkColors);
+
+export type Theme = typeof lightTheme;

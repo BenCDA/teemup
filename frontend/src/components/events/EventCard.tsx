@@ -1,8 +1,10 @@
+import { useMemo } from 'react';
 import { View, Text, TouchableOpacity, StyleSheet, Image } from 'react-native';
 import { router } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { SportEvent } from '@/types';
-import { theme } from '@/features/shared/styles/theme';
+import { useTheme } from '@/features/shared/styles/ThemeContext';
+import { Theme } from '@/features/shared/styles/theme';
 import * as Haptics from 'expo-haptics';
 import { getSportConfig, getSportLabel } from '@/constants/sports';
 import { getCoverImageForSport } from '@/constants/defaultImages';
@@ -43,6 +45,9 @@ function getRecurrenceLabel(recurrence: string): string | null {
 }
 
 export function EventCard({ event, showDistance = true }: EventCardProps) {
+  const theme = useTheme();
+  const styles = useMemo(() => createStyles(theme), [theme]);
+
   const sportConfig = getSportConfig(event.sport);
   const sportColor = sportConfig?.color || theme.colors.primary;
   const recurrenceLabel = getRecurrenceLabel(event.recurrence);
@@ -53,7 +58,14 @@ export function EventCard({ event, showDistance = true }: EventCardProps) {
   };
 
   return (
-    <TouchableOpacity style={styles.card} onPress={handlePress} activeOpacity={0.9}>
+    <TouchableOpacity
+      style={styles.card}
+      onPress={handlePress}
+      activeOpacity={0.9}
+      accessibilityRole="button"
+      accessibilityLabel={`${event.title}, ${getSportLabel(event.sport)}, ${formatDate(event.date)} à ${formatTime(event.startTime)}`}
+      accessibilityHint="Appuyez pour voir les détails de l'événement"
+    >
       {/* Cover Image */}
       <View style={styles.coverContainer}>
         <Image
@@ -126,7 +138,7 @@ export function EventCard({ event, showDistance = true }: EventCardProps) {
   );
 }
 
-const styles = StyleSheet.create({
+const createStyles = (theme: Theme) => StyleSheet.create({
   card: {
     backgroundColor: theme.colors.surface,
     borderRadius: theme.borderRadius.lg,

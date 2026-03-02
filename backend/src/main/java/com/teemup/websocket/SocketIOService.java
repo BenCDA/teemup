@@ -2,7 +2,6 @@ package com.teemup.websocket;
 
 import com.corundumstudio.socketio.SocketIOClient;
 import com.corundumstudio.socketio.SocketIOServer;
-import com.teemup.dto.messaging.MessageResponse;
 import com.teemup.entity.User;
 import com.teemup.security.JwtService;
 import com.teemup.service.MessagingService;
@@ -36,7 +35,8 @@ public class SocketIOService {
 
         socketIOServer.addEventListener("joinConversation", String.class, this::onJoinConversation);
         socketIOServer.addEventListener("leaveConversation", String.class, this::onLeaveConversation);
-        socketIOServer.addEventListener("sendMessage", Map.class, this::onSendMessage);
+        // sendMessage is handled via REST API (MessagingController) which broadcasts via broadcastToConversation()
+        // Removing socket handler to prevent double DB insert
         socketIOServer.addEventListener("typing", Map.class, this::onTyping);
         socketIOServer.addEventListener("stopTyping", Map.class, this::onStopTyping);
         socketIOServer.addEventListener("markRead", Map.class, this::onMarkRead);
@@ -100,34 +100,6 @@ public class SocketIOService {
         String room = "conversation-" + conversationId;
         client.leaveRoom(room);
         log.debug("Client left room: {}", room);
-    }
-
-    @SuppressWarnings("unchecked")
-    private void onSendMessage(SocketIOClient client, Map<String, Object> data, com.corundumstudio.socketio.AckRequest ackRequest) {
-        UUID userId = sessionToUser.get(client.getSessionId().toString());
-        if (userId == null) {
-            client.sendEvent("error", Map.of("message", "Not authenticated"));
-            return;
-        }
-
-        try {
-            String conversationId = (String) data.get("conversationId");
-            String content = (String) data.get("content");
-
-            com.teemup.dto.messaging.MessageRequest request = new com.teemup.dto.messaging.MessageRequest();
-            request.setConversationId(UUID.fromString(conversationId));
-            request.setContent(content);
-
-            MessageResponse message = messagingService.sendMessage(userId, request);
-
-            String room = "conversation-" + conversationId;
-            socketIOServer.getRoomOperations(room).sendEvent("newMessage", message);
-
-            log.debug("Message sent to room: {}", room);
-        } catch (Exception e) {
-            log.error("Error sending message: {}", e.getMessage());
-            client.sendEvent("error", Map.of("message", "Failed to send message"));
-        }
     }
 
     @SuppressWarnings("unchecked")

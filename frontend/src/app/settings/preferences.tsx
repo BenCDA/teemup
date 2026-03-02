@@ -3,11 +3,15 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { TouchableOpacity } from 'react-native';
 import { router } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
-import { useState } from 'react';
+import { useState, useMemo } from 'react';
 import * as Haptics from 'expo-haptics';
-import { theme } from '@/features/shared/styles/theme';
+import { useTheme } from '@/features/shared/styles/ThemeContext';
+import { Theme } from '@/features/shared/styles/theme';
 
 export default function PreferencesScreen() {
+  const theme = useTheme();
+  const styles = useMemo(() => createStyles(theme), [theme]);
+
   // Privacy settings
   const [profileVisible, setProfileVisible] = useState(true);
   const [showLocation, setShowLocation] = useState(true);
@@ -55,6 +59,8 @@ export default function PreferencesScreen() {
             description="Les autres utilisateurs peuvent voir votre profil"
             value={profileVisible}
             onValueChange={handleToggle(setProfileVisible)}
+            theme={theme}
+            styles={styles}
           />
           <View style={styles.divider} />
           <SettingRow
@@ -63,6 +69,8 @@ export default function PreferencesScreen() {
             description="Montrer votre ville sur votre profil"
             value={showLocation}
             onValueChange={handleToggle(setShowLocation)}
+            theme={theme}
+            styles={styles}
           />
           <View style={styles.divider} />
           <SettingRow
@@ -71,6 +79,8 @@ export default function PreferencesScreen() {
             description="Montrer votre âge sur votre profil"
             value={showAge}
             onValueChange={handleToggle(setShowAge)}
+            theme={theme}
+            styles={styles}
           />
           <View style={styles.divider} />
           <SettingRow
@@ -79,6 +89,8 @@ export default function PreferencesScreen() {
             description="Autoriser les autres à vous envoyer des messages"
             value={allowMessages}
             onValueChange={handleToggle(setAllowMessages)}
+            theme={theme}
+            styles={styles}
           />
         </View>
 
@@ -96,6 +108,8 @@ export default function PreferencesScreen() {
             value={pushEnabled}
             onValueChange={handleToggle(setPushEnabled)}
             highlight
+            theme={theme}
+            styles={styles}
           />
         </View>
 
@@ -109,6 +123,8 @@ export default function PreferencesScreen() {
             value={friendRequests}
             onValueChange={handleToggle(setFriendRequests)}
             disabled={!pushEnabled}
+            theme={theme}
+            styles={styles}
           />
           <View style={styles.divider} />
           <SettingRow
@@ -118,6 +134,8 @@ export default function PreferencesScreen() {
             value={messages}
             onValueChange={handleToggle(setMessages)}
             disabled={!pushEnabled}
+            theme={theme}
+            styles={styles}
           />
         </View>
 
@@ -131,6 +149,8 @@ export default function PreferencesScreen() {
             value={eventReminders}
             onValueChange={handleToggle(setEventReminders)}
             disabled={!pushEnabled}
+            theme={theme}
+            styles={styles}
           />
           <View style={styles.divider} />
           <SettingRow
@@ -140,6 +160,8 @@ export default function PreferencesScreen() {
             value={eventUpdates}
             onValueChange={handleToggle(setEventUpdates)}
             disabled={!pushEnabled}
+            theme={theme}
+            styles={styles}
           />
           <View style={styles.divider} />
           <SettingRow
@@ -149,6 +171,8 @@ export default function PreferencesScreen() {
             value={newEvents}
             onValueChange={handleToggle(setNewEvents)}
             disabled={!pushEnabled}
+            theme={theme}
+            styles={styles}
           />
         </View>
 
@@ -181,9 +205,11 @@ interface SettingRowProps {
   onValueChange: (value: boolean) => void;
   disabled?: boolean;
   highlight?: boolean;
+  theme: Theme;
+  styles: ReturnType<typeof createStyles>;
 }
 
-function SettingRow({ icon, title, description, value, onValueChange, disabled, highlight }: SettingRowProps) {
+function SettingRow({ icon, title, description, value, onValueChange, disabled, highlight, theme, styles }: SettingRowProps) {
   return (
     <View style={[styles.settingRow, disabled && styles.settingRowDisabled]}>
       <View style={[
@@ -215,7 +241,7 @@ function SettingRow({ icon, title, description, value, onValueChange, disabled, 
   );
 }
 
-const styles = StyleSheet.create({
+const createStyles = (theme: Theme) => StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: theme.colors.background,

@@ -1,4 +1,4 @@
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useMemo } from 'react';
 import {
   View,
   Text,
@@ -19,9 +19,11 @@ import * as Haptics from 'expo-haptics';
 import { userService } from '@/features/user/userService';
 import { friendService } from '@/features/friends/friendService';
 import { messagingService } from '@/features/messaging/messagingService';
+import { moderationService } from '@/features/moderation/moderationService';
 import { useAuth } from '@/features/auth/AuthContext';
 import { Avatar, SportBadge, ProBadge } from '@/components/ui';
-import { theme } from '@/features/shared/styles/theme';
+import { useTheme } from '@/features/shared/styles/ThemeContext';
+import { Theme } from '@/features/shared/styles/theme';
 import { User, SportEvent, AxiosApiError } from '@/types';
 import { getSportConfig, getSportLabel, getSportKey } from '@/constants/sports';
 import { getUserCoverImage, getCoverImageForSport } from '@/constants/defaultImages';
@@ -35,6 +37,8 @@ export default function UserProfileScreen() {
   const queryClient = useQueryClient();
   const insets = useSafeAreaInsets();
   const [refreshing, setRefreshing] = useState(false);
+  const theme = useTheme();
+  const styles = useMemo(() => createStyles(theme), [theme]);
 
   const { data: user, isLoading: userLoading } = useQuery({
     queryKey: ['user', id],
@@ -120,6 +124,73 @@ export default function UserProfileScreen() {
     }
   };
 
+  const reportMutation = useMutation({
+    mutationFn: ({ reason, description }: { reason: string; description?: string }) =>
+      moderationService.reportUser(id!, reason, description),
+    onSuccess: () => {
+      Alert.alert('Merci', 'Votre signalement a été envoyé.');
+    },
+    onError: (error: AxiosApiError) => {
+      Alert.alert('Erreur', error.response?.data?.message || 'Une erreur est survenue');
+    },
+  });
+
+  const blockMutation = useMutation({
+    mutationFn: () => moderationService.blockUser(id!),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['friends'] });
+      queryClient.invalidateQueries({ queryKey: ['discoverUsers'] });
+      queryClient.invalidateQueries({ queryKey: ['conversations'] });
+      Alert.alert('Utilisateur bloqué', 'Vous ne verrez plus cet utilisateur.');
+      router.back();
+    },
+    onError: (error: AxiosApiError) => {
+      Alert.alert('Erreur', error.response?.data?.message || 'Une erreur est survenue');
+    },
+  });
+
+  const handleMoreActions = () => {
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+    Alert.alert(
+      'Actions',
+      '',
+      [
+        {
+          text: 'Signaler',
+          style: 'destructive',
+          onPress: () => {
+            Alert.alert(
+              'Signaler l\'utilisateur',
+              'Choisissez une raison :',
+              [
+                { text: 'Comportement inapproprié', onPress: () => reportMutation.mutate({ reason: 'INAPPROPRIATE_BEHAVIOR' }) },
+                { text: 'Spam', onPress: () => reportMutation.mutate({ reason: 'SPAM' }) },
+                { text: 'Harcèlement', onPress: () => reportMutation.mutate({ reason: 'HARASSMENT' }) },
+                { text: 'Faux profil', onPress: () => reportMutation.mutate({ reason: 'FAKE_PROFILE' }) },
+                { text: 'Annuler', style: 'cancel' },
+              ]
+            );
+          },
+        },
+        {
+          text: 'Bloquer',
+          style: 'destructive',
+          onPress: () => {
+            Alert.alert(
+              'Bloquer cet utilisateur ?',
+              'Vous ne verrez plus ce profil et ne pourrez plus échanger de messages.',
+              [
+                { text: 'Annuler', style: 'cancel' },
+                { text: 'Bloquer', style: 'destructive', onPress: () => blockMutation.mutate() },
+              ]
+            );
+          },
+        },
+        { text: 'Annuler', style: 'cancel' },
+      ]
+    );
+  };
+
   const handleBack = () => {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
     router.back();
@@ -169,6 +240,13 @@ export default function UserProfileScreen() {
     return (
       <View style={styles.errorContainer}>
         <Text style={styles.errorText}>Utilisateur non trouvé</Text>
+        <TouchableOpacity
+          style={styles.errorBackButton}
+          onPress={() => router.back()}
+        >
+          <Ionicons name="arrow-back" size={18} color={theme.colors.primary} />
+          <Text style={styles.errorBackText}>Retour</Text>
+        </TouchableOpacity>
       </View>
     );
   }
@@ -214,6 +292,16 @@ export default function UserProfileScreen() {
           >
             <Ionicons name="chevron-back" size={28} color="#333" />
           </TouchableOpacity>
+
+          {/* More Actions Button (Report/Block) */}
+          {!isOwnProfile && (
+            <TouchableOpacity
+              style={[styles.moreButton, { top: insets.top + 8 }]}
+              onPress={handleMoreActions}
+            >
+              <Ionicons name="ellipsis-horizontal" size={24} color="#333" />
+            </TouchableOpacity>
+          )}
 
           {/* Avatar */}
           <View style={styles.avatarWrapper}>
@@ -347,7 +435,7 @@ export default function UserProfileScreen() {
 }
 
 
-const styles = StyleSheet.create({
+const createStyles = (theme: Theme) => StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: theme.colors.surface,
@@ -370,6 +458,19 @@ const styles = StyleSheet.create({
   errorText: {
     fontSize: theme.typography.size.lg,
     color: theme.colors.text.secondary,
+    marginBottom: theme.spacing.md,
+  },
+  errorBackButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: theme.spacing.xs,
+    paddingVertical: theme.spacing.sm,
+    paddingHorizontal: theme.spacing.md,
+  },
+  errorBackText: {
+    fontSize: theme.typography.size.md,
+    color: theme.colors.primary,
+    fontWeight: theme.typography.weight.medium,
   },
   headerContainer: {
     height: HEADER_HEIGHT + AVATAR_SIZE / 2,
@@ -391,6 +492,18 @@ const styles = StyleSheet.create({
   backButton: {
     position: 'absolute',
     left: 16,
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: 'rgba(255,255,255,0.9)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    zIndex: 10,
+    ...theme.shadows.sm,
+  },
+  moreButton: {
+    position: 'absolute',
+    right: 16,
     width: 40,
     height: 40,
     borderRadius: 20,

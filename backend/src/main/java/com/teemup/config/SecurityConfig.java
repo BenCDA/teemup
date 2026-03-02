@@ -2,6 +2,7 @@ package com.teemup.config;
 
 import com.teemup.security.JwtAuthenticationFilter;
 import lombok.RequiredArgsConstructor;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.security.authentication.AuthenticationManager;
@@ -47,7 +48,10 @@ public class SecurityConfig {
                                 "/api/events/public/**",
                                 "/api/events/nearby",
                                 "/ws/**",
-                                "/socket.io/**"
+                                "/socket.io/**",
+                                "/api-docs/**",
+                                "/swagger-ui/**",
+                                "/swagger-ui.html"
                         ).permitAll()
                         .anyRequest().authenticated()
                 )
@@ -60,18 +64,15 @@ public class SecurityConfig {
         return http.build();
     }
 
+    @Value("${cors.allowed-origin-patterns:}")
+    private String corsAllowedOriginPatterns;
+
     @Bean
     public CorsConfigurationSource corsConfigurationSource() {
         CorsConfiguration configuration = new CorsConfiguration();
         // Restrict CORS to known origins (development + Expo)
-        // In production, replace with actual frontend domain
-        configuration.setAllowedOriginPatterns(List.of(
-                "http://localhost:*",           // Local development
-                "http://127.0.0.1:*",           // Local development
-                "http://192.168.*.*:*",         // Local network (Expo)
-                "exp://*",                       // Expo Go app
-                "https://*.expo.dev"            // Expo web
-        ));
+        // In production, set CORS_ALLOWED_ORIGIN_PATTERNS env var
+        configuration.setAllowedOriginPatterns(resolveAllowedOriginPatterns());
         configuration.setAllowedMethods(Arrays.asList("GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"));
         configuration.setAllowedHeaders(Arrays.asList("Authorization", "Content-Type", "X-Requested-With"));
         configuration.setExposedHeaders(List.of("Authorization"));
@@ -81,6 +82,22 @@ public class SecurityConfig {
         UrlBasedCorsConfigurationSource source = new UrlBasedCorsConfigurationSource();
         source.registerCorsConfiguration("/**", configuration);
         return source;
+    }
+
+    private List<String> resolveAllowedOriginPatterns() {
+        if (corsAllowedOriginPatterns != null && !corsAllowedOriginPatterns.isBlank()) {
+            return Arrays.stream(corsAllowedOriginPatterns.split(","))
+                    .map(String::trim)
+                    .filter(value -> !value.isEmpty())
+                    .toList();
+        }
+        return List.of(
+                "http://localhost:*",           // Local development
+                "http://127.0.0.1:*",           // Local development
+                "http://192.168.*.*:*",         // Local network (Expo)
+                "exp://*",                       // Expo Go app
+                "https://*.expo.dev"            // Expo web
+        );
     }
 
     @Bean

@@ -1,6 +1,7 @@
-import React, { useEffect, useRef } from 'react';
+import React, { useEffect, useRef, useMemo } from 'react';
 import { View, StyleSheet, Animated, ViewStyle } from 'react-native';
-import { theme } from '@/features/shared/styles/theme';
+import { useTheme } from '@/features/shared/styles/ThemeContext';
+import { Theme } from '@/features/shared/styles/theme';
 
 interface SkeletonProps {
   width?: number | string;
@@ -17,9 +18,12 @@ interface SkeletonProps {
 export const Skeleton: React.FC<SkeletonProps> = ({
   width = '100%',
   height = 20,
-  borderRadius = theme.borderRadius.sm,
+  borderRadius,
   style,
 }) => {
+  const theme = useTheme();
+  const styles = useMemo(() => createStyles(theme), [theme]);
+  const resolvedBorderRadius = borderRadius ?? theme.borderRadius.sm;
   const shimmerAnim = useRef(new Animated.Value(0)).current;
 
   useEffect(() => {
@@ -54,7 +58,7 @@ export const Skeleton: React.FC<SkeletonProps> = ({
         {
           width,
           height,
-          borderRadius,
+          borderRadius: resolvedBorderRadius,
           opacity,
         },
         style,
@@ -67,18 +71,23 @@ export const Skeleton: React.FC<SkeletonProps> = ({
 export const SkeletonText: React.FC<{ lines?: number; style?: ViewStyle }> = ({
   lines = 3,
   style,
-}) => (
-  <View style={[styles.textContainer, style]}>
-    {Array.from({ length: lines }).map((_, index) => (
-      <Skeleton
-        key={index}
-        width={index === lines - 1 ? '60%' : '100%'}
-        height={14}
-        style={styles.textLine}
-      />
-    ))}
-  </View>
-);
+}) => {
+  const theme = useTheme();
+  const styles = useMemo(() => createStyles(theme), [theme]);
+
+  return (
+    <View style={[styles.textContainer, style]}>
+      {Array.from({ length: lines }).map((_, index) => (
+        <Skeleton
+          key={index}
+          width={index === lines - 1 ? '60%' : '100%'}
+          height={14}
+          style={styles.textLine}
+        />
+      ))}
+    </View>
+  );
+};
 
 export const SkeletonAvatar: React.FC<{ size?: number; style?: ViewStyle }> = ({
   size = 50,
@@ -92,20 +101,25 @@ export const SkeletonAvatar: React.FC<{ size?: number; style?: ViewStyle }> = ({
   />
 );
 
-export const SkeletonCard: React.FC<{ style?: ViewStyle }> = ({ style }) => (
-  <View style={[styles.card, style]}>
-    <View style={styles.cardHeader}>
-      <SkeletonAvatar size={40} />
-      <View style={styles.cardHeaderText}>
-        <Skeleton width={120} height={16} />
-        <Skeleton width={80} height={12} style={{ marginTop: 4 }} />
-      </View>
-    </View>
-    <SkeletonText lines={2} style={{ marginTop: 12 }} />
-  </View>
-);
+export const SkeletonCard: React.FC<{ style?: ViewStyle }> = ({ style }) => {
+  const theme = useTheme();
+  const styles = useMemo(() => createStyles(theme), [theme]);
 
-const styles = StyleSheet.create({
+  return (
+    <View style={[styles.card, style]}>
+      <View style={styles.cardHeader}>
+        <SkeletonAvatar size={40} />
+        <View style={styles.cardHeaderText}>
+          <Skeleton width={120} height={16} />
+          <Skeleton width={80} height={12} style={{ marginTop: 4 }} />
+        </View>
+      </View>
+      <SkeletonText lines={2} style={{ marginTop: 12 }} />
+    </View>
+  );
+};
+
+const createStyles = (theme: Theme) => StyleSheet.create({
   skeleton: {
     backgroundColor: theme.colors.border,
   },

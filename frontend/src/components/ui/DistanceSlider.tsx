@@ -1,4 +1,4 @@
-import { useState, useRef, useCallback } from 'react';
+import { useState, useRef, useCallback, useMemo } from 'react';
 import {
   View,
   Text,
@@ -8,7 +8,8 @@ import {
   LayoutChangeEvent,
 } from 'react-native';
 import * as Haptics from 'expo-haptics';
-import { theme } from '@/features/shared/styles/theme';
+import { useTheme } from '@/features/shared/styles/ThemeContext';
+import { Theme } from '@/features/shared/styles/theme';
 
 interface DistanceSliderProps {
   value: number;
@@ -27,6 +28,9 @@ export function DistanceSlider({
   step = 1,
   label = 'Distance maximale',
 }: DistanceSliderProps) {
+  const theme = useTheme();
+  const styles = useMemo(() => createStyles(theme), [theme]);
+
   const [sliderWidth, setSliderWidth] = useState(0);
   const animatedValue = useRef(new Animated.Value(0)).current;
   const lastHapticValue = useRef(value);
@@ -133,7 +137,7 @@ export function DistanceSlider({
   );
 }
 
-const styles = StyleSheet.create({
+const createStyles = (theme: Theme) => StyleSheet.create({
   container: {
     paddingVertical: theme.spacing.md,
   },

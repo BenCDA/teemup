@@ -8,7 +8,7 @@ import lombok.Data;
 import lombok.NoArgsConstructor;
 
 import java.time.LocalDateTime;
-import java.util.Set;
+import java.util.List;
 import java.util.UUID;
 import java.util.stream.Collectors;
 
@@ -21,7 +21,7 @@ public class ConversationResponse {
     private UUID id;
     private String name;
     private String type;
-    private Set<UserResponse> participants;
+    private List<UserResponse> participants;
     private MessageResponse lastMessage;
     private Long unreadCount;
     private LocalDateTime lastMessageAt;
@@ -34,7 +34,7 @@ public class ConversationResponse {
                 .type(conversation.getType().name())
                 .participants(conversation.getParticipants().stream()
                         .map(UserResponse::fromEntity)
-                        .collect(Collectors.toSet()))
+                        .collect(Collectors.toList()))
                 .lastMessageAt(conversation.getLastMessageAt())
                 .createdAt(conversation.getCreatedAt())
                 .build();

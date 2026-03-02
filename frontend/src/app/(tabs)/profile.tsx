@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useMemo } from 'react';
 import {
   View,
   Text,
@@ -12,6 +12,8 @@ import {
   ActivityIndicator,
   ImageBackground,
   Dimensions,
+  KeyboardAvoidingView,
+  Platform,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { router } from 'expo-router';
@@ -22,7 +24,8 @@ import * as Haptics from 'expo-haptics';
 import { useAuth } from '@/features/auth/AuthContext';
 import api from '@/features/shared/api';
 import { Avatar, Card, SportBadge, ProBadge } from '@/components/ui';
-import { theme } from '@/features/shared/styles/theme';
+import { useTheme } from '@/features/shared/styles/ThemeContext';
+import { Theme } from '@/features/shared/styles/theme';
 import { SPORTS } from '@/constants/sports';
 
 const { width: SCREEN_WIDTH } = Dimensions.get('window');
@@ -31,6 +34,8 @@ const AVATAR_SIZE = 110;
 
 export default function ProfileScreen() {
   const { user, logout, updateUser } = useAuth();
+  const theme = useTheme();
+  const styles = useMemo(() => createStyles(theme), [theme]);
   const [showEditModal, setShowEditModal] = useState(false);
   const [editBio, setEditBio] = useState(user?.bio || '');
   const [editProfilePicture, setEditProfilePicture] = useState<string | null>(user?.profilePicture || null);
@@ -300,6 +305,8 @@ export default function ProfileScreen() {
               icon="person-outline"
               label="Modifier le profil"
               onPress={openEditModal}
+              theme={theme}
+              styles={styles}
             />
             {user?.isPro ? (
               <MenuItem
@@ -307,18 +314,24 @@ export default function ProfileScreen() {
                 label="Mon abonnement Pro"
                 onPress={() => router.push('/settings/subscription')}
                 iconColor="#FFD700"
+                theme={theme}
+                styles={styles}
               />
             ) : null}
             <MenuItem
               icon="settings-outline"
               label="Paramètres"
               onPress={() => router.push('/settings/preferences')}
+              theme={theme}
+              styles={styles}
             />
             <MenuItem
               icon="help-circle-outline"
               label="Aide & Support"
               onPress={() => router.push('/settings/help')}
               showDivider={false}
+              theme={theme}
+              styles={styles}
             />
           </Card>
 
@@ -339,6 +352,10 @@ export default function ProfileScreen() {
         onRequestClose={() => setShowEditModal(false)}
       >
         <SafeAreaView style={styles.modalContainer}>
+          <KeyboardAvoidingView
+            style={{ flex: 1 }}
+            behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+          >
           <View style={styles.modalHeader}>
             <TouchableOpacity onPress={() => setShowEditModal(false)} disabled={isSaving}>
               <Text style={[styles.modalCancel, isSaving && styles.modalTextDisabled]}>Annuler</Text>
@@ -457,6 +474,7 @@ export default function ProfileScreen() {
               </View>
             </View>
           </ScrollView>
+          </KeyboardAvoidingView>
         </SafeAreaView>
       </Modal>
     </View>
@@ -469,9 +487,11 @@ interface MenuItemProps {
   onPress: () => void;
   showDivider?: boolean;
   iconColor?: string;
+  theme: Theme;
+  styles: ReturnType<typeof createStyles>;
 }
 
-function MenuItem({ icon, label, onPress, showDivider = true, iconColor }: MenuItemProps) {
+function MenuItem({ icon, label, onPress, showDivider = true, iconColor, theme, styles }: MenuItemProps) {
   const color = iconColor || theme.colors.primary;
   return (
     <>
@@ -487,7 +507,7 @@ function MenuItem({ icon, label, onPress, showDivider = true, iconColor }: MenuI
   );
 }
 
-const styles = StyleSheet.create({
+const createStyles = (theme: Theme) => StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: theme.colors.background,

@@ -1,12 +1,13 @@
-import { useState } from 'react';
-import { View, Text, TouchableOpacity, StyleSheet, Alert, Image, ActivityIndicator, Animated } from 'react-native';
+import { useState, useMemo } from 'react';
+import { View, Text, TouchableOpacity, StyleSheet, Alert, Image, ActivityIndicator } from 'react-native';
 import { Link, router } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useAuth } from '@/features/auth/AuthContext';
 import { authService } from '@/features/auth/authService';
 import { Button, Input, AuthLayout, FaceVerificationCamera, LoadingOverlay, useToast } from '@/components/ui';
-import { theme } from '@/features/shared/styles/theme';
+import { useTheme } from '@/features/shared/styles/ThemeContext';
+import { Theme } from '@/features/shared/styles/theme';
 import { FaceVerificationResponse, AxiosApiError } from '@/types';
 
 const PRO_BENEFITS = [
@@ -30,6 +31,8 @@ export default function RegisterScreen() {
   const [isPro, setIsPro] = useState(false);
   const { register } = useAuth();
   const toast = useToast();
+  const theme = useTheme();
+  const styles = useMemo(() => createStyles(theme), [theme]);
 
   const validatePassword = (pwd: string): string | null => {
     if (pwd.length < 8) return 'Le mot de passe doit contenir au moins 8 caractères';
@@ -369,7 +372,7 @@ export default function RegisterScreen() {
   );
 }
 
-const styles = StyleSheet.create({
+const createStyles = (theme: Theme) => StyleSheet.create({
   title: {
     fontSize: theme.typography.size.xxl,
     fontWeight: theme.typography.weight.bold,

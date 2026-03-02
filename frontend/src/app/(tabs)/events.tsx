@@ -1,4 +1,4 @@
-import { useState, useCallback, useEffect } from 'react';
+import { useState, useCallback, useEffect, useRef, useMemo } from 'react';
 import {
   View,
   Text,
@@ -19,7 +19,8 @@ import { eventService } from '@/features/events/eventService';
 import { SportEvent } from '@/types';
 import { EventCard } from '@/components/events/EventCard';
 import { DistanceSlider, EmptyState } from '@/components/ui';
-import { theme } from '@/features/shared/styles/theme';
+import { useTheme } from '@/features/shared/styles/ThemeContext';
+import { Theme } from '@/features/shared/styles/theme';
 import { SPORTS, sportMatchesFilter, searchSports } from '@/constants/sports';
 import { useLocation } from '@/hooks/useLocation';
 import { useAuth } from '@/features/auth/AuthContext';
@@ -34,12 +35,68 @@ export default function EventsScreen() {
   const [showFilters, setShowFilters] = useState(false);
   const [sportSearch, setSportSearch] = useState('');
   const { user } = useAuth();
+  const theme = useTheme();
+  const styles = useMemo(() => createStyles(theme), [theme]);
 
   const { getCurrentLocation, latitude, longitude, isLoading: isLoadingLocation } = useLocation();
+
+  // Custom location state (city search)
+  const [customLocation, setCustomLocation] = useState<{ latitude: number; longitude: number; label: string } | null>(null);
+  const [citySearch, setCitySearch] = useState('');
+  const [citySuggestions, setCitySuggestions] = useState<Array<{ place_id: number; display_name: string; lat: string; lon: string }>>([]);
+  const [showCitySuggestions, setShowCitySuggestions] = useState(false);
+  const cityDebounceRef = useRef<NodeJS.Timeout | null>(null);
 
   useEffect(() => {
     getCurrentLocation();
   }, []);
+
+  // Nominatim city autocomplete
+  useEffect(() => {
+    if (cityDebounceRef.current) clearTimeout(cityDebounceRef.current);
+    if (citySearch.length < 3 || customLocation) {
+      setCitySuggestions([]);
+      setShowCitySuggestions(false);
+      return;
+    }
+    cityDebounceRef.current = setTimeout(async () => {
+      try {
+        const response = await fetch(
+          `https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(citySearch)}&limit=5&addressdetails=1`,
+          { headers: { 'User-Agent': 'TeemUp-App' } }
+        );
+        const data = await response.json();
+        setCitySuggestions(data);
+        setShowCitySuggestions(data.length > 0);
+      } catch {
+        setCitySuggestions([]);
+        setShowCitySuggestions(false);
+      }
+    }, 400);
+    return () => { if (cityDebounceRef.current) clearTimeout(cityDebounceRef.current); };
+  }, [citySearch, customLocation]);
+
+  // Effective coordinates: custom location overrides GPS
+  const effectiveLat = customLocation?.latitude ?? latitude;
+  const effectiveLng = customLocation?.longitude ?? longitude;
+
+  const handleSelectCity = (suggestion: { display_name: string; lat: string; lon: string }) => {
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    const label = suggestion.display_name.split(',').slice(0, 2).join(',').trim();
+    setCustomLocation({ latitude: parseFloat(suggestion.lat), longitude: parseFloat(suggestion.lon), label });
+    setCitySearch(label);
+    setCitySuggestions([]);
+    setShowCitySuggestions(false);
+  };
+
+  const handleResetToMyLocation = () => {
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    setCustomLocation(null);
+    setCitySearch('');
+    setCitySuggestions([]);
+    setShowCitySuggestions(false);
+    getCurrentLocation();
+  };
 
   // Discover events (nearby/public) - excluding user's own events and full events
   const {
@@ -47,13 +104,13 @@ export default function EventsScreen() {
     isLoading: isLoadingDiscover,
     refetch: refetchDiscover,
   } = useQuery({
-    queryKey: ['nearbyEvents', latitude, longitude, maxDistance],
+    queryKey: ['nearbyEvents', effectiveLat, effectiveLng, maxDistance],
     queryFn: async () => {
       let events;
-      if (latitude && longitude) {
+      if (effectiveLat && effectiveLng) {
         events = await eventService.getNearbyEvents({
-          latitude,
-          longitude,
+          latitude: effectiveLat,
+          longitude: effectiveLng,
           maxDistance,
         });
       } else {
@@ -166,16 +223,20 @@ export default function EventsScreen() {
   const filteredSports = sportSearch ? searchSports(sportSearch) : SPORTS.slice(0, 12);
 
   const renderEvent = ({ item }: { item: SportEvent }) => {
-    return <EventCard event={item} showDistance={activeTab === 'discover' && !!latitude && !!longitude} />;
+    return <EventCard event={item} showDistance={activeTab === 'discover' && !!effectiveLat && !!effectiveLng} />;
   };
 
-  const isLocationReady = latitude !== null && longitude !== null;
+  const isLocationReady = effectiveLat !== null && effectiveLng !== null;
 
   const ListHeader = () => (
     <View style={styles.listHeader}>
       <Text style={styles.resultsCount}>
         {displayedEvents?.length || 0} événement{(displayedEvents?.length || 0) > 1 ? 's' : ''}
-        {activeTab === 'discover' && isLocationReady ? ` dans un rayon de ${maxDistance} km` : ''}
+        {activeTab === 'discover' && isLocationReady
+          ? customLocation
+            ? ` à ${maxDistance} km de ${customLocation.label}`
+            : ` dans un rayon de ${maxDistance} km`
+          : ''}
       </Text>
     </View>
   );
@@ -296,8 +357,10 @@ export default function EventsScreen() {
             <View style={styles.headerRight}>
               {isLocationReady && (
                 <View style={styles.locationBadge}>
-                  <Ionicons name="location" size={12} color={theme.colors.success} />
-                  <Text style={styles.locationBadgeText}>{maxDistance} km</Text>
+                  <Ionicons name={customLocation ? 'location' : 'navigate'} size={12} color={theme.colors.success} />
+                  <Text style={styles.locationBadgeText}>
+                    {customLocation ? customLocation.label : `${maxDistance} km`}
+                  </Text>
                 </View>
               )}
               {selectedSports.length > 0 && (
@@ -315,6 +378,50 @@ export default function EventsScreen() {
           {/* Expandable Filters */}
           {showFilters && (
             <View style={styles.expandedFilters}>
+              {/* Location Search */}
+              <View style={styles.locationSection}>
+                <Text style={styles.locationSectionTitle}>Localisation</Text>
+                <View style={styles.citySearchContainer}>
+                  <Ionicons name="search" size={16} color={theme.colors.text.tertiary} />
+                  <TextInput
+                    style={styles.citySearchInput}
+                    placeholder="Rechercher une ville..."
+                    placeholderTextColor={theme.colors.text.tertiary}
+                    value={citySearch}
+                    onChangeText={(text) => {
+                      setCitySearch(text);
+                      if (customLocation) setCustomLocation(null);
+                    }}
+                  />
+                  {citySearch.length > 0 && (
+                    <TouchableOpacity onPress={() => { setCitySearch(''); setCustomLocation(null); setShowCitySuggestions(false); }}>
+                      <Ionicons name="close-circle" size={16} color={theme.colors.text.tertiary} />
+                    </TouchableOpacity>
+                  )}
+                </View>
+
+                {showCitySuggestions && citySuggestions.length > 0 && (
+                  <View style={styles.citySuggestionsContainer}>
+                    {citySuggestions.map((s) => (
+                      <TouchableOpacity key={s.place_id} style={styles.citySuggestionItem} onPress={() => handleSelectCity(s)}>
+                        <Ionicons name="location-outline" size={14} color={theme.colors.text.secondary} />
+                        <Text style={styles.citySuggestionText} numberOfLines={1}>{s.display_name}</Text>
+                      </TouchableOpacity>
+                    ))}
+                  </View>
+                )}
+
+                <TouchableOpacity style={styles.myLocationButton} onPress={handleResetToMyLocation}>
+                  <Ionicons name="navigate" size={16} color={customLocation ? theme.colors.text.secondary : theme.colors.primary} />
+                  <Text style={[styles.myLocationText, !customLocation && styles.myLocationTextActive]}>
+                    Ma position
+                  </Text>
+                  {!customLocation && latitude && longitude && (
+                    <View style={styles.myLocationDot} />
+                  )}
+                </TouchableOpacity>
+              </View>
+
               {/* Distance Slider */}
               {isLocationReady ? (
                 <View style={styles.distanceSection}>
@@ -482,7 +589,7 @@ export default function EventsScreen() {
   );
 }
 
-const styles = StyleSheet.create({
+const createStyles = (theme: Theme) => StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: theme.colors.background,
@@ -599,6 +706,73 @@ const styles = StyleSheet.create({
   expandedFilters: {
     paddingHorizontal: 16,
     paddingBottom: 14,
+  },
+  locationSection: {
+    marginBottom: 12,
+    gap: 8,
+  },
+  locationSectionTitle: {
+    fontSize: 13,
+    fontWeight: '600',
+    color: theme.colors.text.secondary,
+    marginBottom: 2,
+  },
+  citySearchContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: theme.colors.background,
+    borderRadius: 10,
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    gap: 8,
+  },
+  citySearchInput: {
+    flex: 1,
+    fontSize: 14,
+    color: theme.colors.text.primary,
+    padding: 0,
+  },
+  citySuggestionsContainer: {
+    backgroundColor: theme.colors.surface,
+    borderRadius: 10,
+    borderWidth: 1,
+    borderColor: theme.colors.border,
+    overflow: 'hidden',
+  },
+  citySuggestionItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    paddingVertical: 10,
+    paddingHorizontal: 12,
+    borderBottomWidth: 1,
+    borderBottomColor: theme.colors.border,
+  },
+  citySuggestionText: {
+    flex: 1,
+    fontSize: 13,
+    color: theme.colors.text.primary,
+  },
+  myLocationButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    paddingVertical: 4,
+  },
+  myLocationText: {
+    fontSize: 13,
+    color: theme.colors.text.secondary,
+    fontWeight: '500',
+  },
+  myLocationTextActive: {
+    color: theme.colors.primary,
+    fontWeight: '600',
+  },
+  myLocationDot: {
+    width: 6,
+    height: 6,
+    borderRadius: 3,
+    backgroundColor: theme.colors.success,
   },
   distanceSection: {
     marginBottom: 12,

@@ -16,6 +16,8 @@ from app.config import (
     MIN_BLUR_SCORE,
     MAX_EDGE_DENSITY,
     MIN_AGE,
+    MIN_GENDER_CONFIDENCE,
+    AGE_ESTIMATION_MARGIN,
     DETECTOR_BACKEND,
 )
 from app.schemas import VerificationResponse, AntiSpoofResponse
@@ -129,11 +131,16 @@ class FaceVerificationService:
                     dominant_gender = str(gender_data)
                     gender_confidence = 0.5
 
-                gender_fr = self.translate_gender(dominant_gender)
-                age_range = self.get_age_range(age)
-                is_adult = age >= MIN_AGE
+                # Apply confidence check on gender
+                if gender_confidence < MIN_GENDER_CONFIDENCE:
+                    dominant_gender = 'Unknown'
 
-                logger.info(f"Analyse réussie: age={age}, gender={gender_fr}, adult={is_adult}")
+                gender_fr = self.translate_gender(dominant_gender) if dominant_gender != 'Unknown' else 'Indéterminé'
+                age_range = self.get_age_range(age)
+                # Apply age estimation margin: must be >= MIN_AGE even with margin of error
+                is_adult = (age - AGE_ESTIMATION_MARGIN) >= MIN_AGE
+
+                logger.info(f"Analyse réussie: age={age} (margin={AGE_ESTIMATION_MARGIN}), gender={gender_fr}, confidence={gender_confidence:.2f}, adult={is_adult}")
 
                 return VerificationResponse(
                     success=True,
@@ -224,7 +231,3 @@ class FaceVerificationService:
                 confidence=0,
                 message="Erreur lors de l'analyse. Veuillez réessayer."
             )
-
-
-# Instance singleton du service
-face_service = FaceVerificationService()

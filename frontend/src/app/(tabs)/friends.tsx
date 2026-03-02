@@ -1,4 +1,4 @@
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useMemo } from 'react';
 import {
   View,
   Text,
@@ -17,7 +17,8 @@ import { friendService } from '@/features/friends/friendService';
 import { messagingService } from '@/features/messaging/messagingService';
 import { User, FriendRequest } from '@/types';
 import { Avatar, EmptyState } from '@/components/ui';
-import { theme } from '@/features/shared/styles/theme';
+import { useTheme } from '@/features/shared/styles/ThemeContext';
+import { Theme } from '@/features/shared/styles/theme';
 
 type TabType = 'friends' | 'requests';
 
@@ -25,6 +26,8 @@ export default function FriendsScreen() {
   const [activeTab, setActiveTab] = useState<TabType>('friends');
   const [refreshing, setRefreshing] = useState(false);
   const queryClient = useQueryClient();
+  const theme = useTheme();
+  const styles = useMemo(() => createStyles(theme), [theme]);
 
   const { data: friends, isLoading: friendsLoading, refetch: refetchFriends } = useQuery({
     queryKey: ['friends'],
@@ -216,7 +219,7 @@ export default function FriendsScreen() {
   );
 }
 
-const styles = StyleSheet.create({
+const createStyles = (theme: Theme) => StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: theme.colors.background,

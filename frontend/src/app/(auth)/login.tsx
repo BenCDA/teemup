@@ -1,9 +1,10 @@
-import { useState } from 'react';
+import { useState, useMemo } from 'react';
 import { View, Text, TouchableOpacity, StyleSheet, Alert } from 'react-native';
 import { Link, router } from 'expo-router';
 import { useAuth } from '@/features/auth/AuthContext';
 import { Button, Input, AuthLayout } from '@/components/ui';
-import { theme } from '@/features/shared/styles/theme';
+import { useTheme } from '@/features/shared/styles/ThemeContext';
+import { Theme } from '@/features/shared/styles/theme';
 import { AxiosApiError } from '@/types';
 
 export default function LoginScreen() {
@@ -11,6 +12,8 @@ export default function LoginScreen() {
   const [password, setPassword] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const { login } = useAuth();
+  const theme = useTheme();
+  const styles = useMemo(() => createStyles(theme), [theme]);
 
   const handleLogin = async () => {
     if (!email.trim() || !password.trim()) {
@@ -84,13 +87,18 @@ export default function LoginScreen() {
   );
 }
 
-const styles = StyleSheet.create({
+const createStyles = (theme: Theme) => StyleSheet.create({
   title: {
     fontSize: theme.typography.size.xxl,
     fontWeight: theme.typography.weight.bold,
     marginBottom: theme.spacing.sm,
     letterSpacing: theme.typography.letterSpacing.tight,
     color: theme.colors.text.primary,
+  },
+  subtitle: {
+    fontSize: theme.typography.size.md,
+    color: theme.colors.text.secondary,
+    marginBottom: theme.spacing.lg,
   },
   loginButton: {
     marginTop: theme.spacing.sm,
