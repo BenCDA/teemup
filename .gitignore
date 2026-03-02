@@ -25,10 +25,18 @@
 ._*
 Thumbs.db
 ehthumbs.db
+~$*
 
 # Logs
 *.log
 logs/
+
+# Python (face-verification)
+__pycache__/
+*.py[cod]
+*.egg-info/
+.venv/
+venv/
 
 # Documentation (local only)
 docs/
