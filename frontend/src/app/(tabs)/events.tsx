@@ -17,7 +17,7 @@ import * as Haptics from 'expo-haptics';
 import { LinearGradient } from 'expo-linear-gradient';
 import { eventService } from '@/features/events/eventService';
 import { SportEvent } from '@/types';
-import { EventCard } from '@/components/events/EventCard';
+import EventCard from '@/components/events/EventCard';
 import { DistanceSlider, EmptyState } from '@/components/ui';
 import { useTheme } from '@/features/shared/styles/ThemeContext';
 import { Theme } from '@/features/shared/styles/theme';
@@ -49,7 +49,7 @@ export default function EventsScreen() {
 
   useEffect(() => {
     getCurrentLocation();
-  }, []);
+  }, [getCurrentLocation]);
 
   // Nominatim city autocomplete
   useEffect(() => {
@@ -481,7 +481,7 @@ export default function EventsScreen() {
                   <Ionicons
                     name="globe-outline"
                     size={16}
-                    color={selectedSports.length === 0 ? '#fff' : theme.colors.text.secondary}
+                    color={selectedSports.length === 0 ? theme.colors.text.inverse : theme.colors.text.secondary}
                   />
                   <Text style={[
                     styles.filterChipText,
@@ -514,7 +514,7 @@ export default function EventsScreen() {
                       <Ionicons
                         name={sport.icon}
                         size={16}
-                        color={isSelected ? '#fff' : sport.color}
+                        color={isSelected ? theme.colors.text.inverse : sport.color}
                       />
                       <Text style={[
                         styles.filterChipText,
@@ -577,12 +577,12 @@ export default function EventsScreen() {
         activeOpacity={0.9}
       >
         <LinearGradient
-          colors={[theme.colors.primary, '#1a1a2e']}
+          colors={[theme.colors.primary, theme.colors.primaryDark]}
           start={{ x: 0, y: 0 }}
           end={{ x: 1, y: 1 }}
           style={styles.fabGradient}
         >
-          <Ionicons name="add" size={28} color="#fff" />
+          <Ionicons name="add" size={28} color={theme.colors.text.inverse} />
         </LinearGradient>
       </TouchableOpacity>
     </View>
@@ -636,7 +636,7 @@ const createStyles = (theme: Theme) => StyleSheet.create({
     paddingHorizontal: 4,
   },
   tabBadgeText: {
-    color: '#fff',
+    color: theme.colors.text.inverse,
     fontSize: 10,
     fontWeight: '700',
   },
@@ -839,13 +839,13 @@ const createStyles = (theme: Theme) => StyleSheet.create({
     color: theme.colors.text.secondary,
   },
   filterChipTextActive: {
-    color: '#fff',
+    color: theme.colors.text.inverse,
   },
   checkBadge: {
     width: 16,
     height: 16,
     borderRadius: 8,
-    backgroundColor: '#fff',
+    backgroundColor: theme.colors.surface,
     alignItems: 'center',
     justifyContent: 'center',
     marginLeft: 2,

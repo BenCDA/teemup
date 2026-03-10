@@ -1,6 +1,9 @@
 package com.teemup.service;
 
-import com.teemup.dto.messaging.*;
+import com.teemup.dto.messaging.ConversationRequest;
+import com.teemup.dto.messaging.ConversationResponse;
+import com.teemup.dto.messaging.MessageRequest;
+import com.teemup.dto.messaging.MessageResponse;
 import com.teemup.entity.Conversation;
 import com.teemup.entity.Message;
 import com.teemup.entity.User;
@@ -17,7 +20,12 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDateTime;
-import java.util.*;
+import java.util.HashSet;
+import java.util.List;
+import java.util.Map;
+import java.util.Optional;
+import java.util.Set;
+import java.util.UUID;
 import java.util.stream.Collectors;
 
 @Service
@@ -255,5 +263,12 @@ public class MessagingService {
 
     public Optional<Conversation> findPrivateConversation(UUID user1Id, UUID user2Id) {
         return conversationRepository.findPrivateConversation(user1Id, user2Id);
+    }
+
+    public boolean isParticipant(UUID conversationId, UUID userId) {
+        return conversationRepository.findById(conversationId)
+                .map(conv -> conv.getParticipants().stream()
+                        .anyMatch(p -> p.getId().equals(userId)))
+                .orElse(false);
     }
 }

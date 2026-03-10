@@ -9,6 +9,10 @@ import org.springframework.context.annotation.Bean;
 @org.springframework.context.annotation.Configuration
 public class SocketIOConfig {
 
+    private static final int PING_TIMEOUT_MS = 60_000;
+    private static final int PING_INTERVAL_MS = 25_000;
+    private static final int UPGRADE_TIMEOUT_MS = 10_000;
+
     @Value("${socketio.host}")
     private String host;
 
@@ -26,9 +30,9 @@ public class SocketIOConfig {
         config.setHostname(host);
         config.setPort(port);
         config.setOrigin(allowedOrigins);
-        config.setPingTimeout(60000);
-        config.setPingInterval(25000);
-        config.setUpgradeTimeout(10000);
+        config.setPingTimeout(PING_TIMEOUT_MS);
+        config.setPingInterval(PING_INTERVAL_MS);
+        config.setUpgradeTimeout(UPGRADE_TIMEOUT_MS);
 
         server = new SocketIOServer(config);
         return server;

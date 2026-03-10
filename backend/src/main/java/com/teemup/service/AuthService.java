@@ -1,6 +1,9 @@
 package com.teemup.service;
 
-import com.teemup.dto.auth.*;
+import com.teemup.dto.auth.AuthResponse;
+import com.teemup.dto.auth.LoginRequest;
+import com.teemup.dto.auth.RefreshTokenRequest;
+import com.teemup.dto.auth.RegisterRequest;
 import com.teemup.dto.user.UserResponse;
 import com.teemup.dto.verification.FaceVerificationResponse;
 import com.teemup.entity.User;
@@ -68,7 +71,12 @@ public class AuthService {
             throw new FaceVerificationException("Vous devez avoir 18 ans ou plus pour vous inscrire. Âge détecté: " + verification.getAge() + " ans.");
         }
 
-        log.info("Face verification passed: age={}, gender={}", verification.getAge(), verification.getGender());
+        // Anti-spoof check: reject fake photos (screen captures, printed photos)
+        if (!verification.isRealFace()) {
+            throw new FaceVerificationException("La vérification anti-usurpation a échoué. Veuillez prendre une photo réelle de votre visage dans un endroit bien éclairé.");
+        }
+
+        log.info("Face verification passed: age={}, gender={}, realFace={}", verification.getAge(), verification.getGender(), verification.isRealFace());
 
         User user = User.builder()
                 .email(request.getEmail())
@@ -141,9 +149,9 @@ public class AuthService {
             throw new InvalidTokenException("Token de rafraîchissement invalide");
         }
 
-        // Verify the token matches the stored hash (prevents reuse of old tokens)
-        String tokenHash = hashToken(refreshToken);
-        if (user.getRefreshToken() == null || !tokenHash.equals(user.getRefreshToken())) {
+        // Verify token matches the one stored in DB (hashed)
+        String storedHash = user.getRefreshToken();
+        if (storedHash == null || !storedHash.equals(hashToken(refreshToken))) {
             throw new InvalidTokenException("Token de rafraîchissement révoqué");
         }
 

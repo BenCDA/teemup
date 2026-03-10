@@ -62,12 +62,13 @@ const MessageItem = React.memo(({
 
   // Séparateur de date : On compare avec le message SUIVANT (plus vieux)
   // Si la date change par rapport au message précédent dans l'historique, on affiche le séparateur
+  const nextItemCreatedAt = nextItem?.createdAt;
   const shouldShowDateSeparator = useMemo(() => {
-    if (!nextItem) return true; // Premier message de l'histoire
+    if (!nextItemCreatedAt) return true; // Premier message de l'histoire
     const currentDate = new Date(item.createdAt).toDateString();
-    const prevDate = new Date(nextItem.createdAt).toDateString();
+    const prevDate = new Date(nextItemCreatedAt).toDateString();
     return currentDate !== prevDate;
-  }, [item.createdAt, nextItem?.createdAt]);
+  }, [item.createdAt, nextItemCreatedAt]);
 
   const formatDateSeparator = (dateString: string) => {
     const date = new Date(dateString);
@@ -110,7 +111,7 @@ const MessageItem = React.memo(({
         <View style={[styles.bubbleContainer, isOwnMessage && styles.bubbleContainerOwn]}>
           {isOwnMessage ? (
             <LinearGradient
-              colors={[theme.colors.primary, '#6366F1']}
+              colors={[theme.colors.primary, theme.colors.primaryDark]}
               start={{ x: 0, y: 0 }}
               end={{ x: 1, y: 1 }}
               style={[
@@ -126,7 +127,7 @@ const MessageItem = React.memo(({
                 <Ionicons
                   name={isOptimistic ? "time-outline" : "checkmark-done"}
                   size={isOptimistic ? 12 : 14}
-                  color={`rgba(255,255,255,${isOptimistic ? 0.5 : 0.7})`}
+                  color={isOptimistic ? `${theme.colors.text.inverse}80` : `${theme.colors.text.inverse}B3`}
                   style={styles.readIcon}
                 />
               </View>
@@ -171,7 +172,7 @@ export default function ConversationScreen() {
   // Chargement Conversation Info
   const { data: conversation } = useQuery({
     queryKey: ['conversation', conversationId],
-    queryFn: () => messagingService.getConversation(conversationId!),
+    queryFn: () => messagingService.getConversation(conversationId ?? ''),
     enabled: !!conversationId,
     staleTime: 0,
   });
@@ -179,7 +180,7 @@ export default function ConversationScreen() {
   // Chargement Messages
   const { data: messagesData, isLoading: messagesLoading } = useQuery({
     queryKey: ['messages', conversationId],
-    queryFn: () => messagingService.getMessages(conversationId!),
+    queryFn: () => messagingService.getMessages(conversationId ?? ''),
     enabled: !!conversationId,
     staleTime: 0,
   });
@@ -194,7 +195,7 @@ export default function ConversationScreen() {
 
   // Mutation envoi message
   const sendMessageMutation = useMutation({
-    mutationFn: (content: string) => messagingService.sendMessage(conversationId!, content),
+    mutationFn: (content: string) => messagingService.sendMessage(conversationId ?? '', content),
     onSuccess: (savedMessage) => {
       setMessages(prev => {
         // Remplacer le message temporaire par le réel
@@ -261,8 +262,9 @@ export default function ConversationScreen() {
       });
 
       // Cleanup précédent
-      if (typingTimeoutsRef.current.has(userId)) {
-        clearTimeout(typingTimeoutsRef.current.get(userId)!);
+      const existingTimeout = typingTimeoutsRef.current.get(userId);
+      if (existingTimeout) {
+        clearTimeout(existingTimeout);
       }
 
       // Auto-stop typing après 5s de sécurité
@@ -277,8 +279,9 @@ export default function ConversationScreen() {
     const handleUserStoppedTyping = ({ userId, conversationId: convId }: { userId: string; conversationId: string }) => {
       if (convId !== conversationId) return;
       setTypingUsers(prev => prev.filter(id => id !== userId));
-      if (typingTimeoutsRef.current.has(userId)) {
-        clearTimeout(typingTimeoutsRef.current.get(userId)!);
+      const stoppedTimeout = typingTimeoutsRef.current.get(userId);
+      if (stoppedTimeout) {
+        clearTimeout(stoppedTimeout);
         typingTimeoutsRef.current.delete(userId);
       }
     };
@@ -287,13 +290,14 @@ export default function ConversationScreen() {
     const unsubTyping = socketService.on('userTyping', handleUserTyping);
     const unsubStopTyping = socketService.on('userStoppedTyping', handleUserStoppedTyping);
 
+    const timeouts = typingTimeoutsRef.current;
     return () => {
       socketService.leaveConversation(conversationId);
       unsubNewMessage();
       unsubTyping();
       unsubStopTyping();
-      typingTimeoutsRef.current.forEach(clearTimeout);
-      typingTimeoutsRef.current.clear();
+      timeouts.forEach(clearTimeout);
+      timeouts.clear();
     };
   }, [conversationId, user]);
 
@@ -353,7 +357,7 @@ export default function ConversationScreen() {
     );
     animation.start();
     return () => animation.stop();
-  }, [typingUsers.length]);
+  }, [typingUsers.length, typingDotsAnim]);
 
   // Handler Envoi
   const handleSend = useCallback(() => {
@@ -471,7 +475,7 @@ export default function ConversationScreen() {
           <Ionicons
             name={socketStatus === 'connecting' ? 'sync' : 'cloud-offline'}
             size={14}
-            color="#fff"
+            color={theme.colors.text.inverse}
           />
           <Text style={styles.statusText}>
             {socketStatus === 'connecting' ? 'Connexion en cours...' : 'Pas de connexion'}
@@ -519,7 +523,7 @@ export default function ConversationScreen() {
         {typingUsers.length > 0 && (
           <View style={styles.typingContainer}>
             <View style={styles.typingBubble}>
-              <Text style={styles.typingText}>En train d'écrire</Text>
+              <Text style={styles.typingText}>En train d{"'"}écrire</Text>
               <Animated.View style={{ opacity: typingDotsAnim }}>
                 <Text style={styles.typingDots}>...</Text>
               </Animated.View>
@@ -555,9 +559,9 @@ export default function ConversationScreen() {
               activeOpacity={0.8}
             >
               {sendMessageMutation.isPending ? (
-                <ActivityIndicator size="small" color="#fff" />
+                <ActivityIndicator size="small" color={theme.colors.text.inverse} />
               ) : (
-                <Ionicons name="arrow-up" size={20} color="#fff" />
+                <Ionicons name="arrow-up" size={20} color={theme.colors.text.inverse} />
               )}
             </TouchableOpacity>
           ) : (
@@ -620,7 +624,7 @@ const createStyles = (theme: Theme) => StyleSheet.create({
   },
   headerSubtitle: {
     fontSize: 13,
-    color: '#22C55E',
+    color: theme.colors.success,
     marginTop: 1,
   },
   headerSubtitleOffline: {
@@ -639,14 +643,14 @@ const createStyles = (theme: Theme) => StyleSheet.create({
     width: 14,
     height: 14,
     borderRadius: 7,
-    backgroundColor: '#22C55E',
+    backgroundColor: theme.colors.success,
     borderWidth: 2,
     borderColor: theme.colors.surface,
   },
 
   // Status Banner
   statusBanner: {
-    backgroundColor: '#F59E0B',
+    backgroundColor: theme.colors.warning,
     paddingVertical: 6,
     paddingHorizontal: 16,
     flexDirection: 'row',
@@ -655,10 +659,10 @@ const createStyles = (theme: Theme) => StyleSheet.create({
     gap: 6,
   },
   statusBannerError: {
-    backgroundColor: '#EF4444',
+    backgroundColor: theme.colors.error,
   },
   statusText: {
-    color: '#fff',
+    color: theme.colors.text.inverse,
     fontSize: 13,
     fontWeight: '600',
   },
@@ -742,7 +746,7 @@ const createStyles = (theme: Theme) => StyleSheet.create({
   },
   messageTextOwn: {
     fontSize: 16,
-    color: '#fff',
+    color: theme.colors.text.inverse,
     lineHeight: 22,
   },
 
@@ -762,7 +766,7 @@ const createStyles = (theme: Theme) => StyleSheet.create({
   },
   timeTextOwn: {
     fontSize: 11,
-    color: 'rgba(255,255,255,0.7)',
+    color: `${theme.colors.text.inverse}B3`,
   },
   readIcon: {
     marginLeft: 0,

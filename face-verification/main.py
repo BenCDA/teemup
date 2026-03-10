@@ -30,6 +30,9 @@ face_service = FaceVerificationService()
 # Rate limiter par IP
 limiter = Limiter(key_func=get_remote_address, default_limits=[f"{RATE_LIMIT_PER_MINUTE}/minute"])
 
+# Track model readiness
+models_loaded = False
+
 
 # =============================================================================
 # Authentification par clé API
@@ -47,8 +50,10 @@ async def verify_api_key(x_api_key: str = Header(...)):
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
+    global models_loaded
     # Startup
-    await face_service.preload_models()
+    face_service.preload_models()
+    models_loaded = True
     logger.info("Service de vérification faciale prêt")
     yield
     # Shutdown (cleanup if needed)
@@ -81,12 +86,13 @@ app.add_middleware(
 @app.get("/health", response_model=HealthResponse)
 async def health_check():
     """Health check endpoint."""
-    return HealthResponse(status="healthy", service="face-verification")
+    status = "healthy" if models_loaded else "degraded"
+    return HealthResponse(status=status, service="face-verification")
 
 
 @app.post("/verify", response_model=VerificationResponse, dependencies=[Depends(verify_api_key)])
 @limiter.limit(f"{RATE_LIMIT_PER_MINUTE}/minute")
-async def verify_face(request: Request, body: Base64ImageRequest):
+def verify_face(request: Request, body: Base64ImageRequest):
     """
     Analyse une image pour détecter l'âge et le genre.
 
@@ -95,7 +101,8 @@ async def verify_face(request: Request, body: Base64ImageRequest):
     Retourne les informations sur l'âge, le genre et si la personne est majeure.
     """
     try:
-        return await face_service.verify_face(body.image)
+        client_ip = get_remote_address(request)
+        return face_service.verify_face(body.image, client_ip=client_ip)
     except ValueError as e:
         raise HTTPException(status_code=400, detail=str(e))
     except Exception as e:
@@ -115,19 +122,26 @@ async def verify_face_file(request: Request, file: UploadFile = File(...)):
     - **file**: Fichier image (JPEG, PNG)
     """
     try:
-        contents = await file.read()
+        # Validate content type
+        if file.content_type not in ["image/jpeg", "image/png", "image/jpg"]:
+            raise HTTPException(status_code=400, detail="Format non supporté. Utilisez JPEG ou PNG.")
 
+        # Read file with size limit
+        contents = await file.read()
         if len(contents) > MAX_IMAGE_SIZE:
             raise HTTPException(
-                status_code=400,
-                detail=f"Image trop volumineuse. Maximum: {MAX_IMAGE_SIZE // (1024*1024)} MB"
+                status_code=413,
+                detail=f"Image trop volumineuse (max {MAX_IMAGE_SIZE // (1024*1024)}MB)"
             )
 
         image_base64 = base64.b64encode(contents).decode('utf-8')
-        return await face_service.verify_face(image_base64)
+        client_ip = get_remote_address(request)
+        return face_service.verify_face(image_base64, client_ip=client_ip)
 
     except HTTPException:
         raise
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
     except Exception as e:
         logger.error(f"Erreur de vérification fichier: {str(e)}")
         raise HTTPException(
@@ -138,7 +152,7 @@ async def verify_face_file(request: Request, file: UploadFile = File(...)):
 
 @app.post("/anti-spoof", response_model=AntiSpoofResponse, dependencies=[Depends(verify_api_key)])
 @limiter.limit(f"{RATE_LIMIT_PER_MINUTE}/minute")
-async def check_anti_spoof(request: Request, body: Base64ImageRequest):
+def check_anti_spoof(request: Request, body: Base64ImageRequest):
     """
     Vérifie si l'image est une vraie photo ou une capture d'écran.
 
@@ -146,7 +160,16 @@ async def check_anti_spoof(request: Request, body: Base64ImageRequest):
 
     Effectue des vérifications de qualité (résolution, flou, patterns).
     """
-    return await face_service.check_anti_spoof(body.image)
+    try:
+        return face_service.check_anti_spoof(body.image)
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+    except Exception as e:
+        logger.error(f"Erreur anti-spoof: {str(e)}")
+        raise HTTPException(
+            status_code=500,
+            detail="Erreur lors de la vérification. Veuillez réessayer."
+        )
 
 
 # =============================================================================

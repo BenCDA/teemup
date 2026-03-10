@@ -1,4 +1,4 @@
-import { useMemo } from 'react';
+import React, { useMemo } from 'react';
 import { View, Text, TouchableOpacity, StyleSheet, Image, ActivityIndicator, Alert } from 'react-native';
 import { router } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
@@ -19,7 +19,7 @@ interface UserCardProps {
   hasPendingRequest?: boolean;
 }
 
-export function UserCard({ user, onAddFriend, onCancelRequest, isAddingFriend, hasPendingRequest }: UserCardProps) {
+function UserCard({ user, onAddFriend, onCancelRequest, isAddingFriend, hasPendingRequest }: UserCardProps) {
   const theme = useTheme();
   const styles = useMemo(() => createStyles(theme), [theme]);
 
@@ -274,3 +274,5 @@ const createStyles = (theme: Theme) => StyleSheet.create({
     fontWeight: theme.typography.weight.semibold,
   },
 });
+
+export default React.memo(UserCard);

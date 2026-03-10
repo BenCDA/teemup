@@ -89,6 +89,7 @@ POSTGRES_PASSWORD=your_secure_password
 # JWT (générer des secrets aléatoires en production)
 JWT_SECRET=your-256-bit-secret-key-minimum-32-chars
 JWT_REFRESH_SECRET=your-refresh-secret-key-minimum-32-chars
+FACE_VERIFICATION_API_KEY=your-random-face-verification-api-key
 
 # Cloudinary (optionnel - pour upload d'images)
 CLOUDINARY_CLOUD_NAME=your_cloud_name

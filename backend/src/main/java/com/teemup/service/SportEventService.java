@@ -2,19 +2,34 @@ package com.teemup.service;
 
 import com.teemup.dto.event.CreateSportEventRequest;
 import com.teemup.dto.event.SportEventResponse;
+import com.teemup.dto.event.UpdateSportEventRequest;
 import com.teemup.entity.EventParticipant;
 import com.teemup.entity.Notification;
 import com.teemup.entity.SportEvent;
 import com.teemup.entity.User;
-import com.teemup.exception.*;
+import com.teemup.exception.CannotJoinOwnEventException;
+import com.teemup.exception.EventFullException;
+import com.teemup.exception.EventNotFoundException;
+import com.teemup.exception.InvalidLocationException;
+import com.teemup.exception.NotParticipatingException;
+import com.teemup.exception.ParticipantNotFoundException;
+import com.teemup.exception.PrivateEventException;
+import com.teemup.exception.ProUserRequiredException;
+import com.teemup.exception.UnauthorizedEventAccessException;
+import com.teemup.exception.UserAlreadyParticipatingException;
+import com.teemup.exception.UserNotFoundException;
 import com.teemup.repository.EventParticipantRepository;
 import com.teemup.repository.SportEventRepository;
 import com.teemup.repository.UserRepository;
 import lombok.RequiredArgsConstructor;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDate;
+import java.time.LocalTime;
 import java.util.List;
 import java.util.UUID;
 import java.util.stream.Collectors;
@@ -22,6 +37,8 @@ import java.util.stream.Collectors;
 @Service
 @RequiredArgsConstructor
 public class SportEventService {
+
+    private static final double KM_PER_LATITUDE_DEGREE = 111.0;
 
     private final SportEventRepository sportEventRepository;
     private final EventParticipantRepository eventParticipantRepository;
@@ -61,6 +78,7 @@ public class SportEventService {
         return SportEventResponse.fromEntity(event);
     }
 
+    @Transactional(readOnly = true)
     public List<SportEventResponse> getUserEvents(UUID userId) {
         return sportEventRepository.findByUserIdOrderByDateAscStartTimeAsc(userId).stream()
                 .map(SportEventResponse::fromEntity)
@@ -71,6 +89,7 @@ public class SportEventService {
      * Get user's upcoming events. If requesterId equals userId, returns all events.
      * Otherwise, returns only public events (respects privacy).
      */
+    @Transactional(readOnly = true)
     public List<SportEventResponse> getUserUpcomingEvents(UUID userId, UUID requesterId) {
         return sportEventRepository.findByUserIdAndDateGreaterThanEqualOrderByDateAscStartTimeAsc(userId, LocalDate.now()).stream()
                 .filter(event -> event.getIsPublic() || event.getUser().getId().equals(requesterId))
@@ -111,6 +130,66 @@ public class SportEventService {
 
     @Transactional
     public SportEventResponse updateEvent(UUID eventId, UUID userId, CreateSportEventRequest request) {
+        return updateEventInternal(
+                eventId,
+                userId,
+                request.getSport(),
+                request.getTitle(),
+                request.getDescription(),
+                request.getLocation(),
+                request.getLatitude(),
+                request.getLongitude(),
+                request.getDate(),
+                request.getStartTime(),
+                request.getEndTime(),
+                request.getRecurrence(),
+                request.getIsPublic(),
+                request.getMaxParticipants(),
+                request.getIsPaid(),
+                request.getPrice()
+        );
+    }
+
+    @Transactional
+    public SportEventResponse updateEvent(UUID eventId, UUID userId, UpdateSportEventRequest request) {
+        return updateEventInternal(
+                eventId,
+                userId,
+                request.getSport(),
+                request.getTitle(),
+                request.getDescription(),
+                request.getLocation(),
+                request.getLatitude(),
+                request.getLongitude(),
+                request.getDate(),
+                request.getStartTime(),
+                request.getEndTime(),
+                request.getRecurrence(),
+                request.getIsPublic(),
+                request.getMaxParticipants(),
+                request.getIsPaid(),
+                request.getPrice()
+        );
+    }
+
+    private SportEventResponse updateEventInternal(
+            UUID eventId,
+            UUID userId,
+            String sport,
+            String title,
+            String description,
+            String location,
+            Double latitude,
+            Double longitude,
+            LocalDate date,
+            LocalTime startTime,
+            LocalTime endTime,
+            String recurrence,
+            Boolean isPublic,
+            Integer maxParticipants,
+            Boolean isPaidRequest,
+            Double price
+    ) {
         SportEvent event = sportEventRepository.findById(eventId)
                 .orElseThrow(() -> new EventNotFoundException(eventId));
 
@@ -119,25 +198,25 @@ public class SportEventService {
         }
 
         // Check if user is Pro before allowing paid events
-        Boolean isPaid = request.getIsPaid() != null && request.getIsPaid();
+        Boolean isPaid = isPaidRequest != null && isPaidRequest;
         if (isPaid && !Boolean.TRUE.equals(event.getUser().getIsPro())) {
             throw new ProUserRequiredException();
         }
 
-        event.setSport(request.getSport());
-        event.setTitle(request.getTitle());
-        event.setDescription(request.getDescription());
-        event.setLocation(request.getLocation());
-        event.setLatitude(request.getLatitude());
-        event.setLongitude(request.getLongitude());
-        event.setDate(request.getDate());
-        event.setStartTime(request.getStartTime());
-        event.setEndTime(request.getEndTime());
-        event.setRecurrence(SportEvent.RecurrenceType.valueOf(request.getRecurrence()));
-        event.setIsPublic(request.getIsPublic());
-        event.setMaxParticipants(request.getMaxParticipants());
+        event.setSport(sport);
+        event.setTitle(title);
+        event.setDescription(description);
+        event.setLocation(location);
+        event.setLatitude(latitude);
+        event.setLongitude(longitude);
+        event.setDate(date);
+        event.setStartTime(startTime);
+        event.setEndTime(endTime);
+        event.setRecurrence(SportEvent.RecurrenceType.valueOf(recurrence));
+        event.setIsPublic(isPublic);
+        event.setMaxParticipants(maxParticipants);
         event.setIsPaid(isPaid);
-        event.setPrice(isPaid ? request.getPrice() : null);
+        event.setPrice(isPaid ? price : null);
 
         event = sportEventRepository.save(event);
         return SportEventResponse.fromEntity(event);
@@ -155,21 +234,38 @@ public class SportEventService {
         sportEventRepository.delete(event);
     }
 
+    @Transactional(readOnly = true)
     public List<SportEventResponse> getPublicEvents() {
         return sportEventRepository.findPublicEventsFromDate(LocalDate.now()).stream()
                 .map(SportEventResponse::fromEntity)
                 .collect(Collectors.toList());
     }
 
+    @Transactional(readOnly = true)
+    public Page<SportEventResponse> getPublicEvents(int page, int size) {
+        Pageable pageable = PageRequest.of(page, size);
+        return sportEventRepository.findPublicEventsFromDate(LocalDate.now(), pageable)
+                .map(SportEventResponse::fromEntity);
+    }
+
+    @Transactional(readOnly = true)
     public List<SportEventResponse> getPublicEventsBySport(String sport) {
         return sportEventRepository.findPublicEventsBySportFromDate(sport, LocalDate.now()).stream()
                 .map(SportEventResponse::fromEntity)
                 .collect(Collectors.toList());
     }
 
+    @Transactional(readOnly = true)
+    public Page<SportEventResponse> getPublicEventsBySport(String sport, int page, int size) {
+        Pageable pageable = PageRequest.of(page, size);
+        return sportEventRepository.findPublicEventsBySportFromDate(sport, LocalDate.now(), pageable)
+                .map(SportEventResponse::fromEntity);
+    }
+
     /**
      * Search public events within a certain distance from user's location.
      */
+    @Transactional(readOnly = true)
     public List<SportEventResponse> searchEventsNearby(
             Double userLatitude,
             Double userLongitude,
@@ -180,11 +276,37 @@ public class SportEventService {
             throw new InvalidLocationException();
         }
 
+        double clampedLatitude = Math.max(-90.0, Math.min(90.0, userLatitude));
+        double latitudeDelta = maxDistanceKm / KM_PER_LATITUDE_DEGREE;
+        double latitudeRadians = Math.toRadians(clampedLatitude);
+        double cosLatitude = Math.cos(latitudeRadians);
+        double longitudeDelta = Math.abs(cosLatitude) < 1e-6
+                ? 180.0
+                : maxDistanceKm / (KM_PER_LATITUDE_DEGREE * Math.abs(cosLatitude));
+
+        double minLatitude = Math.max(-90.0, clampedLatitude - latitudeDelta);
+        double maxLatitude = Math.min(90.0, clampedLatitude + latitudeDelta);
+        double minLongitude = Math.max(-180.0, userLongitude - longitudeDelta);
+        double maxLongitude = Math.min(180.0, userLongitude + longitudeDelta);
+
         List<SportEvent> events;
         if (sport != null && !sport.isBlank()) {
-            events = sportEventRepository.findPublicEventsBySportFromDate(sport, LocalDate.now());
+            events = sportEventRepository.findPublicEventsBySportInBoundingBoxFromDate(
+                    sport,
+                    LocalDate.now(),
+                    minLatitude,
+                    maxLatitude,
+                    minLongitude,
+                    maxLongitude
+            );
         } else {
-            events = sportEventRepository.findPublicEventsFromDate(LocalDate.now());
+            events = sportEventRepository.findPublicEventsInBoundingBoxFromDate(
+                    LocalDate.now(),
+                    minLatitude,
+                    maxLatitude,
+                    minLongitude,
+                    maxLongitude
+            );
         }
 
         return events.stream()
@@ -209,7 +331,7 @@ public class SportEventService {
      */
     @Transactional
     public SportEventResponse joinEvent(UUID eventId, UUID userId) {
-        SportEvent event = sportEventRepository.findById(eventId)
+        SportEvent event = sportEventRepository.findByIdForUpdate(eventId)
                 .orElseThrow(() -> new EventNotFoundException(eventId));
 
         User user = userRepository.findById(userId)
@@ -246,6 +368,7 @@ public class SportEventService {
                 .build();
 
         eventParticipantRepository.save(participant);
+        event.getParticipants().add(participant);
 
         // Notify the organizer about the new participant
         notificationService.createNotification(
@@ -257,8 +380,6 @@ public class SportEventService {
                 eventId.toString()
         );
 
-        // Refresh event to get updated participants
-        event = sportEventRepository.findById(eventId).orElseThrow(() -> new EventNotFoundException(eventId));
         return SportEventResponse.fromEntityWithDetails(event, userId);
     }
 
@@ -283,6 +404,7 @@ public class SportEventService {
     /**
      * Get events where user is participating
      */
+    @Transactional(readOnly = true)
     public List<SportEventResponse> getParticipatingEvents(UUID userId) {
         return eventParticipantRepository.findByUserId(userId).stream()
                 .map(p -> SportEventResponse.fromEntity(p.getEvent()))

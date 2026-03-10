@@ -22,10 +22,10 @@ import { messagingService } from '@/features/messaging/messagingService';
 import { moderationService } from '@/features/moderation/moderationService';
 import { useAuth } from '@/features/auth/AuthContext';
 import { Avatar, SportBadge, ProBadge } from '@/components/ui';
-import { useTheme } from '@/features/shared/styles/ThemeContext';
+import { useIsDark, useTheme } from '@/features/shared/styles/ThemeContext';
 import { Theme } from '@/features/shared/styles/theme';
 import { User, SportEvent, AxiosApiError } from '@/types';
-import { getSportConfig, getSportLabel, getSportKey } from '@/constants/sports';
+import { getSportLabel } from '@/constants/sports';
 import { getUserCoverImage, getCoverImageForSport } from '@/constants/defaultImages';
 
 const HEADER_HEIGHT = 180;
@@ -38,23 +38,24 @@ export default function UserProfileScreen() {
   const insets = useSafeAreaInsets();
   const [refreshing, setRefreshing] = useState(false);
   const theme = useTheme();
-  const styles = useMemo(() => createStyles(theme), [theme]);
+  const isDark = useIsDark();
+  const styles = useMemo(() => createStyles(theme, isDark), [theme, isDark]);
 
   const { data: user, isLoading: userLoading } = useQuery({
     queryKey: ['user', id],
-    queryFn: () => userService.getUserById(id!),
+    queryFn: () => userService.getUserById(id ?? ''),
     enabled: !!id,
   });
 
   const { data: friends } = useQuery({
     queryKey: ['userFriends', id],
-    queryFn: () => userService.getUserFriends(id!),
+    queryFn: () => userService.getUserFriends(id ?? ''),
     enabled: !!id,
   });
 
   const { data: events } = useQuery({
     queryKey: ['userEvents', id],
-    queryFn: () => userService.getUserEvents(id!),
+    queryFn: () => userService.getUserEvents(id ?? ''),
     enabled: !!id,
   });
 
@@ -106,18 +107,18 @@ export default function UserProfileScreen() {
         `Voulez-vous retirer ${user?.firstName} de vos amis ?`,
         [
           { text: 'Annuler', style: 'cancel' },
-          { text: 'Retirer', style: 'destructive', onPress: () => removeFriendMutation.mutate(id!) },
+          { text: 'Retirer', style: 'destructive', onPress: () => removeFriendMutation.mutate(id ?? '') },
         ]
       );
     } else {
-      sendRequestMutation.mutate(id!);
+      sendRequestMutation.mutate(id ?? '');
     }
   };
 
   const handleMessage = async () => {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
     try {
-      const conversation = await messagingService.createConversation([id!]);
+      const conversation = await messagingService.createConversation([id ?? '']);
       router.push(`/conversation/${conversation.id}`);
     } catch {
       Alert.alert('Erreur', 'Impossible de démarrer la conversation');
@@ -126,7 +127,7 @@ export default function UserProfileScreen() {
 
   const reportMutation = useMutation({
     mutationFn: ({ reason, description }: { reason: string; description?: string }) =>
-      moderationService.reportUser(id!, reason, description),
+      moderationService.reportUser(id ?? '', reason, description),
     onSuccess: () => {
       Alert.alert('Merci', 'Votre signalement a été envoyé.');
     },
@@ -136,7 +137,7 @@ export default function UserProfileScreen() {
   });
 
   const blockMutation = useMutation({
-    mutationFn: () => moderationService.blockUser(id!),
+    mutationFn: () => moderationService.blockUser(id ?? ''),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['friends'] });
       queryClient.invalidateQueries({ queryKey: ['discoverUsers'] });
@@ -290,7 +291,7 @@ export default function UserProfileScreen() {
             style={[styles.backButton, { top: insets.top + 8 }]}
             onPress={handleBack}
           >
-            <Ionicons name="chevron-back" size={28} color="#333" />
+            <Ionicons name="chevron-back" size={28} color={theme.colors.text.primary} />
           </TouchableOpacity>
 
           {/* More Actions Button (Report/Block) */}
@@ -299,7 +300,7 @@ export default function UserProfileScreen() {
               style={[styles.moreButton, { top: insets.top + 8 }]}
               onPress={handleMoreActions}
             >
-              <Ionicons name="ellipsis-horizontal" size={24} color="#333" />
+              <Ionicons name="ellipsis-horizontal" size={24} color={theme.colors.text.primary} />
             </TouchableOpacity>
           )}
 
@@ -352,7 +353,7 @@ export default function UserProfileScreen() {
             {/* Only show message button if already friends */}
             {isFriend && (
               <TouchableOpacity style={styles.messageButton} onPress={handleMessage}>
-                <Ionicons name="chatbubble" size={20} color="#fff" />
+                <Ionicons name="chatbubble" size={20} color={theme.colors.text.inverse} />
               </TouchableOpacity>
             )}
           </View>
@@ -435,7 +436,7 @@ export default function UserProfileScreen() {
 }
 
 
-const createStyles = (theme: Theme) => StyleSheet.create({
+const createStyles = (theme: Theme, isDark: boolean) => StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: theme.colors.surface,
@@ -495,7 +496,7 @@ const createStyles = (theme: Theme) => StyleSheet.create({
     width: 40,
     height: 40,
     borderRadius: 20,
-    backgroundColor: 'rgba(255,255,255,0.9)',
+    backgroundColor: isDark ? 'rgba(0,0,0,0.6)' : 'rgba(255,255,255,0.9)',
     justifyContent: 'center',
     alignItems: 'center',
     zIndex: 10,
@@ -507,7 +508,7 @@ const createStyles = (theme: Theme) => StyleSheet.create({
     width: 40,
     height: 40,
     borderRadius: 20,
-    backgroundColor: 'rgba(255,255,255,0.9)',
+    backgroundColor: isDark ? 'rgba(0,0,0,0.6)' : 'rgba(255,255,255,0.9)',
     justifyContent: 'center',
     alignItems: 'center',
     zIndex: 10,

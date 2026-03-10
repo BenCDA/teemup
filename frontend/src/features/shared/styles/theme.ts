@@ -47,7 +47,7 @@ const darkColors = {
     primary: '#E0E0E0',
     secondary: '#A0A0A0',
     tertiary: '#666666',
-    inverse: '#121212',
+    inverse: '#FFFFFF',
   },
   input: {
     background: '#2A2A2A',

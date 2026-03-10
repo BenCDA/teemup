@@ -1,4 +1,4 @@
-import { api, getAccessToken } from '@/features/shared/api';
+import { api } from '@/features/shared/api';
 
 interface UploadResponse {
   url: string;
@@ -43,12 +43,9 @@ function createFormData(uri: string, name: string): FormData {
 }
 
 async function uploadFile(endpoint: string, formData: FormData): Promise<UploadResponse> {
-  const token = await getAccessToken();
-
   const response = await api.post<UploadResponse>(endpoint, formData, {
     headers: {
       'Content-Type': 'multipart/form-data',
-      Authorization: token ? `Bearer ${token}` : '',
     },
     transformRequest: (data) => data, // Prevent axios from transforming FormData
   });

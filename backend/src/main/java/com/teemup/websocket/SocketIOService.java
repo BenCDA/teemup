@@ -9,6 +9,7 @@ import com.teemup.service.UserService;
 import jakarta.annotation.PostConstruct;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 
 import java.util.Map;
@@ -25,11 +26,19 @@ public class SocketIOService {
     private final UserService userService;
     private final MessagingService messagingService;
 
+    @Value("${socketio.enabled:true}")
+    private boolean socketEnabled;
+
     private final Map<UUID, SocketIOClient> connectedUsers = new ConcurrentHashMap<>();
     private final Map<String, UUID> sessionToUser = new ConcurrentHashMap<>();
 
     @PostConstruct
     public void init() {
+        if (!socketEnabled) {
+            log.info("Socket.IO service disabled by configuration");
+            return;
+        }
+
         socketIOServer.addConnectListener(this::onConnect);
         socketIOServer.addDisconnectListener(this::onDisconnect);
 
@@ -74,7 +83,7 @@ public class SocketIOService {
             broadcastUserStatus(userId, true);
 
             log.info("User {} connected", userId);
-        } catch (Exception e) {
+        } catch (RuntimeException e) {
             log.error("Authentication failed: {}", e.getMessage());
             client.disconnect();
         }
@@ -91,6 +100,23 @@ public class SocketIOService {
     }
 
     private void onJoinConversation(SocketIOClient client, String conversationId, com.corundumstudio.socketio.AckRequest ackRequest) {
+        UUID userId = sessionToUser.get(client.getSessionId().toString());
+        if (userId == null) return;
+
+        UUID parsedConversationId;
+        try {
+            parsedConversationId = UUID.fromString(conversationId);
+        } catch (IllegalArgumentException e) {
+            log.warn("Invalid conversation ID '{}' provided by user {}", conversationId, userId);
+            return;
+        }
+
+        // Verify user is a participant of this conversation
+        if (!messagingService.isParticipant(parsedConversationId, userId)) {
+            log.warn("User {} attempted to join conversation {} without being a participant", userId, conversationId);
+            return;
+        }
+
         String room = "conversation-" + conversationId;
         client.joinRoom(room);
         log.debug("Client joined room: {}", room);
@@ -107,7 +133,22 @@ public class SocketIOService {
         UUID userId = sessionToUser.get(client.getSessionId().toString());
         if (userId == null) return;
 
-        String conversationId = (String) data.get("conversationId");
+        String conversationId = conversationIdFromEvent(data);
+        if (conversationId == null) return;
+
+        UUID parsedConversationId;
+        try {
+            parsedConversationId = UUID.fromString(conversationId);
+        } catch (IllegalArgumentException e) {
+            log.warn("Invalid conversation ID '{}' in typing event for user {}", conversationId, userId);
+            return;
+        }
+
+        if (!messagingService.isParticipant(parsedConversationId, userId)) {
+            log.warn("User {} attempted typing event on unauthorized conversation {}", userId, conversationId);
+            return;
+        }
+
         String room = "conversation-" + conversationId;
 
         socketIOServer.getRoomOperations(room).sendEvent("userTyping", Map.of(
@@ -121,7 +162,22 @@ public class SocketIOService {
         UUID userId = sessionToUser.get(client.getSessionId().toString());
         if (userId == null) return;
 
-        String conversationId = (String) data.get("conversationId");
+        String conversationId = conversationIdFromEvent(data);
+        if (conversationId == null) return;
+
+        UUID parsedConversationId;
+        try {
+            parsedConversationId = UUID.fromString(conversationId);
+        } catch (IllegalArgumentException e) {
+            log.warn("Invalid conversation ID '{}' in stopTyping event for user {}", conversationId, userId);
+            return;
+        }
+
+        if (!messagingService.isParticipant(parsedConversationId, userId)) {
+            log.warn("User {} attempted stopTyping event on unauthorized conversation {}", userId, conversationId);
+            return;
+        }
+
         String room = "conversation-" + conversationId;
 
         socketIOServer.getRoomOperations(room).sendEvent("userStoppedTyping", Map.of(
@@ -135,9 +191,23 @@ public class SocketIOService {
         UUID userId = sessionToUser.get(client.getSessionId().toString());
         if (userId == null) return;
 
-        String conversationId = (String) data.get("conversationId");
+        String conversationId = conversationIdFromEvent(data);
+        if (conversationId == null) return;
 
-        messagingService.markMessagesAsRead(UUID.fromString(conversationId), userId);
+        UUID parsedConversationId;
+        try {
+            parsedConversationId = UUID.fromString(conversationId);
+        } catch (IllegalArgumentException e) {
+            log.warn("Invalid conversation ID '{}' in markRead event for user {}", conversationId, userId);
+            return;
+        }
+
+        if (!messagingService.isParticipant(parsedConversationId, userId)) {
+            log.warn("User {} attempted markRead on unauthorized conversation {}", userId, conversationId);
+            return;
+        }
+
+        messagingService.markMessagesAsRead(parsedConversationId, userId);
 
         String room = "conversation-" + conversationId;
         socketIOServer.getRoomOperations(room).sendEvent("messagesRead", Map.of(
@@ -167,5 +237,13 @@ public class SocketIOService {
 
     public boolean isUserOnline(UUID userId) {
         return connectedUsers.containsKey(userId);
+    }
+
+    private String conversationIdFromEvent(Map<String, Object> data) {
+        Object rawConversationId = data.get("conversationId");
+        if (!(rawConversationId instanceof String conversationId) || conversationId.isBlank()) {
+            return null;
+        }
+        return conversationId;
     }
 }

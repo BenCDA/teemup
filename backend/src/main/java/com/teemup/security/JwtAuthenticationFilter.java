@@ -53,7 +53,7 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
                     SecurityContextHolder.getContext().setAuthentication(authToken);
                 }
             }
-        } catch (Exception e) {
+        } catch (RuntimeException e) {
             logger.error("Cannot set user authentication: " + e.getMessage());
         }
 
@@ -75,12 +75,6 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
                     return cookie.getValue();
                 }
             }
-        }
-
-        // Try query parameter (for WebSocket)
-        String tokenParam = request.getParameter("token");
-        if (tokenParam != null && !tokenParam.isEmpty()) {
-            return tokenParam;
         }
 
         return null;

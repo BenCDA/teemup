@@ -1,6 +1,6 @@
 package com.teemup.dto.messaging;
 
-import com.teemup.dto.user.UserResponse;
+import com.teemup.dto.user.UserSummaryResponse;
 import com.teemup.entity.Conversation;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
@@ -21,7 +21,7 @@ public class ConversationResponse {
     private UUID id;
     private String name;
     private String type;
-    private List<UserResponse> participants;
+    private List<UserSummaryResponse> participants;
     private MessageResponse lastMessage;
     private Long unreadCount;
     private LocalDateTime lastMessageAt;
@@ -33,7 +33,7 @@ public class ConversationResponse {
                 .name(conversation.getName())
                 .type(conversation.getType().name())
                 .participants(conversation.getParticipants().stream()
-                        .map(UserResponse::fromEntity)
+                        .map(UserSummaryResponse::fromEntity)
                         .collect(Collectors.toList()))
                 .lastMessageAt(conversation.getLastMessageAt())
                 .createdAt(conversation.getCreatedAt())

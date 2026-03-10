@@ -1,13 +1,5 @@
 import api from '@/features/shared/api';
-import { Notification } from '@/types';
-
-interface PaginatedResponse<T> {
-  content: T[];
-  totalElements: number;
-  totalPages: number;
-  size: number;
-  number: number;
-}
+import { Notification, PaginatedResponse } from '@/types';
 
 export const notificationService = {
   getNotifications: async (page = 0, size = 20): Promise<PaginatedResponse<Notification>> => {

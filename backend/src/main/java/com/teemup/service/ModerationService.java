@@ -1,7 +1,7 @@
 package com.teemup.service;
 
 import com.teemup.dto.moderation.ReportUserRequest;
-import com.teemup.dto.user.UserResponse;
+import com.teemup.dto.user.UserSummaryResponse;
 import com.teemup.entity.User;
 import com.teemup.entity.UserBlock;
 import com.teemup.entity.UserReport;
@@ -59,7 +59,7 @@ public class ModerationService {
             throw new IllegalArgumentException("Vous ne pouvez pas vous bloquer vous-même");
         }
 
-        userRepository.findById(blockerId)
+        User blocker = userRepository.findById(blockerId)
                 .orElseThrow(() -> new UserNotFoundException(blockerId));
         User blocked = userRepository.findById(blockedUserId)
                 .orElseThrow(() -> new UserNotFoundException(blockedUserId));
@@ -67,8 +67,6 @@ public class ModerationService {
         if (blockRepository.existsByBlockerIdAndBlockedUserId(blockerId, blockedUserId)) {
             throw new IllegalArgumentException("Cet utilisateur est déjà bloqué");
         }
-
-        User blocker = userRepository.findById(blockerId).get();
 
         UserBlock block = UserBlock.builder()
                 .blocker(blocker)
@@ -89,9 +87,9 @@ public class ModerationService {
     }
 
     @Transactional(readOnly = true)
-    public List<UserResponse> getBlockedUsers(UUID userId) {
+    public List<UserSummaryResponse> getBlockedUsers(UUID userId) {
         return blockRepository.findByBlockerId(userId).stream()
-                .map(block -> UserResponse.fromEntity(block.getBlockedUser()))
+                .map(block -> UserSummaryResponse.fromEntity(block.getBlockedUser()))
                 .collect(Collectors.toList());
     }
 

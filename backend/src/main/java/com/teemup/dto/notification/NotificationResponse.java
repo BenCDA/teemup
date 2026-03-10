@@ -1,6 +1,6 @@
 package com.teemup.dto.notification;
 
-import com.teemup.dto.user.UserResponse;
+import com.teemup.dto.user.UserSummaryResponse;
 import com.teemup.entity.Notification;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
@@ -17,7 +17,7 @@ import java.util.UUID;
 public class NotificationResponse {
 
     private UUID id;
-    private UserResponse fromUser;
+    private UserSummaryResponse fromUser;
     private String type;
     private String title;
     private String content;
@@ -29,7 +29,7 @@ public class NotificationResponse {
         return NotificationResponse.builder()
                 .id(notification.getId())
                 .fromUser(notification.getFromUser() != null
-                        ? UserResponse.fromEntity(notification.getFromUser())
+                        ? UserSummaryResponse.fromEntity(notification.getFromUser())
                         : null)
                 .type(notification.getType().name())
                 .title(notification.getTitle())

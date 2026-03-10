@@ -20,7 +20,8 @@ export type ConnectionStatus = 'connected' | 'disconnected' | 'connecting' | 'er
 
 class SocketService {
   private socket: Socket | null = null;
-  private listeners: Map<string, Set<Function>> = new Map();
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  private listeners: Map<string, Set<(...args: any[]) => void>> = new Map();
   private connectionStatus: ConnectionStatus = 'disconnected';
   private statusListeners: Set<(status: ConnectionStatus) => void> = new Set();
   private joinedRooms: Set<string> = new Set(); // Track joined rooms for auto-rejoin
@@ -33,6 +34,10 @@ class SocketService {
 
   async connect(): Promise<void> {
     if (this.socket?.connected) {
+      return;
+    }
+    // Prevent double-connect when a connection attempt is already in progress
+    if (this.connectionStatus === 'connecting') {
       return;
     }
 
@@ -117,11 +122,12 @@ class SocketService {
     }
   }
 
-  on(event: string, callback: Function): () => void {
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  on(event: string, callback: (...args: any[]) => void): () => void {
     if (!this.listeners.has(event)) {
       this.listeners.set(event, new Set());
     }
-    this.listeners.get(event)!.add(callback);
+    this.listeners.get(event)?.add(callback);
 
     // Return unsubscribe function
     return () => {
@@ -129,7 +135,8 @@ class SocketService {
     };
   }
 
-  off(event: string, callback: Function): void {
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  off(event: string, callback: (...args: any[]) => void): void {
     this.listeners.get(event)?.delete(callback);
   }
 

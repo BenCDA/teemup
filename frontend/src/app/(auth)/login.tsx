@@ -79,7 +79,7 @@ export default function LoginScreen() {
         <Text style={styles.footerText}>Pas encore de compte ?</Text>
         <Link href="/(auth)/register" asChild>
           <TouchableOpacity>
-            <Text style={styles.footerLink}>S'inscrire</Text>
+            <Text style={styles.footerLink}>S{"'"}inscrire</Text>
           </TouchableOpacity>
         </Link>
       </View>

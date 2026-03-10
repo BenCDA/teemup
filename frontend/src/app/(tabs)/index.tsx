@@ -250,7 +250,7 @@ export default function MessagesScreen() {
           {searchQuery.length > 0 && (
             <TouchableOpacity onPress={() => setSearchQuery('')}>
               <View style={styles.clearButton}>
-                <Ionicons name="close" size={14} color="#fff" />
+                <Ionicons name="close" size={14} color={theme.colors.text.inverse} />
               </View>
             </TouchableOpacity>
           )}
@@ -432,7 +432,7 @@ const createStyles = (theme: Theme) => StyleSheet.create({
     width: 12,
     height: 12,
     borderRadius: 6,
-    backgroundColor: '#22C55E',
+    backgroundColor: theme.colors.success,
   },
   activeUserName: {
     marginTop: 6,
@@ -474,7 +474,7 @@ const createStyles = (theme: Theme) => StyleSheet.create({
     width: 10,
     height: 10,
     borderRadius: 5,
-    backgroundColor: '#22C55E',
+    backgroundColor: theme.colors.success,
   },
   conversationContent: {
     flex: 1,
@@ -526,7 +526,7 @@ const createStyles = (theme: Theme) => StyleSheet.create({
     paddingHorizontal: 7,
   },
   unreadBadgeText: {
-    color: '#fff',
+    color: theme.colors.text.inverse,
     fontSize: 12,
     fontWeight: '700',
   },

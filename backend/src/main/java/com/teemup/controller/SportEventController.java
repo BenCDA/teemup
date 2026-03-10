@@ -1,6 +1,7 @@
 package com.teemup.controller;
 
 import com.teemup.dto.event.CreateSportEventRequest;
+import com.teemup.dto.event.UpdateSportEventRequest;
 import com.teemup.dto.event.SportEventResponse;
 import com.teemup.dto.event.ParticipantResponse;
 import com.teemup.entity.EventParticipant;
@@ -15,7 +16,17 @@ import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.validation.annotation.Validated;
-import org.springframework.web.bind.annotation.*;
+import org.springframework.web.bind.annotation.DeleteMapping;
+import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PathVariable;
+import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.PutMapping;
+import org.springframework.web.bind.annotation.RequestBody;
+import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
+import org.springframework.web.bind.annotation.RestController;
+
+import org.springframework.data.domain.Page;
 
 import java.util.List;
 import java.util.UUID;
@@ -80,7 +91,7 @@ public class SportEventController {
     public ResponseEntity<SportEventResponse> updateEvent(
             @PathVariable UUID eventId,
             @AuthenticationPrincipal UserDetailsImpl userDetails,
-            @Valid @RequestBody CreateSportEventRequest request
+            @Valid @RequestBody UpdateSportEventRequest request
     ) {
         return ResponseEntity.ok(sportEventService.updateEvent(eventId, userDetails.getId(), request));
     }
@@ -156,13 +167,18 @@ public class SportEventController {
     // ===================== PUBLIC ENDPOINTS =====================
 
     @GetMapping("/public")
-    public ResponseEntity<List<SportEventResponse>> getPublicEvents() {
-        return ResponseEntity.ok(sportEventService.getPublicEvents());
+    public ResponseEntity<Page<SportEventResponse>> getPublicEvents(
+            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "20") int size) {
+        return ResponseEntity.ok(sportEventService.getPublicEvents(page, size));
     }
 
     @GetMapping("/public/sport/{sport}")
-    public ResponseEntity<List<SportEventResponse>> getPublicEventsBySport(@PathVariable String sport) {
-        return ResponseEntity.ok(sportEventService.getPublicEventsBySport(sport));
+    public ResponseEntity<Page<SportEventResponse>> getPublicEventsBySport(
+            @PathVariable String sport,
+            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "20") int size) {
+        return ResponseEntity.ok(sportEventService.getPublicEventsBySport(sport, page, size));
     }
 
     /**

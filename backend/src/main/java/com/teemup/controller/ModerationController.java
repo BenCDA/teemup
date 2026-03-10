@@ -1,7 +1,7 @@
 package com.teemup.controller;
 
 import com.teemup.dto.moderation.ReportUserRequest;
-import com.teemup.dto.user.UserResponse;
+import com.teemup.dto.user.UserSummaryResponse;
 import com.teemup.security.UserDetailsImpl;
 import com.teemup.service.ModerationService;
 import jakarta.validation.Valid;
@@ -9,7 +9,13 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
-import org.springframework.web.bind.annotation.*;
+import org.springframework.web.bind.annotation.DeleteMapping;
+import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PathVariable;
+import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.RequestBody;
+import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RestController;
 
 import java.util.List;
 import java.util.Map;
@@ -52,7 +58,7 @@ public class ModerationController {
     }
 
     @GetMapping("/blocked")
-    public ResponseEntity<List<UserResponse>> getBlockedUsers(
+    public ResponseEntity<List<UserSummaryResponse>> getBlockedUsers(
             @AuthenticationPrincipal UserDetailsImpl userDetails
     ) {
         return ResponseEntity.ok(moderationService.getBlockedUsers(userDetails.getId()));

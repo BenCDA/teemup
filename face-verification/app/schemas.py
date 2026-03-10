@@ -1,6 +1,8 @@
 """
 Schémas Pydantic (DTOs) pour l'API de vérification faciale.
 """
+from typing import Optional, Dict, Any
+
 from pydantic import BaseModel, field_validator
 from app.config import MAX_IMAGE_SIZE
 
@@ -28,10 +30,10 @@ class VerificationResponse(BaseModel):
     """Réponse de vérification faciale."""
     success: bool
     faceDetected: bool
-    age: int | None = None
-    ageRange: str | None = None
-    gender: str | None = None
-    genderConfidence: float | None = None
+    age: Optional[int] = None
+    ageRange: Optional[str] = None
+    gender: Optional[str] = None
+    genderConfidence: Optional[float] = None
     isAdult: bool = False
     isRealFace: bool = False
     message: str
@@ -42,7 +44,7 @@ class AntiSpoofResponse(BaseModel):
     is_real: bool
     confidence: float
     message: str
-    checks: dict | None = None
+    checks: Optional[Dict[str, Any]] = None
 
 
 class HealthResponse(BaseModel):

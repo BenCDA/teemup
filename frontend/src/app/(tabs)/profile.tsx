@@ -11,7 +11,6 @@ import {
   Image,
   ActivityIndicator,
   ImageBackground,
-  Dimensions,
   KeyboardAvoidingView,
   Platform,
 } from 'react-native';
@@ -28,7 +27,6 @@ import { useTheme } from '@/features/shared/styles/ThemeContext';
 import { Theme } from '@/features/shared/styles/theme';
 import { SPORTS } from '@/constants/sports';
 
-const { width: SCREEN_WIDTH } = Dimensions.get('window');
 const HEADER_HEIGHT = 180;
 const AVATAR_SIZE = 110;
 
@@ -176,7 +174,7 @@ export default function ProfileScreen() {
             </ImageBackground>
           ) : (
             <LinearGradient
-              colors={[theme.colors.primary, '#1a1a2e']}
+              colors={[theme.colors.primary, theme.colors.primaryDark]}
               start={{ x: 0, y: 0 }}
               end={{ x: 1, y: 1 }}
               style={styles.coverPlaceholder}
@@ -189,7 +187,7 @@ export default function ProfileScreen() {
             onPress={openEditModal}
             activeOpacity={0.8}
           >
-            <Ionicons name="pencil" size={16} color="#fff" />
+            <Ionicons name="pencil" size={16} color={theme.colors.text.inverse} />
           </TouchableOpacity>
 
           {/* Avatar */}
@@ -288,13 +286,13 @@ export default function ProfileScreen() {
               >
                 <View style={styles.proCardContent}>
                   <View style={styles.proCardIcon}>
-                    <Ionicons name="rocket" size={24} color="#fff" />
+                    <Ionicons name="rocket" size={24} color={theme.colors.text.inverse} />
                   </View>
                   <View style={styles.proCardText}>
                     <Text style={styles.proCardTitle}>Passez Pro</Text>
                     <Text style={styles.proCardSubtitle}>Créez des événements payants</Text>
                   </View>
-                  <Ionicons name="chevron-forward" size={20} color="rgba(255,255,255,0.7)" />
+                  <Ionicons name="chevron-forward" size={20} color={theme.colors.text.inverse} />
                 </View>
               </LinearGradient>
             </TouchableOpacity>
@@ -381,15 +379,15 @@ export default function ProfileScreen() {
                 <Image source={{ uri: editCoverImage }} style={styles.coverPhotoPreview} />
               ) : (
                 <LinearGradient
-                  colors={[theme.colors.primary, '#1a1a2e']}
+                  colors={[theme.colors.primary, theme.colors.primaryDark]}
                   style={styles.coverPhotoPlaceholder}
                 >
-                  <Ionicons name="image-outline" size={32} color="rgba(255,255,255,0.7)" />
+                  <Ionicons name="image-outline" size={32} color={theme.colors.text.inverse} />
                   <Text style={styles.coverPhotoPlaceholderText}>Ajouter une bannière</Text>
                 </LinearGradient>
               )}
               <View style={styles.coverPhotoOverlay}>
-                <Ionicons name="camera" size={18} color="#fff" />
+                <Ionicons name="camera" size={18} color={theme.colors.text.inverse} />
                 <Text style={styles.coverPhotoOverlayText}>Modifier</Text>
               </View>
             </TouchableOpacity>
@@ -404,7 +402,7 @@ export default function ProfileScreen() {
                     size="xl"
                   />
                   <View style={styles.avatarEditOverlay}>
-                    <Ionicons name="camera" size={18} color="#fff" />
+                    <Ionicons name="camera" size={18} color={theme.colors.text.inverse} />
                   </View>
                 </View>
               </TouchableOpacity>
@@ -454,7 +452,7 @@ export default function ProfileScreen() {
                         <Ionicons
                           name={sport.icon}
                           size={18}
-                          color={isSelected ? '#fff' : sport.color}
+                          color={isSelected ? theme.colors.text.inverse : sport.color}
                         />
                         <Text
                           style={[
@@ -465,7 +463,7 @@ export default function ProfileScreen() {
                           {sport.label}
                         </Text>
                         {isSelected && (
-                          <Ionicons name="checkmark" size={16} color="#fff" />
+                          <Ionicons name="checkmark" size={16} color={theme.colors.text.inverse} />
                         )}
                       </TouchableOpacity>
                     );
@@ -644,12 +642,12 @@ const createStyles = (theme: Theme) => StyleSheet.create({
   proCardTitle: {
     fontSize: 17,
     fontWeight: '700',
-    color: '#fff',
+    color: theme.colors.text.inverse,
     marginBottom: 2,
   },
   proCardSubtitle: {
     fontSize: 13,
-    color: 'rgba(255,255,255,0.8)',
+    color: theme.colors.text.inverse,
   },
   statsContainer: {
     flexDirection: 'row',
@@ -861,7 +859,7 @@ const createStyles = (theme: Theme) => StyleSheet.create({
     gap: theme.spacing.sm,
   },
   coverPhotoPlaceholderText: {
-    color: 'rgba(255,255,255,0.8)',
+    color: theme.colors.text.inverse,
     fontSize: 14,
     fontWeight: '500',
   },
@@ -878,7 +876,7 @@ const createStyles = (theme: Theme) => StyleSheet.create({
     gap: 6,
   },
   coverPhotoOverlayText: {
-    color: '#fff',
+    color: theme.colors.text.inverse,
     fontSize: 13,
     fontWeight: '500',
   },
@@ -917,6 +915,6 @@ const createStyles = (theme: Theme) => StyleSheet.create({
     color: theme.colors.text.secondary,
   },
   sportChipTextActive: {
-    color: '#fff',
+    color: theme.colors.text.inverse,
   },
 });

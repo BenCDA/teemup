@@ -1,4 +1,4 @@
-import React, { Component, ReactNode, useMemo } from 'react';
+import React, { Component, ReactNode } from 'react';
 import { View, Text, TouchableOpacity, StyleSheet } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useTheme } from '@/features/shared/styles/ThemeContext';
@@ -58,7 +58,7 @@ class ErrorBoundaryInner extends Component<ErrorBoundaryInnerProps, ErrorBoundar
           </View>
           <Text style={styles.title}>Oups, une erreur est survenue</Text>
           <Text style={styles.message}>
-            L'application a rencontré un problème inattendu.
+            L{"'"}application a rencontré un problème inattendu.
           </Text>
           {__DEV__ && this.state.error && (
             <View style={styles.errorDetails}>
@@ -66,7 +66,7 @@ class ErrorBoundaryInner extends Component<ErrorBoundaryInnerProps, ErrorBoundar
             </View>
           )}
           <TouchableOpacity style={styles.retryButton} onPress={this.handleRetry}>
-            <Ionicons name="refresh" size={20} color="#fff" />
+            <Ionicons name="refresh" size={20} color={theme.colors.text.inverse} />
             <Text style={styles.retryButtonText}>Réessayer</Text>
           </TouchableOpacity>
         </View>
@@ -145,7 +145,7 @@ const createStyles = (theme: Theme) => StyleSheet.create({
     gap: theme.spacing.sm,
   },
   retryButtonText: {
-    color: '#fff',
+    color: theme.colors.text.inverse,
     fontSize: theme.typography.size.md,
     fontWeight: theme.typography.weight.semibold,
   },

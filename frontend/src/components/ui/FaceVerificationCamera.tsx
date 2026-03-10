@@ -7,7 +7,6 @@ import {
   ActivityIndicator,
   Modal,
   Image,
-  Animated,
 } from 'react-native';
 import { CameraView, CameraType, useCameraPermissions } from 'expo-camera';
 import { Ionicons } from '@expo/vector-icons';
@@ -31,7 +30,7 @@ export function FaceVerificationCamera({
   const theme = useTheme();
   const styles = useMemo(() => createStyles(theme), [theme]);
 
-  const [facing, setFacing] = useState<CameraType>('front');
+  const [facing] = useState<CameraType>('front');
   const [permission, requestPermission] = useCameraPermissions();
   const [capturedImage, setCapturedImage] = useState<string | null>(null);
   const cameraRef = useRef<CameraView>(null);
@@ -89,7 +88,7 @@ export function FaceVerificationCamera({
           <Ionicons name="camera-outline" size={64} color={theme.colors.text.secondary} />
           <Text style={styles.permissionTitle}>Accès à la caméra requis</Text>
           <Text style={styles.permissionText}>
-            Pour vérifier votre identité, nous avons besoin d'accéder à votre caméra.
+            Pour vérifier votre identité, nous avons besoin d{"'"}accéder à votre caméra.
           </Text>
           <TouchableOpacity style={styles.permissionButton} onPress={requestPermission}>
             <Text style={styles.permissionButtonText}>Autoriser la caméra</Text>
@@ -110,7 +109,7 @@ export function FaceVerificationCamera({
           <TouchableOpacity onPress={handleClose} style={styles.closeButton}>
             <Ionicons name="close" size={28} color={theme.colors.text.inverse} />
           </TouchableOpacity>
-          <Text style={styles.headerTitle}>Vérification d'identité</Text>
+          <Text style={styles.headerTitle}>Vérification d{"'"}identité</Text>
           <View style={styles.placeholder} />
         </View>
 
@@ -167,7 +166,8 @@ export function FaceVerificationCamera({
                 Placez votre visage dans le cadre
               </Text>
               <Text style={styles.instructionSubtext}>
-                Assurez-vous d'être bien éclairé
+                Assurez-vous d{"'"}être bien éclairé{'\n'}
+                N{"'"}utilisez pas de photo depuis un écran
               </Text>
             </View>
 

@@ -1,6 +1,7 @@
 package com.teemup.security;
 
 import io.jsonwebtoken.Claims;
+import io.jsonwebtoken.JwtException;
 import io.jsonwebtoken.Jwts;
 import io.jsonwebtoken.io.Decoders;
 import io.jsonwebtoken.security.Keys;
@@ -80,7 +81,7 @@ public class JwtService {
             final String username = claims.getSubject();
             final Date expiration = claims.getExpiration();
             return (username.equals(userDetails.getUsername())) && !expiration.before(new Date());
-        } catch (Exception e) {
+        } catch (JwtException e) {
             return false;
         }
     }

@@ -1,6 +1,6 @@
 package com.teemup.dto.friend;
 
-import com.teemup.dto.user.UserResponse;
+import com.teemup.dto.user.UserSummaryResponse;
 import com.teemup.entity.FriendRequest;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
@@ -17,16 +17,16 @@ import java.util.UUID;
 public class FriendRequestResponse {
 
     private UUID id;
-    private UserResponse sender;
-    private UserResponse receiver;
+    private UserSummaryResponse sender;
+    private UserSummaryResponse receiver;
     private String status;
     private LocalDateTime createdAt;
 
     public static FriendRequestResponse fromEntity(FriendRequest request) {
         return FriendRequestResponse.builder()
                 .id(request.getId())
-                .sender(UserResponse.fromEntity(request.getSender()))
-                .receiver(UserResponse.fromEntity(request.getReceiver()))
+                .sender(UserSummaryResponse.fromEntity(request.getSender()))
+                .receiver(UserSummaryResponse.fromEntity(request.getReceiver()))
                 .status(request.getStatus().name())
                 .createdAt(request.getCreatedAt())
                 .build();

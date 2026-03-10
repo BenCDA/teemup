@@ -144,7 +144,7 @@ export default function NotificationsScreen() {
     }
   };
 
-  const notifications = data?.content || [];
+  const notifications = useMemo(() => data?.content || [], [data?.content]);
 
   const sections = useMemo(() => {
     const now = new Date();
@@ -192,7 +192,7 @@ export default function NotificationsScreen() {
             size="md"
           />
           <View style={[styles.typeBadge, { backgroundColor: config.color }]}>
-            <Ionicons name={config.icon} size={12} color="#fff" />
+            <Ionicons name={config.icon} size={12} color={theme.colors.text.inverse} />
           </View>
         </View>
 
@@ -217,12 +217,12 @@ export default function NotificationsScreen() {
                 style={styles.acceptButton}
                 onPress={() => {
                   Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
-                  acceptFriendMutation.mutate(item.referenceId!);
+                  acceptFriendMutation.mutate(item.referenceId ?? '');
                 }}
                 disabled={pendingAcceptId === item.referenceId || pendingRejectId === item.referenceId}
               >
                 {pendingAcceptId === item.referenceId ? (
-                  <ActivityIndicator size="small" color="#fff" />
+                  <ActivityIndicator size="small" color={theme.colors.text.inverse} />
                 ) : (
                   <Text style={styles.acceptButtonText}>Accepter</Text>
                 )}
@@ -231,7 +231,7 @@ export default function NotificationsScreen() {
                 style={styles.rejectButton}
                 onPress={() => {
                   Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-                  rejectFriendMutation.mutate(item.referenceId!);
+                  rejectFriendMutation.mutate(item.referenceId ?? '');
                 }}
                 disabled={pendingAcceptId === item.referenceId || pendingRejectId === item.referenceId}
               >
@@ -383,7 +383,7 @@ const createStyles = (theme: Theme) => StyleSheet.create({
   sectionBadgeText: {
     fontSize: 12,
     fontWeight: '700',
-    color: '#fff',
+    color: theme.colors.text.inverse,
   },
   notificationItem: {
     flexDirection: 'row',
@@ -446,7 +446,7 @@ const createStyles = (theme: Theme) => StyleSheet.create({
     alignItems: 'center',
   },
   acceptButtonText: {
-    color: '#fff',
+    color: theme.colors.text.inverse,
     fontSize: 14,
     fontWeight: '600',
   },

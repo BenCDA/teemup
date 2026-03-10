@@ -1,6 +1,6 @@
 package com.teemup.dto.messaging;
 
-import com.teemup.dto.user.UserResponse;
+import com.teemup.dto.user.UserSummaryResponse;
 import com.teemup.entity.Message;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
@@ -19,7 +19,7 @@ public class MessageResponse {
 
     private UUID id;
     private String content;
-    private UserResponse sender;
+    private UserSummaryResponse sender;
     private UUID conversationId;
     private String type;
     private Set<UUID> readBy;
@@ -32,7 +32,7 @@ public class MessageResponse {
         return MessageResponse.builder()
                 .id(message.getId())
                 .content(message.getContent())
-                .sender(UserResponse.fromEntity(message.getSender()))
+                .sender(UserSummaryResponse.fromEntity(message.getSender()))
                 .conversationId(message.getConversation().getId())
                 .type(message.getType().name())
                 .readBy(message.getReadBy())

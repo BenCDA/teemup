@@ -1,17 +1,26 @@
 package com.teemup.repository;
 
 import com.teemup.entity.SportEvent;
+import jakarta.persistence.LockModeType;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Lock;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
 
 import java.time.LocalDate;
 import java.util.List;
+import java.util.Optional;
 import java.util.UUID;
 
 @Repository
 public interface SportEventRepository extends JpaRepository<SportEvent, UUID> {
+
+    @Lock(LockModeType.PESSIMISTIC_WRITE)
+    @Query("SELECT e FROM SportEvent e WHERE e.id = :eventId")
+    Optional<SportEvent> findByIdForUpdate(@Param("eventId") UUID eventId);
 
     List<SportEvent> findByUserIdOrderByDateAscStartTimeAsc(UUID userId);
 
@@ -29,4 +38,44 @@ public interface SportEventRepository extends JpaRepository<SportEvent, UUID> {
 
     @Query("SELECT e FROM SportEvent e WHERE e.sport = :sport AND e.isPublic = true AND e.date >= :date ORDER BY e.date, e.startTime")
     List<SportEvent> findPublicEventsBySportFromDate(@Param("sport") String sport, @Param("date") LocalDate date);
+
+    @Query("SELECT e FROM SportEvent e WHERE e.isPublic = true AND e.date >= :date ORDER BY e.date ASC, e.startTime ASC")
+    Page<SportEvent> findPublicEventsFromDate(@Param("date") LocalDate date, Pageable pageable);
+
+    @Query("SELECT e FROM SportEvent e WHERE e.isPublic = true AND e.sport = :sport AND e.date >= :date ORDER BY e.date ASC, e.startTime ASC")
+    Page<SportEvent> findPublicEventsBySportFromDate(@Param("sport") String sport, @Param("date") LocalDate date, Pageable pageable);
+
+    @Query("""
+            SELECT e FROM SportEvent e
+            WHERE e.isPublic = true
+              AND e.date >= :date
+              AND e.latitude BETWEEN :minLatitude AND :maxLatitude
+              AND e.longitude BETWEEN :minLongitude AND :maxLongitude
+            ORDER BY e.date ASC, e.startTime ASC
+            """)
+    List<SportEvent> findPublicEventsInBoundingBoxFromDate(
+            @Param("date") LocalDate date,
+            @Param("minLatitude") double minLatitude,
+            @Param("maxLatitude") double maxLatitude,
+            @Param("minLongitude") double minLongitude,
+            @Param("maxLongitude") double maxLongitude
+    );
+
+    @Query("""
+            SELECT e FROM SportEvent e
+            WHERE e.isPublic = true
+              AND e.sport = :sport
+              AND e.date >= :date
+              AND e.latitude BETWEEN :minLatitude AND :maxLatitude
+              AND e.longitude BETWEEN :minLongitude AND :maxLongitude
+            ORDER BY e.date ASC, e.startTime ASC
+            """)
+    List<SportEvent> findPublicEventsBySportInBoundingBoxFromDate(
+            @Param("sport") String sport,
+            @Param("date") LocalDate date,
+            @Param("minLatitude") double minLatitude,
+            @Param("maxLatitude") double maxLatitude,
+            @Param("minLongitude") double minLongitude,
+            @Param("maxLongitude") double maxLongitude
+    );
 }

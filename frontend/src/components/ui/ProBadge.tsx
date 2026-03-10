@@ -1,6 +1,7 @@
-import { View, Text, StyleSheet, ViewStyle } from 'react-native';
+import { Text, StyleSheet, ViewStyle } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
+import { useTheme } from '@/features/shared/styles/ThemeContext';
 
 interface ProBadgeProps {
   size?: 'sm' | 'md' | 'lg';
@@ -16,6 +17,7 @@ const sizes = {
 
 export function ProBadge({ size = 'md', style, showText = true }: ProBadgeProps) {
   const config = sizes[size];
+  const theme = useTheme();
 
   return (
     <LinearGradient
@@ -32,9 +34,9 @@ export function ProBadge({ size = 'md', style, showText = true }: ProBadgeProps)
         style,
       ]}
     >
-      <Ionicons name="star" size={config.iconSize} color="#fff" />
+      <Ionicons name="star" size={config.iconSize} color={theme.colors.text.inverse} />
       {showText && (
-        <Text style={[styles.text, { fontSize: config.fontSize }]}>PRO</Text>
+        <Text style={[styles.text, { fontSize: config.fontSize, color: theme.colors.text.inverse }]}>PRO</Text>
       )}
     </LinearGradient>
   );
@@ -48,7 +50,6 @@ const styles = StyleSheet.create({
     gap: 4,
   },
   text: {
-    color: '#fff',
     fontWeight: '800',
     letterSpacing: 0.5,
   },

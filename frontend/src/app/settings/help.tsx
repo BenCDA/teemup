@@ -55,7 +55,7 @@ export default function HelpScreen() {
             <Ionicons name="mail" size={28} color={theme.colors.primary} />
           </View>
           <View style={styles.contactContent}>
-            <Text style={styles.contactTitle}>Besoin d'aide ?</Text>
+            <Text style={styles.contactTitle}>Besoin d{"'"}aide ?</Text>
             <Text style={styles.contactDescription}>
               Notre équipe est là pour vous aider. Contactez-nous par email.
             </Text>

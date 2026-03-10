@@ -6,7 +6,6 @@ import {
   StyleSheet,
   ScrollView,
   Image,
-  ActivityIndicator,
   Alert,
   TextInput,
 } from 'react-native';
@@ -19,7 +18,8 @@ import { useAuth } from '@/features/auth/AuthContext';
 import { Avatar, Button } from '@/components/ui';
 import { useTheme } from '@/features/shared/styles/ThemeContext';
 import { Theme } from '@/features/shared/styles/theme';
-import { SPORTS, getPopularSports, searchSports, SportConfig } from '@/constants/sports';
+import { SPORTS, getPopularSports, searchSports } from '@/constants/sports';
+import { uploadCoverImage, uploadProfilePicture } from '@/services/uploadService';
 
 type Step = 'sports' | 'profile-photo' | 'cover-photo';
 
@@ -114,10 +114,25 @@ export default function OnboardingScreen() {
     setIsSaving(true);
 
     try {
+      let profilePictureUrl = profilePicture || undefined;
+      let coverImageUrl = coverImage || undefined;
+
+      // Upload local files to Cloudinary in parallel before persisting profile data
+      const [uploadedProfile, uploadedCover] = await Promise.all([
+        profilePicture && !profilePicture.startsWith('http')
+          ? uploadProfilePicture(profilePicture)
+          : Promise.resolve(profilePicture || undefined),
+        coverImage && !coverImage.startsWith('http')
+          ? uploadCoverImage(coverImage)
+          : Promise.resolve(coverImage || undefined),
+      ]);
+      if (uploadedProfile) profilePictureUrl = uploadedProfile;
+      if (uploadedCover) coverImageUrl = uploadedCover;
+
       await updateUser({
         sports: selectedSports,
-        profilePicture: profilePicture || undefined,
-        coverImage: coverImage || undefined,
+        profilePicture: profilePictureUrl,
+        coverImage: coverImageUrl,
         bio: bio.trim() || undefined,
         onboardingCompleted: true,
       });

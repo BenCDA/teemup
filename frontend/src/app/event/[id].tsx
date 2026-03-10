@@ -1,4 +1,4 @@
-import { useState, useMemo } from 'react';
+import { useMemo } from 'react';
 import {
   View,
   Text,
@@ -9,7 +9,6 @@ import {
   ActivityIndicator,
   Alert,
   Linking,
-  FlatList,
 } from 'react-native';
 import { useLocalSearchParams, router } from 'expo-router';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
@@ -62,16 +61,15 @@ export default function EventDetailScreen() {
     data: event,
     isLoading,
     error,
-    refetch,
   } = useQuery({
     queryKey: ['event', id],
-    queryFn: () => eventService.getEventById(id!),
+    queryFn: () => eventService.getEventById(id ?? ''),
     enabled: !!id,
   });
 
   // Delete mutation
   const deleteMutation = useMutation({
-    mutationFn: () => eventService.deleteEvent(id!),
+    mutationFn: () => eventService.deleteEvent(id ?? ''),
     onSuccess: () => {
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
       queryClient.invalidateQueries({ queryKey: ['nearbyEvents'] });
@@ -86,7 +84,7 @@ export default function EventDetailScreen() {
 
   // Join mutation
   const joinMutation = useMutation({
-    mutationFn: () => eventService.joinEvent(id!),
+    mutationFn: () => eventService.joinEvent(id ?? ''),
     onSuccess: () => {
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
       queryClient.invalidateQueries({ queryKey: ['event', id] });
@@ -101,7 +99,7 @@ export default function EventDetailScreen() {
 
   // Leave mutation
   const leaveMutation = useMutation({
-    mutationFn: () => eventService.leaveEvent(id!),
+    mutationFn: () => eventService.leaveEvent(id ?? ''),
     onSuccess: () => {
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
       queryClient.invalidateQueries({ queryKey: ['event', id] });
@@ -213,12 +211,12 @@ export default function EventDetailScreen() {
             <LinearGradient colors={['transparent', 'rgba(0,0,0,0.6)']} style={styles.coverGradient} />
             {/* Sport Badge */}
             <View style={[styles.sportBadge, { backgroundColor: sportColor }]}>
-              {sportConfig && <Ionicons name={sportConfig.icon} size={16} color="#fff" style={{ marginRight: 6 }} />}
+              {sportConfig && <Ionicons name={sportConfig.icon} size={16} color={theme.colors.text.inverse} style={{ marginRight: 6 }} />}
               <Text style={styles.sportBadgeText}>{getSportLabel(event.sport)}</Text>
             </View>
             {/* Participants count on cover */}
             <View style={styles.participantsBadge}>
-              <Ionicons name="people" size={14} color="#fff" />
+              <Ionicons name="people" size={14} color={theme.colors.text.inverse} />
               <Text style={styles.participantsBadgeText}>
                 {event.participantCount || 0}
                 {event.maxParticipants != null ? ` / ${event.maxParticipants}` : ''}
@@ -227,7 +225,7 @@ export default function EventDetailScreen() {
             {/* Paid badge */}
             {event.isPaid && (
               <View style={styles.paidBadge}>
-                <Ionicons name="cash" size={14} color="#fff" />
+                <Ionicons name="cash" size={14} color={theme.colors.text.inverse} />
                 <Text style={styles.paidBadgeText}>{event.price?.toFixed(0)} €</Text>
               </View>
             )}
@@ -331,7 +329,7 @@ export default function EventDetailScreen() {
                 <Text style={styles.sectionLabel}>Organisateur</Text>
                 <TouchableOpacity
                   style={styles.organizerRow}
-                  onPress={() => router.push(`/user/${event.organizer!.id}`)}
+                  onPress={() => router.push(`/user/${event.organizer?.id}`)}
                   activeOpacity={0.7}
                 >
                   <Avatar uri={event.organizer.profilePicture} name={event.organizer.fullName} size="md" />
@@ -390,7 +388,7 @@ export default function EventDetailScreen() {
                       ) : (
                         <>
                           <Ionicons name="exit-outline" size={20} color={theme.colors.error} />
-                          <Text style={styles.leaveButtonText}>Quitter l'événement</Text>
+                          <Text style={styles.leaveButtonText}>Quitter l{"'"}événement</Text>
                         </>
                       )}
                     </TouchableOpacity>
@@ -401,10 +399,10 @@ export default function EventDetailScreen() {
                       disabled={joinMutation.isPending || isFull}
                     >
                       {joinMutation.isPending ? (
-                        <ActivityIndicator color="#fff" />
+                        <ActivityIndicator color={theme.colors.text.inverse} />
                       ) : (
                         <>
-                          <Ionicons name="add-circle-outline" size={20} color="#fff" />
+                          <Ionicons name="add-circle-outline" size={20} color={theme.colors.text.inverse} />
                           <Text style={styles.joinButtonText}>
                             {isFull ? 'Complet' : 'Participer'}
                           </Text>
@@ -424,7 +422,7 @@ export default function EventDetailScreen() {
                   onPress={() => router.push(`/event/edit/${id}`)}
                 >
                   <Ionicons name="create-outline" size={20} color={theme.colors.primary} />
-                  <Text style={styles.editButtonText}>Modifier l'événement</Text>
+                  <Text style={styles.editButtonText}>Modifier l{"'"}événement</Text>
                 </TouchableOpacity>
               )}
             </View>
@@ -482,7 +480,7 @@ const createStyles = (theme: Theme) => StyleSheet.create({
     paddingVertical: theme.spacing.sm,
     borderRadius: theme.borderRadius.round,
   },
-  sportBadgeText: { color: '#fff', fontSize: theme.typography.size.sm, fontWeight: theme.typography.weight.semibold },
+  sportBadgeText: { color: theme.colors.text.inverse, fontSize: theme.typography.size.sm, fontWeight: theme.typography.weight.semibold },
   participantsBadge: {
     position: 'absolute',
     bottom: theme.spacing.md,
@@ -495,7 +493,7 @@ const createStyles = (theme: Theme) => StyleSheet.create({
     borderRadius: theme.borderRadius.round,
     gap: 4,
   },
-  participantsBadgeText: { color: '#fff', fontSize: theme.typography.size.sm, fontWeight: theme.typography.weight.medium },
+  participantsBadgeText: { color: theme.colors.text.inverse, fontSize: theme.typography.size.sm, fontWeight: theme.typography.weight.medium },
   paidBadge: {
     position: 'absolute',
     top: theme.spacing.md,
@@ -508,7 +506,7 @@ const createStyles = (theme: Theme) => StyleSheet.create({
     borderRadius: theme.borderRadius.round,
     gap: 4,
   },
-  paidBadgeText: { color: '#fff', fontSize: theme.typography.size.sm, fontWeight: theme.typography.weight.semibold },
+  paidBadgeText: { color: theme.colors.text.inverse, fontSize: theme.typography.size.sm, fontWeight: theme.typography.weight.semibold },
   content: { padding: theme.spacing.md },
   title: {
     fontSize: 24,
@@ -611,7 +609,7 @@ const createStyles = (theme: Theme) => StyleSheet.create({
     gap: theme.spacing.sm,
   },
   joinButtonDisabled: { backgroundColor: theme.colors.text.tertiary },
-  joinButtonText: { color: '#fff', fontSize: theme.typography.size.md, fontWeight: theme.typography.weight.semibold },
+  joinButtonText: { color: theme.colors.text.inverse, fontSize: theme.typography.size.md, fontWeight: theme.typography.weight.semibold },
   leaveButton: {
     flexDirection: 'row',
     alignItems: 'center',

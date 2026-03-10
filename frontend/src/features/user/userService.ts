@@ -32,11 +32,6 @@ export const userService = {
     return response.data;
   },
 
-  updateEvent: async (eventId: string, event: Omit<SportEvent, 'id' | 'userId'>): Promise<SportEvent> => {
-    const response = await api.put<SportEvent>(`/events/${eventId}`, event);
-    return response.data;
-  },
-
   deleteEvent: async (eventId: string): Promise<void> => {
     await api.delete(`/events/${eventId}`);
   },

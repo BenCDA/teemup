@@ -144,7 +144,7 @@ export function Avatar({
           style={[
             styles.onlineIndicator,
             {
-              backgroundColor: isOnline ? '#22C55E' : theme.colors.text.tertiary,
+              backgroundColor: isOnline ? theme.colors.success : theme.colors.text.tertiary,
               width: Math.max(dimension * 0.28, 10),
               height: Math.max(dimension * 0.28, 10),
               borderRadius: Math.max(dimension * 0.14, 5),
@@ -169,7 +169,7 @@ const createStyles = (theme: Theme) => StyleSheet.create({
     justifyContent: 'center',
   },
   initials: {
-    color: '#FFFFFF',
+    color: theme.colors.text.inverse,
     fontWeight: '700',
     letterSpacing: 0.5,
   },

@@ -1,13 +1,5 @@
 import api from '@/features/shared/api';
-import { Conversation, Message } from '@/types';
-
-interface PaginatedResponse<T> {
-  content: T[];
-  totalElements: number;
-  totalPages: number;
-  size: number;
-  number: number;
-}
+import { Conversation, Message, PaginatedResponse } from '@/types';
 
 export const messagingService = {
   getConversations: async (): Promise<Conversation[]> => {

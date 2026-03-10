@@ -1,4 +1,4 @@
-import { useMemo } from 'react';
+import React, { useMemo } from 'react';
 import { View, Text, TouchableOpacity, StyleSheet, Image } from 'react-native';
 import { router } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
@@ -44,7 +44,7 @@ function getRecurrenceLabel(recurrence: string): string | null {
   }
 }
 
-export function EventCard({ event, showDistance = true }: EventCardProps) {
+function EventCard({ event, showDistance = true }: EventCardProps) {
   const theme = useTheme();
   const styles = useMemo(() => createStyles(theme), [theme]);
 
@@ -76,7 +76,7 @@ export function EventCard({ event, showDistance = true }: EventCardProps) {
         {/* Sport Badge Overlay */}
         <View style={[styles.sportBadge, { backgroundColor: sportColor }]}>
           {sportConfig && (
-            <Ionicons name={sportConfig.icon} size={14} color="#fff" style={{ marginRight: 4 }} />
+            <Ionicons name={sportConfig.icon} size={14} color={theme.colors.text.inverse} style={{ marginRight: 4 }} />
           )}
           <Text style={styles.sportBadgeText}>{getSportLabel(event.sport)}</Text>
         </View>
@@ -92,7 +92,7 @@ export function EventCard({ event, showDistance = true }: EventCardProps) {
         {/* Paid Badge */}
         {event.isPaid && (
           <View style={styles.paidBadge}>
-            <Ionicons name="cash" size={12} color="#fff" />
+            <Ionicons name="cash" size={12} color={theme.colors.text.inverse} />
             <Text style={styles.paidText}>{event.price?.toFixed(0)} €</Text>
           </View>
         )}
@@ -165,7 +165,7 @@ const createStyles = (theme: Theme) => StyleSheet.create({
     borderRadius: theme.borderRadius.round,
   },
   sportBadgeText: {
-    color: '#fff',
+    color: theme.colors.text.inverse,
     fontSize: theme.typography.size.xs,
     fontWeight: theme.typography.weight.semibold,
   },
@@ -199,7 +199,7 @@ const createStyles = (theme: Theme) => StyleSheet.create({
     gap: 4,
   },
   paidText: {
-    color: '#fff',
+    color: theme.colors.text.inverse,
     fontSize: theme.typography.size.xs,
     fontWeight: theme.typography.weight.semibold,
   },
@@ -247,3 +247,5 @@ const createStyles = (theme: Theme) => StyleSheet.create({
     fontWeight: theme.typography.weight.medium,
   },
 });
+
+export default React.memo(EventCard);

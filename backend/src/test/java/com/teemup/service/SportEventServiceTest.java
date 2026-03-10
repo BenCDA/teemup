@@ -6,7 +6,17 @@ import com.teemup.entity.EventParticipant;
 import com.teemup.entity.Notification;
 import com.teemup.entity.SportEvent;
 import com.teemup.entity.User;
-import com.teemup.exception.*;
+import com.teemup.exception.CannotJoinOwnEventException;
+import com.teemup.exception.EventFullException;
+import com.teemup.exception.EventNotFoundException;
+import com.teemup.exception.InvalidLocationException;
+import com.teemup.exception.NotParticipatingException;
+import com.teemup.exception.ParticipantNotFoundException;
+import com.teemup.exception.PrivateEventException;
+import com.teemup.exception.ProUserRequiredException;
+import com.teemup.exception.UnauthorizedEventAccessException;
+import com.teemup.exception.UserAlreadyParticipatingException;
+import com.teemup.exception.UserNotFoundException;
 import com.teemup.repository.EventParticipantRepository;
 import com.teemup.repository.SportEventRepository;
 import com.teemup.repository.UserRepository;
@@ -21,11 +31,17 @@ import org.mockito.junit.jupiter.MockitoExtension;
 
 import java.time.LocalDate;
 import java.time.LocalTime;
-import java.util.*;
+import java.util.HashSet;
+import java.util.Collections;
+import java.util.HashSet;
+import java.util.List;
+import java.util.Optional;
+import java.util.UUID;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyDouble;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.*;
@@ -106,7 +122,7 @@ class SportEventServiceTest {
                 .isPublic(true)
                 .maxParticipants(10)
                 .isPaid(false)
-                .participants(new ArrayList<>())
+                .participants(new HashSet<>())
                 .build();
 
         privateEvent = SportEvent.builder()
@@ -125,7 +141,7 @@ class SportEventServiceTest {
                 .isPublic(false)
                 .maxParticipants(4)
                 .isPaid(false)
-                .participants(new ArrayList<>())
+                .participants(new HashSet<>())
                 .build();
 
         createRequest = new CreateSportEventRequest();
@@ -329,7 +345,7 @@ class SportEventServiceTest {
         @DisplayName("Devrait rejoindre un événement public avec succès")
         void shouldJoinPublicEventSuccessfully() {
             // Given
-            when(sportEventRepository.findById(eventId)).thenReturn(Optional.of(publicEvent));
+            when(sportEventRepository.findByIdForUpdate(eventId)).thenReturn(Optional.of(publicEvent));
             when(userRepository.findById(participantId)).thenReturn(Optional.of(participant));
             when(eventParticipantRepository.existsByEventIdAndUserId(eventId, participantId)).thenReturn(false);
             when(eventParticipantRepository.countConfirmedByEventId(eventId)).thenReturn(3L);
@@ -338,27 +354,6 @@ class SportEventServiceTest {
                 saved.setId(UUID.randomUUID());
                 return saved;
             });
-
-            // After join, refresh returns event with updated participant
-            SportEvent refreshedEvent = SportEvent.builder()
-                    .id(eventId)
-                    .user(organizer)
-                    .sport("Football")
-                    .title("Match amical")
-                    .date(LocalDate.now().plusDays(7))
-                    .startTime(LocalTime.of(14, 0))
-                    .endTime(LocalTime.of(16, 0))
-                    .recurrence(SportEvent.RecurrenceType.NONE)
-                    .isPublic(true)
-                    .maxParticipants(10)
-                    .isPaid(false)
-                    .participants(new ArrayList<>())
-                    .build();
-
-            // Second findById call returns refreshed event
-            when(sportEventRepository.findById(eventId))
-                    .thenReturn(Optional.of(publicEvent))
-                    .thenReturn(Optional.of(refreshedEvent));
 
             // When
             SportEventResponse response = sportEventService.joinEvent(eventId, participantId);
@@ -387,7 +382,7 @@ class SportEventServiceTest {
         void shouldJoinPrivateEventWithPendingStatus() {
             // Given
             UUID privateEventId = privateEvent.getId();
-            when(sportEventRepository.findById(privateEventId)).thenReturn(Optional.of(privateEvent));
+            when(sportEventRepository.findByIdForUpdate(privateEventId)).thenReturn(Optional.of(privateEvent));
             when(userRepository.findById(participantId)).thenReturn(Optional.of(participant));
             when(eventParticipantRepository.existsByEventIdAndUserId(privateEventId, participantId)).thenReturn(false);
             when(eventParticipantRepository.countConfirmedByEventId(privateEventId)).thenReturn(1L);
@@ -396,7 +391,6 @@ class SportEventServiceTest {
                 saved.setId(UUID.randomUUID());
                 return saved;
             });
-
             // When
             SportEventResponse response = sportEventService.joinEvent(privateEventId, participantId);
 
@@ -413,7 +407,7 @@ class SportEventServiceTest {
         void shouldFailWhenEventIsFull() {
             // Given
             publicEvent.setMaxParticipants(5);
-            when(sportEventRepository.findById(eventId)).thenReturn(Optional.of(publicEvent));
+            when(sportEventRepository.findByIdForUpdate(eventId)).thenReturn(Optional.of(publicEvent));
             when(userRepository.findById(participantId)).thenReturn(Optional.of(participant));
             when(eventParticipantRepository.existsByEventIdAndUserId(eventId, participantId)).thenReturn(false);
             when(eventParticipantRepository.countConfirmedByEventId(eventId)).thenReturn(5L);
@@ -430,7 +424,7 @@ class SportEventServiceTest {
         @DisplayName("Devrait échouer si l'utilisateur participe déjà")
         void shouldFailWhenUserAlreadyParticipating() {
             // Given
-            when(sportEventRepository.findById(eventId)).thenReturn(Optional.of(publicEvent));
+            when(sportEventRepository.findByIdForUpdate(eventId)).thenReturn(Optional.of(publicEvent));
             when(userRepository.findById(participantId)).thenReturn(Optional.of(participant));
             when(eventParticipantRepository.existsByEventIdAndUserId(eventId, participantId)).thenReturn(true);
 
@@ -446,7 +440,7 @@ class SportEventServiceTest {
         @DisplayName("Devrait échouer si l'organisateur essaie de rejoindre son propre événement")
         void shouldFailWhenOrganizerJoinsOwnEvent() {
             // Given
-            when(sportEventRepository.findById(eventId)).thenReturn(Optional.of(publicEvent));
+            when(sportEventRepository.findByIdForUpdate(eventId)).thenReturn(Optional.of(publicEvent));
             when(userRepository.findById(organizerId)).thenReturn(Optional.of(organizer));
             when(eventParticipantRepository.existsByEventIdAndUserId(eventId, organizerId)).thenReturn(false);
 
@@ -463,7 +457,7 @@ class SportEventServiceTest {
         void shouldFailWhenEventNotFound() {
             // Given
             UUID unknownId = UUID.randomUUID();
-            when(sportEventRepository.findById(unknownId)).thenReturn(Optional.empty());
+            when(sportEventRepository.findByIdForUpdate(unknownId)).thenReturn(Optional.empty());
 
             // When/Then
             assertThatThrownBy(() -> sportEventService.joinEvent(unknownId, participantId))
@@ -477,7 +471,7 @@ class SportEventServiceTest {
         void shouldFailWhenUserNotFound() {
             // Given
             UUID unknownUserId = UUID.randomUUID();
-            when(sportEventRepository.findById(eventId)).thenReturn(Optional.of(publicEvent));
+            when(sportEventRepository.findByIdForUpdate(eventId)).thenReturn(Optional.of(publicEvent));
             when(userRepository.findById(unknownUserId)).thenReturn(Optional.empty());
 
             // When/Then
@@ -492,7 +486,7 @@ class SportEventServiceTest {
         void shouldAllowJoinWhenNoMaxParticipants() {
             // Given
             publicEvent.setMaxParticipants(null);
-            when(sportEventRepository.findById(eventId)).thenReturn(Optional.of(publicEvent));
+            when(sportEventRepository.findByIdForUpdate(eventId)).thenReturn(Optional.of(publicEvent));
             when(userRepository.findById(participantId)).thenReturn(Optional.of(participant));
             when(eventParticipantRepository.existsByEventIdAndUserId(eventId, participantId)).thenReturn(false);
             when(eventParticipantRepository.save(any(EventParticipant.class))).thenAnswer(invocation -> {
@@ -500,7 +494,6 @@ class SportEventServiceTest {
                 saved.setId(UUID.randomUUID());
                 return saved;
             });
-
             // When
             SportEventResponse response = sportEventService.joinEvent(eventId, participantId);
 
@@ -1022,7 +1015,8 @@ class SportEventServiceTest {
         @DisplayName("Devrait trouver les événements proches de la position de l'utilisateur")
         void shouldFindEventsNearUserLocation() {
             // Given - Event at Stade de France (48.9244, 2.3601), search from nearby (48.92, 2.36)
-            when(sportEventRepository.findPublicEventsFromDate(any(LocalDate.class)))
+            when(sportEventRepository.findPublicEventsInBoundingBoxFromDate(
+                    any(LocalDate.class), anyDouble(), anyDouble(), anyDouble(), anyDouble()))
                     .thenReturn(List.of(publicEvent));
 
             // When - Search within 5km
@@ -1040,7 +1034,8 @@ class SportEventServiceTest {
         @DisplayName("Devrait filtrer les événements trop éloignés")
         void shouldFilterOutDistantEvents() {
             // Given - Event in Paris, search from Marseille (43.2965, 5.3698)
-            when(sportEventRepository.findPublicEventsFromDate(any(LocalDate.class)))
+            when(sportEventRepository.findPublicEventsInBoundingBoxFromDate(
+                    any(LocalDate.class), anyDouble(), anyDouble(), anyDouble(), anyDouble()))
                     .thenReturn(List.of(publicEvent));
 
             // When - Search within 10km (Paris is ~660km from Marseille)
@@ -1056,7 +1051,8 @@ class SportEventServiceTest {
         @DisplayName("Devrait filtrer par sport et distance")
         void shouldFilterBySportAndDistance() {
             // Given
-            when(sportEventRepository.findPublicEventsBySportFromDate(eq("Football"), any(LocalDate.class)))
+            when(sportEventRepository.findPublicEventsBySportInBoundingBoxFromDate(
+                    eq("Football"), any(LocalDate.class), anyDouble(), anyDouble(), anyDouble(), anyDouble()))
                     .thenReturn(List.of(publicEvent));
 
             // When
@@ -1067,8 +1063,10 @@ class SportEventServiceTest {
             // Then
             assertThat(results).hasSize(1);
 
-            verify(sportEventRepository).findPublicEventsBySportFromDate(eq("Football"), any(LocalDate.class));
-            verify(sportEventRepository, never()).findPublicEventsFromDate(any(LocalDate.class));
+            verify(sportEventRepository).findPublicEventsBySportInBoundingBoxFromDate(
+                    eq("Football"), any(LocalDate.class), anyDouble(), anyDouble(), anyDouble(), anyDouble());
+            verify(sportEventRepository, never()).findPublicEventsInBoundingBoxFromDate(
+                    any(LocalDate.class), anyDouble(), anyDouble(), anyDouble(), anyDouble());
         }
 
         @Test
@@ -1110,10 +1108,11 @@ class SportEventServiceTest {
                     .isPaid(false)
                     .latitude(null)
                     .longitude(null)
-                    .participants(new ArrayList<>())
+                    .participants(new HashSet<>())
                     .build();
 
-            when(sportEventRepository.findPublicEventsFromDate(any(LocalDate.class)))
+            when(sportEventRepository.findPublicEventsInBoundingBoxFromDate(
+                    any(LocalDate.class), anyDouble(), anyDouble(), anyDouble(), anyDouble()))
                     .thenReturn(List.of(publicEvent, eventNoCoords));
 
             // When
@@ -1143,7 +1142,7 @@ class SportEventServiceTest {
                     .isPaid(false)
                     .latitude(48.921)  // Very close
                     .longitude(2.361)
-                    .participants(new ArrayList<>())
+                    .participants(new HashSet<>())
                     .build();
 
             SportEvent farEvent = SportEvent.builder()
@@ -1159,10 +1158,11 @@ class SportEventServiceTest {
                     .isPaid(false)
                     .latitude(48.95)  // Further away
                     .longitude(2.40)
-                    .participants(new ArrayList<>())
+                    .participants(new HashSet<>())
                     .build();
 
-            when(sportEventRepository.findPublicEventsFromDate(any(LocalDate.class)))
+            when(sportEventRepository.findPublicEventsInBoundingBoxFromDate(
+                    any(LocalDate.class), anyDouble(), anyDouble(), anyDouble(), anyDouble()))
                     .thenReturn(List.of(farEvent, nearEvent));
 
             // When - Search within 10km from 48.92, 2.36

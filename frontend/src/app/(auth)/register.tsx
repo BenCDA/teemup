@@ -60,6 +60,14 @@ export default function RegisterScreen() {
           [{ text: 'Reprendre', onPress: () => setShowCamera(true) }]
         );
         setVerificationImage(null);
+      } else if (!result.isRealFace) {
+        Alert.alert(
+          'Photo non valide',
+          'La photo ne semble pas être un visage réel. Veuillez prendre une photo de vous dans un endroit bien éclairé, sans utiliser de photo depuis un écran ou une image imprimée.',
+          [{ text: 'Reprendre', onPress: () => setShowCamera(true) }]
+        );
+        setVerificationImage(null);
+        setVerificationResult(null);
       } else if (!result.isAdult) {
         Alert.alert(
           'Inscription refusée',
@@ -94,7 +102,7 @@ export default function RegisterScreen() {
       return;
     }
 
-    if (!verificationImage || !verificationResult?.isAdult) {
+    if (!verificationImage || !verificationResult?.isAdult || !verificationResult?.isRealFace) {
       toast.show({
         message: 'Veuillez prendre une photo pour vérifier votre identité',
         type: 'warning',
@@ -137,7 +145,7 @@ export default function RegisterScreen() {
     }
   };
 
-  const canRegister = verificationImage && verificationResult?.isAdult;
+  const canRegister = verificationImage && verificationResult?.isAdult && verificationResult?.isRealFace;
 
   return (
     <AuthLayout>
@@ -221,7 +229,7 @@ export default function RegisterScreen() {
             </View>
           </View>
           <Text style={styles.accountOptionDesc}>
-            Rejoignez des événements et connectez-vous avec d'autres sportifs
+            Rejoignez des événements et connectez-vous avec d{"'"}autres sportifs
           </Text>
         </TouchableOpacity>
 
@@ -237,7 +245,7 @@ export default function RegisterScreen() {
             end={{ x: 1, y: 0 }}
             style={styles.proBadgeGradient}
           >
-            <Ionicons name="star" size={12} color={isPro ? '#fff' : '#FFD700'} />
+            <Ionicons name="star" size={12} color={isPro ? theme.colors.text.inverse : '#FFD700'} />
             <Text style={[styles.proBadgeText, isPro && styles.proBadgeTextSelected]}>PRO</Text>
           </LinearGradient>
 
@@ -272,7 +280,7 @@ export default function RegisterScreen() {
 
       {/* Face Verification Section */}
       <View style={styles.verificationSection}>
-        <Text style={styles.verificationLabel}>Vérification d'identité</Text>
+        <Text style={styles.verificationLabel}>Vérification d{"'"}identité</Text>
         <Text style={styles.verificationHint}>
           Prenez un selfie pour vérifier votre âge (18+ requis)
         </Text>
@@ -335,7 +343,7 @@ export default function RegisterScreen() {
 
       {!canRegister && verificationImage && (
         <Text style={styles.warningText}>
-          L'inscription n'est pas possible pour les mineurs
+          L{"'"}inscription n{"'"}est pas possible pour les mineurs
         </Text>
       )}
 
@@ -598,7 +606,7 @@ const createStyles = (theme: Theme) => StyleSheet.create({
     color: '#FFD700',
   },
   proBadgeTextSelected: {
-    color: '#fff',
+    color: theme.colors.text.inverse,
   },
   accountOptionHeader: {
     flexDirection: 'row',

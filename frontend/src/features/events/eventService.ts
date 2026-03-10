@@ -1,5 +1,5 @@
 import { api } from '@/features/shared/api';
-import { SportEvent } from '@/types';
+import { PaginatedResponse, SportEvent } from '@/types';
 
 // GPS coordinate validation
 const isValidLatitude = (lat: number): boolean => lat >= -90 && lat <= 90;
@@ -42,10 +42,21 @@ export interface NearbyEventsParams {
   sport?: string;
 }
 
+const extractEventList = (
+  data: SportEvent[] | PaginatedResponse<SportEvent>
+): SportEvent[] => {
+  if (Array.isArray(data)) {
+    return data;
+  }
+  return data.content ?? [];
+};
+
 export const eventService = {
-  getPublicEvents: async (): Promise<SportEvent[]> => {
-    const response = await api.get<SportEvent[]>('/events/public');
-    return response.data;
+  getPublicEvents: async (page = 0, size = 20): Promise<SportEvent[]> => {
+    const response = await api.get<PaginatedResponse<SportEvent> | SportEvent[]>('/events/public', {
+      params: { page, size },
+    });
+    return extractEventList(response.data);
   },
 
   getNearbyEvents: async (params: NearbyEventsParams): Promise<SportEvent[]> => {
@@ -90,9 +101,11 @@ export const eventService = {
     await api.delete(`/events/${eventId}`);
   },
 
-  getEventsBySport: async (sport: string): Promise<SportEvent[]> => {
-    const response = await api.get<SportEvent[]>(`/events/public/sport/${sport}`);
-    return response.data;
+  getEventsBySport: async (sport: string, page = 0, size = 20): Promise<SportEvent[]> => {
+    const response = await api.get<PaginatedResponse<SportEvent> | SportEvent[]>(`/events/public/sport/${sport}`, {
+      params: { page, size },
+    });
+    return extractEventList(response.data);
   },
 
   // Participation

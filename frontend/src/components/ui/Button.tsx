@@ -7,6 +7,7 @@ import {
   ViewStyle,
   TextStyle,
   AccessibilityState,
+  StyleProp,
 } from 'react-native';
 import * as Haptics from 'expo-haptics';
 import { Ionicons } from '@expo/vector-icons';
@@ -52,10 +53,10 @@ export const Button: React.FC<ButtonProps> = ({
 
   const isDisabled = disabled || loading;
 
-  const buttonStyles = [
+  const buttonStyles: StyleProp<ViewStyle> = [
     styles.button,
-    styles[`button${capitalize(variant)}` as keyof typeof styles],
-    styles[`button${capitalize(size)}` as keyof typeof styles],
+    styles[`button${capitalize(variant)}` as keyof typeof styles] as ViewStyle,
+    styles[`button${capitalize(size)}` as keyof typeof styles] as ViewStyle,
     fullWidth && styles.buttonFullWidth,
     isDisabled && styles.buttonDisabled,
     style,

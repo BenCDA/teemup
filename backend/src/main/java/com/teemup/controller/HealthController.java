@@ -8,6 +8,7 @@ import org.springframework.web.bind.annotation.RestController;
 
 import javax.sql.DataSource;
 import java.sql.Connection;
+import java.sql.SQLException;
 import java.time.LocalDateTime;
 import java.util.HashMap;
 import java.util.Map;
@@ -32,7 +33,7 @@ public class HealthController {
             boolean isValid = conn.isValid(5); // 5 second timeout
             dbHealth.put("status", isValid ? "UP" : "DOWN");
             dbHealth.put("database", conn.getMetaData().getDatabaseProductName());
-        } catch (Exception e) {
+        } catch (SQLException e) {
             dbHealth.put("status", "DOWN");
             dbHealth.put("error", e.getMessage());
         }
@@ -61,7 +62,8 @@ public class HealthController {
                         "database", "connected"
                 ));
             }
-        } catch (Exception ignored) {
+        } catch (SQLException ignored) {
+            // Intentionally empty: readiness probe returns DOWN status below
         }
         return ResponseEntity.status(503).body(Map.of(
                 "status", "DOWN",

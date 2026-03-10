@@ -45,7 +45,7 @@ export default function EditEventScreen() {
   // Fetch existing event
   const { data: event, isLoading: isLoadingEvent } = useQuery({
     queryKey: ['event', id],
-    queryFn: () => eventService.getEventById(id!),
+    queryFn: () => eventService.getEventById(id ?? ''),
     enabled: !!id,
   });
 
@@ -110,7 +110,7 @@ export default function EditEventScreen() {
   }, [event, initialized]);
 
   const updateMutation = useMutation({
-    mutationFn: (data: Partial<CreateEventRequest>) => eventService.updateEvent(id!, data),
+    mutationFn: (data: Partial<CreateEventRequest>) => eventService.updateEvent(id ?? '', data),
     onSuccess: () => {
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
       queryClient.invalidateQueries({ queryKey: ['event', id] });
@@ -210,7 +210,7 @@ export default function EditEventScreen() {
           <TouchableOpacity onPress={() => router.back()} style={styles.backButton}>
             <Ionicons name="arrow-back" size={24} color={theme.colors.text.primary} />
           </TouchableOpacity>
-          <Text style={styles.headerTitle}>Modifier l'événement</Text>
+          <Text style={styles.headerTitle}>Modifier l{"'"}événement</Text>
           <View style={styles.backButton} />
         </View>
 

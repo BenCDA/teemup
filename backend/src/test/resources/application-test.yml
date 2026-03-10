@@ -9,23 +9,31 @@ spring:
       ddl-auto: create-drop
     database-platform: org.hibernate.dialect.H2Dialect
     show-sql: false
+    properties:
+      hibernate:
+        dialect: org.hibernate.dialect.H2Dialect
   flyway:
     enabled: false
   main:
     allow-bean-definition-overriding: true
 
 jwt:
-  secret: test-secret-key-for-unit-tests-must-be-at-least-32-characters
-  refresh-secret: test-refresh-secret-key-for-unit-tests-must-be-at-least-32-chars
+  secret: dGVzdC1zZWNyZXQta2V5LWZvci11bml0LXRlc3RzLW11c3QtYmUtYXQtbGVhc3QtMzItY2hhcmFjdGVycw==
+  refresh-secret: dGVzdC1yZWZyZXNoLXNlY3JldC1rZXktZm9yLXVuaXQtdGVzdHMtbXVzdC1iZS1hdC1sZWFzdC0zMi1jaGFycw==
   expiration: 86400000
-  refreshExpiration: 604800000
+  refresh-expiration: 604800000
 
-face-verification:
-  service:
+face:
+  verification:
     url: http://localhost:8001
-    enabled: false
+    api-key: test-face-verification-api-key
 
 logging:
   level:
     root: WARN
     com.teemup: INFO
+
+socketio:
+  enabled: false
+  host: localhost
+  port: 19092

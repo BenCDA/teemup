@@ -1,6 +1,9 @@
 package com.teemup.controller;
 
-import com.teemup.dto.auth.*;
+import com.teemup.dto.auth.AuthResponse;
+import com.teemup.dto.auth.LoginRequest;
+import com.teemup.dto.auth.RefreshTokenRequest;
+import com.teemup.dto.auth.RegisterRequest;
 import com.teemup.dto.user.UserResponse;
 import com.teemup.service.AuthService;
 import jakarta.validation.Valid;
@@ -9,7 +12,11 @@ import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.security.core.userdetails.UserDetails;
-import org.springframework.web.bind.annotation.*;
+import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.RequestBody;
+import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RestController;
 
 import java.util.Map;
 

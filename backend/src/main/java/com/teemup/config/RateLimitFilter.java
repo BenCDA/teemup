@@ -10,12 +10,15 @@ import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.core.annotation.Order;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Component;
 
 import java.io.IOException;
 import java.time.LocalDateTime;
+import java.util.Arrays;
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.Set;
@@ -52,6 +55,25 @@ public class RateLimitFilter implements Filter {
     private final ConcurrentHashMap<String, RequestBucket> buckets = new ConcurrentHashMap<>();
 
     private final ObjectMapper objectMapper = new ObjectMapper();
+    private volatile boolean trustForwardedFor = false;
+    private volatile Set<String> trustedProxies = Set.of("127.0.0.1", "::1");
+
+    @Value("${rate-limit.trust-forwarded-for:false}")
+    public void setTrustForwardedFor(boolean trustForwardedFor) {
+        this.trustForwardedFor = trustForwardedFor;
+    }
+
+    @Value("${rate-limit.trusted-proxies:127.0.0.1,::1}")
+    public void setTrustedProxies(String trustedProxiesCsv) {
+        if (trustedProxiesCsv == null || trustedProxiesCsv.isBlank()) {
+            this.trustedProxies = Collections.emptySet();
+            return;
+        }
+        this.trustedProxies = Arrays.stream(trustedProxiesCsv.split(","))
+                .map(String::trim)
+                .filter(value -> !value.isEmpty())
+                .collect(java.util.stream.Collectors.toSet());
+    }
 
     @Override
     public void doFilter(ServletRequest request, ServletResponse response, FilterChain chain)
@@ -109,12 +131,19 @@ public class RateLimitFilter implements Filter {
      * Extracts the client IP, checking X-Forwarded-For for proxied requests.
      */
     private String resolveClientIp(HttpServletRequest request) {
+        String remoteAddr = request.getRemoteAddr();
+
+        // Only trust forwarded headers when explicitly enabled and request comes from a trusted proxy.
+        if (!trustForwardedFor || remoteAddr == null || !trustedProxies.contains(remoteAddr)) {
+            return remoteAddr;
+        }
+
         String forwarded = request.getHeader("X-Forwarded-For");
         if (forwarded != null && !forwarded.isBlank()) {
             // Take the first IP in the chain (the original client)
             return forwarded.split(",")[0].trim();
         }
-        return request.getRemoteAddr();
+        return remoteAddr;
     }
 
     /**

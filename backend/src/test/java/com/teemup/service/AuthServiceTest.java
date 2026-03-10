@@ -93,8 +93,10 @@ class AuthServiceTest {
             request.setVerificationImage("base64image");
 
             FaceVerificationResponse verificationResponse = FaceVerificationResponse.builder()
+                    .success(true)
                     .faceDetected(true)
                     .isAdult(true)
+                    .isRealFace(true)
                     .age(25)
                     .gender("female")
                     .genderConfidence(0.95)

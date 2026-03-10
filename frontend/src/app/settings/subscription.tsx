@@ -150,7 +150,7 @@ export default function SubscriptionScreen() {
             <Ionicons
               name={isPro ? 'shield-checkmark' : 'rocket'}
               size={40}
-              color="#fff"
+              color={theme.colors.text.inverse}
             />
           </View>
           <Text style={styles.proBannerTitle}>
@@ -202,7 +202,7 @@ export default function SubscriptionScreen() {
                 <Text style={styles.featureDescription}>{feature.description}</Text>
               </View>
               {isPro && (
-                <Ionicons name="checkmark-circle" size={22} color="#22C55E" />
+                <Ionicons name="checkmark-circle" size={22} color={theme.colors.success} />
               )}
             </View>
           ))}
@@ -231,14 +231,14 @@ export default function SubscriptionScreen() {
                     <Ionicons
                       name={free ? 'checkmark' : 'close'}
                       size={18}
-                      color={free ? '#22C55E' : theme.colors.text.tertiary}
+                      color={free ? theme.colors.success : theme.colors.text.tertiary}
                     />
                   </View>
                   <View style={[styles.comparisonCellCenter, styles.comparisonCellPro]}>
                     <Ionicons
                       name={pro ? 'checkmark' : 'close'}
                       size={18}
-                      color={pro ? '#22C55E' : theme.colors.text.tertiary}
+                      color={pro ? theme.colors.success : theme.colors.text.tertiary}
                     />
                   </View>
                 </View>
@@ -260,13 +260,13 @@ export default function SubscriptionScreen() {
           activeOpacity={0.8}
         >
           {isUpgrading ? (
-            <ActivityIndicator color="#fff" />
+            <ActivityIndicator color={theme.colors.text.inverse} />
           ) : (
             <>
               <Ionicons
                 name={isPro ? 'settings-outline' : 'rocket'}
                 size={20}
-                color="#fff"
+                color={theme.colors.text.inverse}
               />
               <Text style={styles.ctaButtonText}>
                 {isPro ? 'Gérer mon abonnement' : 'Passer Pro maintenant'}
@@ -332,12 +332,12 @@ const createStyles = (theme: Theme) => StyleSheet.create({
   proBannerTitle: {
     fontSize: 24,
     fontWeight: '700',
-    color: '#fff',
+    color: theme.colors.text.inverse,
     marginBottom: 8,
   },
   proBannerSubtitle: {
     fontSize: 15,
-    color: 'rgba(255,255,255,0.9)',
+    color: theme.colors.text.inverse,
     textAlign: 'center',
   },
   proBadge: {
@@ -351,7 +351,7 @@ const createStyles = (theme: Theme) => StyleSheet.create({
     gap: 6,
   },
   proBadgeText: {
-    color: '#fff',
+    color: theme.colors.text.inverse,
     fontWeight: '700',
     fontSize: 13,
   },
@@ -513,7 +513,7 @@ const createStyles = (theme: Theme) => StyleSheet.create({
     backgroundColor: '#FFD700',
   },
   ctaButtonText: {
-    color: '#fff',
+    color: theme.colors.text.inverse,
     fontSize: 17,
     fontWeight: '600',
   },

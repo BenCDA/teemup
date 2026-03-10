@@ -16,6 +16,7 @@ services:
       - DB_PASSWORD=${DB_PASSWORD}
       - JWT_SECRET=${JWT_SECRET}
       - JWT_REFRESH_SECRET=${JWT_REFRESH_SECRET}
+      - FACE_VERIFICATION_API_KEY=${FACE_VERIFICATION_API_KEY}
       - FACE_VERIFICATION_URL=http://face-verification:5000
       - CLOUDINARY_CLOUD_NAME=${CLOUDINARY_CLOUD_NAME}
       - CLOUDINARY_API_KEY=${CLOUDINARY_API_KEY}
@@ -42,6 +43,8 @@ services:
       timeout: 30s
       start_period: 300s
       retries: 5
+    environment:
+      - API_KEY=${FACE_VERIFICATION_API_KEY}
     networks:
       - teemup-network
     restart: unless-stopped

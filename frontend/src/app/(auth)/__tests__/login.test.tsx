@@ -16,7 +16,7 @@ jest.mock('expo-router', () => ({
     replace: jest.fn(),
     push: jest.fn(),
   },
-  Link: ({ children, asChild }: { children: React.ReactNode; asChild?: boolean }) => children,
+  Link: ({ children, _asChild }: { children: React.ReactNode; _asChild?: boolean }) => children,
 }));
 
 // Mock expo-haptics
@@ -49,7 +49,8 @@ jest.mock('@/features/shared/styles/theme', () => ({
 
 // Mock UI components
 jest.mock('@/components/ui', () => ({
-  Button: ({ title, onPress, loading, disabled }: any) => {
+  Button: ({ title, onPress, loading, disabled }: Record<string, unknown>) => {
+    // eslint-disable-next-line @typescript-eslint/no-var-requires
     const { TouchableOpacity, Text, ActivityIndicator } = require('react-native');
     return (
       <TouchableOpacity onPress={onPress} disabled={disabled || loading} testID="login-button">
@@ -57,7 +58,8 @@ jest.mock('@/components/ui', () => ({
       </TouchableOpacity>
     );
   },
-  Input: ({ label, value, onChangeText, placeholder, ...props }: any) => {
+  Input: ({ label, value, onChangeText, placeholder, ...props }: Record<string, unknown>) => {
+    // eslint-disable-next-line @typescript-eslint/no-var-requires
     const { View, Text, TextInput } = require('react-native');
     return (
       <View>
@@ -66,13 +68,14 @@ jest.mock('@/components/ui', () => ({
           value={value}
           onChangeText={onChangeText}
           placeholder={placeholder}
-          testID={`input-${label?.toLowerCase() || 'unknown'}`}
+          testID={`input-${typeof label === 'string' ? label.toLowerCase() : 'unknown'}`}
           {...props}
         />
       </View>
     );
   },
   AuthLayout: ({ children }: { children: React.ReactNode }) => {
+    // eslint-disable-next-line @typescript-eslint/no-var-requires
     const { View } = require('react-native');
     return <View testID="auth-layout">{children}</View>;
   },

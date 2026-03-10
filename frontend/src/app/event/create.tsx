@@ -245,7 +245,7 @@ export default function CreateEventScreen() {
             {showDatePicker && (
               <View style={styles.pickerContainer}>
                 <View style={styles.pickerHeader}>
-                  <Text style={styles.pickerHeaderText}>Date de l'événement</Text>
+                  <Text style={styles.pickerHeaderText}>Date de l{"'"}événement</Text>
                   <TouchableOpacity
                     onPress={() => setShowDatePicker(false)}
                     style={styles.pickerDoneButton}
@@ -515,7 +515,7 @@ export default function CreateEventScreen() {
             ) : (
               <>
                 <Ionicons name="add-circle" size={20} color={theme.colors.text.inverse} />
-                <Text style={styles.submitButtonText}>Créer l'événement</Text>
+                <Text style={styles.submitButtonText}>Créer l{"'"}événement</Text>
               </>
             )}
           </TouchableOpacity>
