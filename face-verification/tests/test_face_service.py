@@ -157,30 +157,30 @@ class TestVerifyFace:
         assert resp.ageRange == "Mineur (<18)"
 
     def test_verify_face_borderline_age(self, face_service, valid_base64_image):
-        """Age 20 with margin 3 => 20-3=17 < 18 => NOT adult."""
+        """Age 22 with margin 5 => 22-5=17 < 18 => NOT adult (safety margin)."""
         mock_result = [{
-            "age": 20,
+            "age": 22,
             "gender": {"Man": 90.0, "Woman": 10.0},
             "dominant_gender": "Man",
         }]
         with patch("app.services.face_service.DeepFace.analyze", return_value=mock_result):
             resp = face_service.verify_face(valid_base64_image)
             assert resp.faceDetected is True
-            assert resp.age == 20
-            assert resp.isAdult is False  # 20 - 3 = 17 < 18
+            assert resp.age == 22
+            assert resp.isAdult is False  # 22 - 5 = 17 < 18
 
-    def test_verify_face_exactly_21(self, face_service, valid_base64_image):
-        """Age 21 with margin 3 => 21-3=18 >= 18 => IS adult."""
+    def test_verify_face_exactly_23(self, face_service, valid_base64_image):
+        """Age 23 with margin 5 => 23-5=18 >= 18 => IS adult (minimum passing age)."""
         mock_result = [{
-            "age": 21,
+            "age": 23,
             "gender": {"Woman": 85.0, "Man": 15.0},
             "dominant_gender": "Woman",
         }]
         with patch("app.services.face_service.DeepFace.analyze", return_value=mock_result):
             resp = face_service.verify_face(valid_base64_image)
             assert resp.faceDetected is True
-            assert resp.age == 21
-            assert resp.isAdult is True  # 21 - 3 = 18 >= 18
+            assert resp.age == 23
+            assert resp.isAdult is True  # 23 - 5 = 18 >= 18
             assert resp.gender == "Femme"
 
     def test_verify_face_no_face_detected(
@@ -239,17 +239,22 @@ class TestAntiSpoof:
     def test_anti_spoof_real_image(self, face_service):
         """
         A sharp image with moderate edge density should pass all checks.
-        We create an image with some high-frequency detail to ensure the
-        Laplacian variance exceeds MIN_BLUR_SCORE (100).
+        We create a smooth gradient image with some detail to exceed
+        MIN_BLUR_SCORE while staying below MAX_EDGE_DENSITY.
         """
-        # Create a sharp image with natural-looking variation
-        img = np.random.randint(0, 256, (300, 300, 3), dtype=np.uint8)
-        # Ensure edges are not too dense by smoothing a bit
-        img = cv2.GaussianBlur(img, (3, 3), 1)
+        # Create a gradient image (simulates a natural photo with smooth transitions)
+        img = np.zeros((300, 300, 3), dtype=np.uint8)
+        for i in range(300):
+            img[i, :, 0] = int(i / 300 * 200) + 30  # B channel gradient
+            img[i, :, 1] = int(i / 300 * 150) + 50  # G channel gradient
+            img[i, :, 2] = int(i / 300 * 180) + 40  # R channel gradient
+        # Add a few sharp rectangles to create enough Laplacian variance
+        cv2.rectangle(img, (50, 50), (250, 250), (255, 200, 150), 2)
+        cv2.rectangle(img, (100, 100), (200, 200), (100, 150, 200), 2)
+        cv2.circle(img, (150, 150), 40, (200, 100, 100), 2)
         _, buf = cv2.imencode(".jpg", img)
         b64 = base64.b64encode(buf.tobytes()).decode("utf-8")
         resp = face_service.check_anti_spoof(b64)
-        # The random noise image should have high Laplacian variance
         assert resp.is_real is True
         assert resp.confidence > 0
         assert "authentique" in resp.message
@@ -260,9 +265,17 @@ class TestAntiSpoof:
         assert resp.is_real is False
         assert "floue" in resp.message.lower() or "suspecte" in resp.message.lower() or "faible" in resp.message.lower()
 
-    def test_anti_spoof_screen_capture(self, face_service, high_edge_base64_image):
+    def test_anti_spoof_screen_capture(self, face_service):
         """An image with very high edge density should be flagged as screen capture."""
-        resp = face_service.check_anti_spoof(high_edge_base64_image)
+        # Black background with dense white grid (0->255 gradient exceeds Canny threshold 200)
+        img = np.zeros((300, 300, 3), dtype=np.uint8)
+        # Draw many circles and lines to create high Canny edge density > 0.25
+        for i in range(10, 290, 5):
+            cv2.line(img, (i, 0), (i, 299), (255, 255, 255), 1)
+            cv2.line(img, (0, i), (299, i), (255, 255, 255), 1)
+        _, buf = cv2.imencode(".png", img)
+        b64 = base64.b64encode(buf.tobytes()).decode("utf-8")
+        resp = face_service.check_anti_spoof(b64)
         assert resp.is_real is False
 
     def test_anti_spoof_too_small(self, face_service):
@@ -276,8 +289,15 @@ class TestAntiSpoof:
 
     def test_anti_spoof_real_returns_checks(self, face_service):
         """When an image passes, the response should include quality checks dict."""
-        img = np.random.randint(0, 256, (300, 300, 3), dtype=np.uint8)
-        img = cv2.GaussianBlur(img, (3, 3), 1)
+        # Gradient image with detail (same as test_anti_spoof_real_image)
+        img = np.zeros((300, 300, 3), dtype=np.uint8)
+        for i in range(300):
+            img[i, :, 0] = int(i / 300 * 200) + 30
+            img[i, :, 1] = int(i / 300 * 150) + 50
+            img[i, :, 2] = int(i / 300 * 180) + 40
+        cv2.rectangle(img, (50, 50), (250, 250), (255, 200, 150), 2)
+        cv2.rectangle(img, (100, 100), (200, 200), (100, 150, 200), 2)
+        cv2.circle(img, (150, 150), 40, (200, 100, 100), 2)
         _, buf = cv2.imencode(".jpg", img)
         b64 = base64.b64encode(buf.tobytes()).decode("utf-8")
         resp = face_service.check_anti_spoof(b64)

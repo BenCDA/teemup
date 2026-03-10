@@ -5,6 +5,18 @@ import os
 import sys
 import base64
 
+# ---------------------------------------------------------------------------
+# Mock DeepFace at sys.modules level BEFORE any app code is imported.
+# This prevents TensorFlow / RetinaFace from being loaded during test
+# collection. The actual DeepFace.analyze calls are patched per-test.
+# ---------------------------------------------------------------------------
+from unittest.mock import patch, MagicMock  # noqa: E402
+
+_mock_deepface_module = MagicMock()
+if "deepface" not in sys.modules:
+    sys.modules["deepface"] = _mock_deepface_module
+    sys.modules["deepface.DeepFace"] = _mock_deepface_module.DeepFace
+
 import numpy as np
 import cv2
 import pytest
@@ -14,8 +26,6 @@ import pytest
 # does not raise RuntimeError about the missing API_KEY.
 # ---------------------------------------------------------------------------
 os.environ.setdefault("API_KEY", "test-api-key-12345")
-
-from unittest.mock import patch, MagicMock  # noqa: E402
 
 # Ensure project root is on sys.path so that "app.*" imports resolve.
 PROJECT_ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
